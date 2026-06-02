@@ -36,7 +36,12 @@ class CandidateScorer(nn.Module):
             activation="gelu",
             batch_first=True,
         )
-        self.board_encoder = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
+        # enable_nested_tensor=False: the nested-tensor fast path for padded batches calls
+        # aten::_nested_tensor_from_mask_left_aligned, which is unimplemented on the MPS backend
+        # (this project's target device) — and it only changes performance, not the math.
+        self.board_encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=config.n_layers, enable_nested_tensor=False
+        )
         self.word_len = 5
         # Flatten the per-letter embeddings (order-preserving) so anagrams get distinct vectors.
         self.cand_proj = nn.Linear(self.word_len * d, d)
