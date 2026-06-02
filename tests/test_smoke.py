@@ -29,11 +29,11 @@ def test_run_config_defaults() -> None:
     assert cfg.curriculum.tiers[-1] is None  # final tier = full train set
 
 
-def test_reward_dominance_preconditions() -> None:
-    # These must hold for the reward not to be gameable (asserted again in step H).
+def test_reward_defaults_are_sane() -> None:
+    # v3 speed-dominant reward: positive info-gain weight and a positive win bonus.
     r = RunConfig().reward
-    assert r.invalid_penalty > r.yellow
-    assert r.clue_penalty > r.yellow
+    assert r.info_gain_weight > 0
+    assert r.win_base > 0
 
 
 @pytest.mark.parametrize("command", ["phase0", "sft", "rl", "eval", "play"])

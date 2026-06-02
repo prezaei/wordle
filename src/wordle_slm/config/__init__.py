@@ -44,20 +44,21 @@ class TokenizerConfig:
 
 @dataclass
 class RewardConfig:
-    """Shaped reward (spec §6.4). H — tune in Phase 3.
+    """Speed-dominant reward for the v3 restricted-action policy (spec §1.5; tune in Phase 3).
 
-    Dominance preconditions (asserted in step H): invalid_penalty > yellow and
-    clue_penalty > yellow, and max achievable progress in a slow game < win_base.
+    Winning is near-automatic when the agent only plays still-consistent words, so the reward
+    optimizes *guess count*: information gain per guess + a speed-scaled win bonus.
     """
 
-    green: float = 0.10  # a: per newly-revealed green
-    yellow: float = 0.05  # b: per newly-revealed yellow
-    invalid_penalty: float = 0.50  # p_invalid (also consumes the turn)
-    clue_penalty: float = 0.50  # q: violating a confirmed clue (anti-stall)
-    step_cost: float = 0.02  # c: per guess
-    win_base: float = 1.00
-    win_speed: float = 0.20  # extra per unused guess (faster = more)
-    loss_penalty: float = 0.50  # subtracted on a loss
+    # Dense shaping; kept small so the win/loss terminal dominates (a narrowing-but-LOSING
+    # rollout must not out-score a win). At pool ~2315 the max info-gain is ~0.1*log(2315) ≈ 0.77.
+    info_gain_weight: float = 0.1  # weight on log(|C_before| / |C_after|) per guess
+    win_base: float = 1.0
+    # Within a same-secret group all wins share the telescoped info-gain (it cancels in GRPO's
+    # advantage), so win_speed is the real per-guess speed lever (losses vary). Tunable.
+    win_speed: float = 0.5  # extra per unused guess (faster = more)
+    step_cost: float = 0.02  # per guess
+    loss_penalty: float = 0.5  # subtracted on a loss
 
 
 @dataclass
