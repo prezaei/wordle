@@ -15,15 +15,21 @@ from wordle_slm.engine.scoring import score
 logger = logging.getLogger(__name__)
 
 
+def _consistent_with_turn(word: str, turn: Turn) -> bool:
+    if not turn.valid or turn.feedback is None:
+        return True  # an invalid guess carries no constraint
+    return score(turn.guess, word) == turn.feedback
+
+
 def is_consistent(word: str, history: Sequence[Turn]) -> bool:
     """True iff ``word`` could be the secret given every valid turn's observed feedback."""
     word = word.lower()
-    for turn in history:
-        if not turn.valid or turn.feedback is None:
-            continue  # an invalid guess carries no constraint
-        if score(turn.guess, word) != turn.feedback:
-            return False
-    return True
+    return all(_consistent_with_turn(word, turn) for turn in history)
+
+
+def filter_consistent(candidates: Iterable[str], turn: Turn) -> tuple[str, ...]:
+    """Keep only candidates still consistent after one more turn (incremental, O(|candidates|))."""
+    return tuple(w for w in candidates if _consistent_with_turn(w.lower(), turn))
 
 
 def consistent_candidates(history: Sequence[Turn], pool: Iterable[str]) -> tuple[str, ...]:

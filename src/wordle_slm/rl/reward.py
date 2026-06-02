@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from wordle_slm.config import RewardConfig
-from wordle_slm.engine.constraints import consistent_candidates
+from wordle_slm.engine.constraints import filter_consistent
 from wordle_slm.engine.game import Game, Status
 
 logger = logging.getLogger(__name__)
@@ -35,14 +36,24 @@ class RewardBreakdown:
         return self.info_gain - self.step_cost + self.terminal
 
 
-def compute_reward(game: Game, config: RewardConfig, pool: tuple[str, ...]) -> RewardBreakdown:
-    """Trajectory reward for a finished/ongoing game. ``pool`` is the candidate pool (answers)."""
+def compute_reward(game: Game, config: RewardConfig, pool: Iterable[str]) -> RewardBreakdown:
+    """Trajectory reward for a finished/ongoing game. ``pool`` is the candidate pool (answers).
+
+    The secret must be in ``pool`` (it always is in normal use: pool = the answer list). We filter
+    the candidate set incrementally (one clue per turn), so the secret stays consistent and the
+    consistent set is never empty.
+    """
+    candidates: tuple[str, ...] = tuple(pool)
+    if game.secret not in set(candidates):
+        raise ValueError(
+            f"secret {game.secret!r} must be in the candidate pool (size {len(candidates)})"
+        )
+
     info_gain = 0.0
-    n_before = len(pool)  # C_0 = the full pool (no clues yet)
-    history: list = []
+    n_before = len(candidates)  # C_0 = the full pool (no clues yet)
     for turn in game.turns:
-        history.append(turn)
-        n_after = max(1, len(consistent_candidates(history, pool)))  # secret stays consistent
+        candidates = filter_consistent(candidates, turn)  # apply only this turn's clue
+        n_after = max(1, len(candidates))  # secret stays consistent, so >= 1
         info_gain += config.info_gain_weight * math.log(n_before / n_after)
         n_before = n_after
 

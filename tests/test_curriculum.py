@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from random import Random
 
+import pytest
+
 from wordle_slm.config import CurriculumConfig
 from wordle_slm.rl import Curriculum
 
@@ -62,3 +64,25 @@ def test_replay_queue_is_bounded() -> None:
         cur.record_loss(f"word{i}")
     seen = {cur.sample(Random(s)) for s in range(50)}
     assert seen <= {"word2", "word3", "word4"}  # the two oldest were dropped
+
+
+def test_sample_mixes_replay_and_tier_when_prob_between_zero_and_one() -> None:
+    cur = Curriculum(_train(2000), CurriculumConfig(replay_prob=0.5))
+    cur.record_loss("word1999")  # outside tier 0 (first 200), so it can only come from replay
+    tier = set(cur.current_words())
+    rng = Random(0)
+    got_replay = got_tier = False
+    for _ in range(200):
+        sampled = cur.sample(rng)
+        if sampled == "word1999":
+            got_replay = True
+        elif sampled in tier:
+            got_tier = True
+    assert got_replay and got_tier  # both branches exercised at 0 < prob < 1
+
+
+def test_invalid_tiers_raise() -> None:
+    with pytest.raises(ValueError):
+        Curriculum(_train(100), CurriculumConfig(tiers=()))
+    with pytest.raises(ValueError):
+        Curriculum(_train(100), CurriculumConfig(tiers=(0, None)))

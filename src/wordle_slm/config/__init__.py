@@ -50,10 +50,12 @@ class RewardConfig:
     optimizes *guess count*: information gain per guess + a speed-scaled win bonus.
     """
 
-    info_gain_weight: float = 1.0  # weight on log(|C_before| / |C_after|) per guess
+    # Dense shaping; kept small so the win/loss terminal dominates (a narrowing-but-LOSING
+    # rollout must not out-score a win). At pool ~2315 the max info-gain is ~0.1*log(2315) ≈ 0.77.
+    info_gain_weight: float = 0.1  # weight on log(|C_before| / |C_after|) per guess
     win_base: float = 1.0
-    # Raised for the fewest-guesses priority: info-gain telescopes (constant across wins, so it
-    # cancels in GRPO's group-relative advantage), making win_speed the real speed lever. Tunable.
+    # Within a same-secret group all wins share the telescoped info-gain (it cancels in GRPO's
+    # advantage), so win_speed is the real per-guess speed lever (losses vary). Tunable.
     win_speed: float = 0.5  # extra per unused guess (faster = more)
     step_cost: float = 0.02  # per guess
     loss_penalty: float = 0.5  # subtracted on a loss

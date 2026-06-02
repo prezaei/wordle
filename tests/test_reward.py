@@ -46,7 +46,13 @@ def test_info_gain_telescopes_to_log_pool_for_any_win() -> None:
     assert g.won
     b = compute_reward(g, cfg, pool)
     assert b.info_gain == pytest.approx(cfg.info_gain_weight * math.log(len(pool)))
-    assert b.total > cfg.win_base  # win bonus + info gain dominate
+    expected_total = (
+        cfg.info_gain_weight * math.log(len(pool))
+        - 2 * cfg.step_cost
+        + cfg.win_base
+        + cfg.win_speed * (6 - 2)
+    )
+    assert b.total == pytest.approx(expected_total)
 
 
 def test_loss_with_invalid_guesses_has_zero_info_gain() -> None:
@@ -71,5 +77,20 @@ def test_faster_win_scores_higher() -> None:
     slow = Game(secret)
     slow.guess("slate")
     slow.guess(secret)  # win in 2
-    # info_gain telescopes equal; the speed bonus + fewer step costs make the faster win higher.
-    assert compute_reward(fast, cfg, pool).total > compute_reward(slow, cfg, pool).total
+    fast_total = compute_reward(fast, cfg, pool).total
+    slow_total = compute_reward(slow, cfg, pool).total
+    # info_gain telescopes equal across both wins, so the gap is exactly the speed bonus for the
+    # saved guess plus its step cost — this fails if win_speed is dropped from the terminal formula.
+    assert fast_total - slow_total == pytest.approx(cfg.win_speed + cfg.step_cost)
+
+
+def test_ongoing_game_has_no_terminal_reward() -> None:
+    cfg = RewardConfig()
+    pool = load_answers()
+    secret = pool[0]
+    g = Game(secret)
+    g.guess("slate")  # valid, not the secret -> ONGOING
+    assert g.status is Status.ONGOING
+    b = compute_reward(g, cfg, pool)
+    assert b.terminal == 0.0
+    assert b.total == pytest.approx(b.info_gain - cfg.step_cost)

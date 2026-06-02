@@ -21,6 +21,10 @@ class Curriculum:
     def __init__(self, train_words: tuple[str, ...], config: CurriculumConfig) -> None:
         if not train_words:
             raise ValueError("train_words must be non-empty")
+        if not config.tiers:
+            raise ValueError("curriculum.tiers must be non-empty")
+        if any(t is not None and t <= 0 for t in config.tiers):
+            raise ValueError(f"tier sizes must be positive or None, got {config.tiers!r}")
         self.train_words = train_words
         self.config = config
         self._tier_index = 0

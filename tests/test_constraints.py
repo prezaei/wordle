@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from wordle_slm.data import load_answers
 from wordle_slm.engine import Turn, consistent_candidates, is_consistent, score
 
 
@@ -44,3 +45,19 @@ def test_invalid_turns_carry_no_constraint() -> None:
 def test_empty_history_keeps_whole_pool() -> None:
     pool = ("crane", "slate", "grace")
     assert consistent_candidates([], pool) == pool
+
+
+def test_multi_turn_history_narrows_progressively() -> None:
+    pool = load_answers()
+    secret = pool[0]
+    one = consistent_candidates([_turn("slate", secret)], pool)
+    two = consistent_candidates([_turn("slate", secret), _turn("crane", secret)], pool)
+    assert secret in one and secret in two
+    assert len(two) <= len(one) < len(pool)  # each clue can only shrink the set
+
+
+def test_mixed_valid_and_invalid_history_uses_only_valid_clues() -> None:
+    invalid = Turn(guess="zzzzz", feedback=None, valid=False)
+    valid = _turn("slate", "crane")  # 's' absent
+    assert is_consistent("grace", [invalid, valid]) is True  # consistent via the valid clue
+    assert is_consistent("scare", [invalid, valid]) is False  # 's' present -> contradicts

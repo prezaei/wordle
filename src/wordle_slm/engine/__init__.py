@@ -3,7 +3,11 @@
 Plan: B (scoring), E (Game), candidate filter (v3 action space).
 """
 
-from wordle_slm.engine.constraints import consistent_candidates, is_consistent
+from wordle_slm.engine.constraints import (
+    consistent_candidates,
+    filter_consistent,
+    is_consistent,
+)
 from wordle_slm.engine.game import Game, Status, Turn
 from wordle_slm.engine.scoring import Color, score
 
@@ -13,6 +17,7 @@ __all__ = [
     "Status",
     "Turn",
     "consistent_candidates",
+    "filter_consistent",
     "is_consistent",
     "score",
 ]
