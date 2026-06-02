@@ -8,7 +8,6 @@ import pytest
 
 from wordle_slm.config import RunConfig
 from wordle_slm.config.resolve import (
-    _SUBCONFIGS,
     from_dict,
     load_preset,
     resolve,
@@ -89,12 +88,13 @@ def test_override_value_may_contain_equals() -> None:
     assert cfg.data.data_dir == "a=b"
 
 
-def test_subconfigs_map_covers_all_dataclass_fields() -> None:
+def test_from_dict_reconstructs_all_subconfigs_as_dataclasses() -> None:
+    # With _SUBCONFIGS derived from RunConfig, every sub-config round-trips as its dataclass
+    # (a missed sub-config would come back as a dict and fail equality).
     import dataclasses
 
-    sub_fields = {
-        f.name
-        for f in dataclasses.fields(RunConfig)
-        if dataclasses.is_dataclass(getattr(RunConfig(), f.name))
-    }
-    assert set(_SUBCONFIGS) == sub_fields
+    cfg = from_dict(to_dict(RunConfig()))
+    for field in dataclasses.fields(cfg):
+        value = getattr(cfg, field.name)
+        if dataclasses.is_dataclass(getattr(RunConfig(), field.name)):
+            assert dataclasses.is_dataclass(value)

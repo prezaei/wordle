@@ -12,17 +12,7 @@ import math
 from collections.abc import Callable
 from typing import Any
 
-from wordle_slm.config import (
-    CurriculumConfig,
-    DataConfig,
-    EvalConfig,
-    GRPOConfig,
-    ModelConfig,
-    RewardConfig,
-    RunConfig,
-    SFTConfig,
-    TokenizerConfig,
-)
+from wordle_slm.config import RunConfig
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +21,21 @@ PRESETS: dict[str, Callable[[], RunConfig]] = {
     "default": RunConfig,
 }
 
-# Sub-config field name -> dataclass, for round-trip reconstruction.
-_SUBCONFIGS: dict[str, type] = {
-    "model": ModelConfig,
-    "tokenizer": TokenizerConfig,
-    "reward": RewardConfig,
-    "sft": SFTConfig,
-    "grpo": GRPOConfig,
-    "curriculum": CurriculumConfig,
-    "eval": EvalConfig,
-    "data": DataConfig,
-}
+
+def _discover_subconfigs() -> dict[str, type]:
+    """Map each dataclass-typed RunConfig field to its type (for round-trip reconstruction).
+
+    Derived from RunConfig itself so it cannot drift from the dataclass definition.
+    """
+    defaults = RunConfig()
+    return {
+        field.name: type(getattr(defaults, field.name))
+        for field in dataclasses.fields(RunConfig)
+        if dataclasses.is_dataclass(getattr(defaults, field.name))
+    }
+
+
+_SUBCONFIGS: dict[str, type] = _discover_subconfigs()
 
 
 def load_preset(name: str) -> RunConfig:
