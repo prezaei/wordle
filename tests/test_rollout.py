@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from wordle_slm.config import ModelConfig
@@ -68,3 +69,10 @@ def test_lose_path_when_first_guess_misses_at_cap() -> None:
     game = play_game(model, tok, secret, pool, sample=False, max_guesses=1)
     assert game.status is Status.LOSE
     assert game.guesses_used == 1
+
+
+def test_play_game_raises_when_secret_not_in_pool() -> None:
+    # The guard (engine.secret_in_pool) must fire at this entry point too.
+    model, tok, pool = _setup()
+    with pytest.raises(ValueError, match="must be in the candidate pool"):
+        play_game(model, tok, "aaaaa", pool, sample=False)

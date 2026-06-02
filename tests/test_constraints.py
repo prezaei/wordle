@@ -9,11 +9,26 @@ from wordle_slm.engine import (
     filter_consistent,
     is_consistent,
     score,
+    secret_in_pool,
 )
 
 
 def _turn(guess: str, secret: str) -> Turn:
     return Turn(guess=guess, feedback=score(guess, secret), valid=True)
+
+
+def test_secret_in_pool_membership() -> None:
+    assert secret_in_pool("crane", ("slate", "crane", "money"))
+    assert not secret_in_pool("ghost", ("slate", "crane", "money"))
+
+
+def test_secret_in_pool_is_case_insensitive_on_both_sides() -> None:
+    assert secret_in_pool("CRANE", ("crane", "slate"))  # secret upper, pool lower
+    assert secret_in_pool("crane", ("CRANE", "SLATE"))  # secret lower, pool upper
+
+
+def test_secret_in_pool_empty_pool_is_false() -> None:
+    assert not secret_in_pool("crane", ())
 
 
 def test_secret_is_always_consistent_with_its_own_feedback() -> None:

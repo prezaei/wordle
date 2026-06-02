@@ -20,7 +20,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from wordle_slm.config import RewardConfig
-from wordle_slm.engine.constraints import filter_consistent
+from wordle_slm.engine.constraints import filter_consistent, secret_in_pool
 from wordle_slm.engine.game import Game, Status
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def compute_reward(game: Game, config: RewardConfig, pool: Iterable[str]) -> Rew
     consistent set is never empty.
     """
     candidates: tuple[str, ...] = tuple(pool)
-    if game.secret not in set(candidates):
+    if not secret_in_pool(game.secret, candidates):
         raise ValueError(
             f"secret {game.secret!r} must be in the candidate pool (size {len(candidates)})"
         )

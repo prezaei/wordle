@@ -12,7 +12,7 @@ import logging
 
 import torch
 
-from wordle_slm.engine import Game, Status, filter_consistent
+from wordle_slm.engine import Game, Status, filter_consistent, secret_in_pool
 from wordle_slm.model.scorer import CandidateScorer
 from wordle_slm.model.serialization import encode_board, encode_word
 from wordle_slm.model.tokenizer import Tokenizer
@@ -33,7 +33,7 @@ def play_game(
 ) -> Game:
     """Play one game; the model selects among still-consistent candidates each turn."""
     candidates: tuple[str, ...] = tuple(pool)  # turn 1: every word is still consistent
-    if secret.lower() not in {c.lower() for c in candidates}:
+    if not secret_in_pool(secret, candidates):
         raise ValueError(f"secret {secret!r} must be in the candidate pool")
     game = Game(secret, max_guesses=max_guesses)
     pad_id = tokenizer.pad_id
