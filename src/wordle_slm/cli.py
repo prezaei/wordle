@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 _COMMANDS: dict[str, str] = {
     "phase0": "Phase 0: engine, data, baselines, floor/yardstick + speed budget",
+    "benchmark": "Model-rollout + update micro-benchmark: pin the real budget / group size",
     "pretrain": "Spell warm-up: LM over the word list (learn to spell before SFT)",
     "sft": "Phase 1: imitation head-start (SFT) training",
     "rl": "Phase 2: GRPO reinforcement learning",
@@ -70,6 +71,42 @@ def _run_phase0(cfg: RunConfig) -> int:
 
 def _checkpoint_path(cfg: RunConfig, override: str | None) -> Path:
     return Path(override) if override else Path(cfg.run_dir) / "sft.pt"
+
+
+def _run_benchmark(cfg: RunConfig, args: argparse.Namespace) -> int:
+    """Model-rollout + update benchmark (Plan: O): pin the real budget / group size on-device."""
+    from wordle_slm.baselines.benchmark import recommend_group_size, run_benchmark
+    from wordle_slm.data import load_answers
+    from wordle_slm.model import Tokenizer, WordleGenerator
+    from wordle_slm.rl.tracer import make_reference
+
+    device = args.device or cfg.device
+    tok = Tokenizer()
+    model = WordleGenerator(cfg.model, tok.vocab_size).to(device)
+    rows = run_benchmark(
+        model,
+        make_reference(model),
+        tok,
+        load_answers()[:16],
+        grpo=cfg.grpo,
+        reward=cfg.reward,
+        group_sizes=(4, 8, 16),
+        device=device,
+    )
+    print(
+        f"Model-rollout benchmark on {device}: {rows[0].rollout_games_per_sec:.1f} games/sec, "
+        f"{rows[0].peak_mem_mb:.0f} MB. Updates that fit the 45-min RL window "
+        f"(update compute only; eval is extra):"
+    )
+    for r in rows:
+        batch = cfg.grpo.secrets_per_update * r.group_size
+        fit = "fits" if r.fits else "too few"
+        print(
+            f"  G={r.group_size:<3} {batch:>4} rollouts/upd  "
+            f"{r.seconds_per_update:>6.1f}s/upd  ~{r.n_updates:>5.0f} updates  {fit}"
+        )
+    print(f"  → recommended group_size = {recommend_group_size(rows)}")
+    return 0
 
 
 def _run_pretrain(cfg: RunConfig, args: argparse.Namespace) -> int:
@@ -263,6 +300,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "phase0":
         return _run_phase0(cfg)
+    if args.command == "benchmark":
+        return _run_benchmark(cfg, args)
     if args.command == "pretrain":
         return _run_pretrain(cfg, args)
     if args.command == "sft":
