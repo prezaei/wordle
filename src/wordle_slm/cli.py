@@ -188,6 +188,36 @@ def _run_rl(cfg: RunConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_eval(cfg: RunConfig, args: argparse.Namespace) -> int:
+    """Phase-1 readiness eval (Plan: P): valid-word + green-retention bars on the SFT checkpoint."""
+    from wordle_slm.data import split
+    from wordle_slm.eval.phase1 import evaluate_phase1
+    from wordle_slm.model import Tokenizer, WordleGenerator
+    from wordle_slm.sft import load_checkpoint
+
+    device = args.device or cfg.device
+    path = _checkpoint_path(cfg, args.checkpoint)
+    if not path.exists():
+        print(f"no checkpoint at {path} — run `wordle-slm sft` first")
+        return 1
+    _, heldout = split(seed=cfg.data.split_seed, train_frac=cfg.data.train_frac)
+    secrets = heldout[: args.limit] if args.limit else heldout[: cfg.eval.curve_subsample]
+    tok = Tokenizer()
+    model = WordleGenerator(cfg.model, tok.vocab_size).to(device)
+    load_checkpoint(path, model)
+    report = evaluate_phase1(model, tok, secrets, device=device)
+    passed = report.passes(cfg.sft)
+    vw_bar = cfg.sft.valid_word_bar * 100
+    cr_bar = cfg.sft.clue_respect_bar * 100
+    verdict = "PASS — ready for RL" if passed else "FAIL — keep training SFT"
+    print(
+        f"Phase-1 eval over {report.n_games} held-out games: "
+        f"valid-word {report.valid_word_rate * 100:.1f}% (bar {vw_bar:.0f}%), "
+        f"green-retention {report.green_retention * 100:.1f}% (bar {cr_bar:.0f}%) → {verdict}"
+    )
+    return 0 if passed else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="wordle-slm", description="Wordle SLM toolkit.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -235,6 +265,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_sft(cfg, args)
     if args.command == "rl":
         return _run_rl(cfg, args)
+    if args.command == "eval":
+        return _run_eval(cfg, args)
     return _not_implemented(args.command)
 
 
