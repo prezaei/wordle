@@ -4,7 +4,9 @@ Measures, over the held-out set, the three calibration numbers the rest of the p
 against, plus the engine throughput that sizes the ~1-hour budget:
 
 - **Random floor** over the answer pool (headline ~0.26% win) and over the full valid list (~0.05%).
-- **Consistent yardstick** (~96-99% win) — the honest reference, not the pass bar.
+- **Consistent yardstick** over both pools: the spec §4.3 valid-list strategy (~91.6%) and the v3
+  action-space floor — consistent over the answer pool (~98.9% @ ~3.85 guesses), the model's
+  untrained starting point. References, not the pass bar.
 - **Engine games/sec** (pure rollout, no model) — fed into the §6.6 budget formula to estimate how
   many GRPO updates fit the ~45-min RL window (and the largest group size G that still fits).
 
@@ -27,15 +29,19 @@ from wordle_slm.baselines.policies import (
     play,
 )
 from wordle_slm.config import EvalConfig, GRPOConfig
+from wordle_slm.engine import Game
 from wordle_slm.telemetry.run_log import RunLog
 
 logger = logging.getLogger(__name__)
 
 # The §13 budget split: SFT caps at ~15 min, the RL window gets the rest of the ~1-hour cycle.
 RL_BUDGET_MINUTES = 45.0
-# A rough floor on the GRPO updates needed to show a learning curve (H-tagged judgment, §13);
-# `fits` is informational — the DoD only requires #updates be computed and logged.
+# A rough floor on the GRPO updates worth running (an in-PR informational judgment — NOT a spec
+# constant). `fits`/`fitting_group_size` are informational; the DoD only requires #updates be
+# computed and logged. The real binding number comes from the model-rollout benchmark (Plan O).
 DEFAULT_MIN_UPDATES = 100
+# Per-baseline per-game transcripts to persist (spec §4.4 / §6.3 — a sampled subset, not all games).
+DEFAULT_TRANSCRIPT_SAMPLE = 10
 
 
 @dataclass(frozen=True)
@@ -75,17 +81,46 @@ class Phase0Report:
     budget: BudgetEstimate
 
 
-def measure_baseline(name: str, guesser, secrets: tuple[str, ...]) -> BaselineStats:
+def _game_record(baseline: str, secret: str, game: Game) -> dict:
+    """A per-game transcript for the run log (spec §4.4): the guesses and per-turn feedback."""
+    return {
+        "kind": "phase0_game",
+        "baseline": baseline,
+        "secret": secret,
+        "won": game.won,
+        "guesses_used": game.guesses_used,
+        "turns": [
+            {
+                "guess": turn.guess,
+                "valid": turn.valid,
+                "feedback": [c.name for c in turn.feedback] if turn.feedback is not None else None,
+            }
+            for turn in game.turns
+        ],
+    }
+
+
+def measure_baseline(
+    name: str,
+    guesser,
+    secrets: tuple[str, ...],
+    *,
+    run_log: RunLog | None = None,
+    sample: int = 0,
+) -> BaselineStats:
     """Play one game per secret with `guesser` (reused across the sweep) and tally the outcomes.
 
     The guesser is reused intentionally: a fresh seeded instance per game would replay the identical
     draw sequence and bias the estimate (see `RandomGuesser`). Each guesser plays over its own
-    `default_pool`, so no pool argument is needed here.
+    `default_pool`, so no pool argument is needed here. The first `sample` games are persisted as
+    per-game transcripts to `run_log` (spec §4.4), so an odd win rate is diagnosable from logs.
     """
     wins = 0
     win_distribution: dict[int, int] = {}
-    for secret in secrets:
+    for index, secret in enumerate(secrets):
         game = play(guesser, secret)
+        if run_log is not None and index < sample:
+            run_log.log_transcript(_game_record(name, secret, game))
         if game.won:
             wins += 1
             win_distribution[game.guesses_used] = win_distribution.get(game.guesses_used, 0) + 1
@@ -150,6 +185,8 @@ def estimate_budget(
         raise ValueError("grpo.secrets_per_update and group_size must be positive")
     if min_updates <= 0:
         raise ValueError("min_updates must be positive")
+    if full_heldout < 0:
+        raise ValueError("full_heldout must be non-negative")
     rl_seconds = rl_minutes * 60.0
     rollout_batch = grpo.secrets_per_update * grpo.group_size
     # Amortized eval games per update: full held-out every full_cadence + 128-subsample every curve.
@@ -225,24 +262,42 @@ def run_phase0(
     run_log: RunLog | None = None,
     seed: int = 0,
     bench_games: int | None = None,
+    transcript_sample: int = DEFAULT_TRANSCRIPT_SAMPLE,
 ) -> Phase0Report:
     """Measure the floors, the yardstick, engine throughput, and the budget; log everything.
 
     `heldout` are the secrets to evaluate (spec §4.4 measures over held-out). `answers`/`valid` are
     the floor draw pools and the consistency universe. `bench_games` caps the throughput benchmark
-    (defaults to the whole held-out set).
+    (defaults to the whole held-out set). `transcript_sample` per-game transcripts per baseline are
+    persisted to `run_log` (spec §4.4 / §6.3).
     """
     floor_answers = measure_baseline(
-        "floor_answers", RandomGuesser(draw_pool=answers, seed=seed), heldout
+        "floor_answers",
+        RandomGuesser(draw_pool=answers, seed=seed),
+        heldout,
+        run_log=run_log,
+        sample=transcript_sample,
     )
     floor_valid = measure_baseline(
-        "floor_valid", RandomGuesser(draw_pool=valid, seed=seed), heldout
+        "floor_valid",
+        RandomGuesser(draw_pool=valid, seed=seed),
+        heldout,
+        run_log=run_log,
+        sample=transcript_sample,
     )
     yardstick_valid = measure_baseline(
-        "yardstick_valid", ConsistentGuesser(seed=seed, pool=valid), heldout
+        "yardstick_valid",
+        ConsistentGuesser(seed=seed, pool=valid),
+        heldout,
+        run_log=run_log,
+        sample=transcript_sample,
     )
     yardstick_answers = measure_baseline(
-        "yardstick_answers", ConsistentGuesser(seed=seed, pool=answers), heldout
+        "yardstick_answers",
+        ConsistentGuesser(seed=seed, pool=answers),
+        heldout,
+        run_log=run_log,
+        sample=transcript_sample,
     )
     bench = heldout if bench_games is None else heldout[:bench_games]
     # Benchmark over the ANSWER pool: that is the v3 RL action space (the model rollout filters the

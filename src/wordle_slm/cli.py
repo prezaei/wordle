@@ -55,7 +55,7 @@ def _run_phase0(cfg: RunConfig) -> int:
     print(
         f"Phase 0 over {len(heldout)} held-out secrets:\n"
         f"  floor (answers): {report.floor_answers.win_rate * 100:.3f}%   "
-        f"floor (valid): {report.floor_valid.win_rate * 100:.3f}%\n"
+        f"floor (valid): {report.floor_valid.win_rate * 100:.3f}%   (~0.26% / ~0.05% expected)\n"
         f"  yardstick (valid, §4.3): {report.yardstick_valid.win_rate * 100:.2f}%   "
         f"yardstick (answers, v3 floor): {report.yardstick_answers.win_rate * 100:.2f}% "
         f"(avg {avg_str} guesses)\n"

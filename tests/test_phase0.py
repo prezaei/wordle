@@ -113,6 +113,11 @@ def test_estimate_budget_rejects_nonfinite_throughput() -> None:
             estimate_budget(bad, grpo=GRPOConfig(), eval_cfg=EvalConfig(), full_heldout=463)
 
 
+def test_estimate_budget_rejects_negative_full_heldout() -> None:
+    with pytest.raises(ValueError, match="full_heldout must be non-negative"):
+        estimate_budget(100.0, grpo=GRPOConfig(), eval_cfg=EvalConfig(), full_heldout=-1)
+
+
 # --- run_phase0 -------------------------------------------------------------------------------
 
 
@@ -151,8 +156,19 @@ def test_run_phase0_logs_scalars_and_a_report_record(tmp_path) -> None:
         "phase0/budget_n_updates",
     } <= tags
     lines = (tmp_path / "p0" / "transcripts.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    record = json.loads(lines[-1])
-    assert record["kind"] == "phase0_report"
-    assert record["budget"]["rollout_batch"] == 128  # the report body serialized, not just the kind
+    records = [json.loads(line) for line in lines]
+    report = records[-1]
+    assert report["kind"] == "phase0_report"
+    assert report["budget"]["rollout_batch"] == 128  # the report body serialized, not just the kind
     # win_distribution keys are deliberately stringified (JSON has no integer keys).
-    assert all(isinstance(k, str) for k in record["yardstick_answers"]["win_distribution"])
+    assert all(isinstance(k, str) for k in report["yardstick_answers"]["win_distribution"])
+    # Per-game transcripts are persisted (spec §4.4): a sampled subset, with guesses + feedback.
+    games = [r for r in records if r["kind"] == "phase0_game"]
+    assert games, "expected per-game transcripts"
+    assert {r["baseline"] for r in games} == {
+        "floor_answers",
+        "floor_valid",
+        "yardstick_valid",
+        "yardstick_answers",
+    }
+    assert all("turns" in r and "guesses_used" in r for r in games)
