@@ -27,6 +27,17 @@ def is_consistent(word: str, history: Sequence[Turn]) -> bool:
     return all(_consistent_with_turn(word, turn) for turn in history)
 
 
+def secret_in_pool(secret: str, pool: Iterable[str]) -> bool:
+    """True iff ``secret`` is in ``pool`` (case-insensitive).
+
+    The single guard the consistency-tracking callers (``play``, ``play_game``, ``compute_reward``)
+    share: if the secret is not a candidate, the still-consistent set can empty out mid-game. Uses a
+    short-circuiting scan — no intermediate set is materialized for the (often large) pool.
+    """
+    target = secret.lower()
+    return any(target == word.lower() for word in pool)
+
+
 def filter_consistent(candidates: Iterable[str], turn: Turn) -> tuple[str, ...]:
     """Keep only candidates still consistent after one more turn (incremental, O(|candidates|))."""
     return tuple(w for w in candidates if _consistent_with_turn(w.lower(), turn))

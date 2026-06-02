@@ -17,7 +17,7 @@ from wordle_slm.baselines import (
     play,
 )
 from wordle_slm.data import load_answers, load_valid_guesses
-from wordle_slm.engine import Game, Status, Turn, filter_consistent, is_consistent, score
+from wordle_slm.engine import Color, Game, Status, Turn, filter_consistent, is_consistent, score
 
 # A hand-computed partition: "slate" never used here so values are independent of the real lists.
 # guess "aaaaa" vs each answer scores G,X,X,X,X (one green, no other a) -> all 3 share one pattern
@@ -36,11 +36,11 @@ def test_random_guesser_needs_no_consistency() -> None:
     assert RandomGuesser(draw_pool=("slate",)).needs_consistent is False
 
 
-def test_random_guesser_draws_only_from_pool() -> None:
+def test_random_guesser_draws_the_whole_pool_and_nothing_else() -> None:
     pool = ("slate", "crane", "money")
     rg = RandomGuesser(draw_pool=pool, seed=1)
     drawn = {rg.choose((), ()) for _ in range(50)}
-    assert drawn <= set(pool)
+    assert drawn == set(pool)  # every word appears (not stuck) and nothing outside the pool
 
 
 def test_random_guesser_empty_pool_raises() -> None:
@@ -66,6 +66,29 @@ def test_floor_does_not_require_secret_in_pool() -> None:
     secret = load_answers()[0]
     game = play(RandomGuesser(draw_pool=(secret,)), secret, pool=("aaaaa", "bbbbb"))
     assert game.won
+
+
+def test_floor_plays_a_full_game_over_the_answer_pool() -> None:
+    # Exercises play() with the floor and no explicit pool (uses default_pool = draw_pool).
+    answers = load_answers()
+    game = play(RandomGuesser(draw_pool=answers, seed=0), answers[0])
+    assert game.status in (Status.WIN, Status.LOSE)
+    assert game.guesses_used == len(game.turns) <= 6
+
+
+def test_play_respects_max_guesses_and_records_a_loss() -> None:
+    answers = load_answers()
+    secret = next(w for w in answers if w != "slate")  # 'slate' never solves it
+    game = play(RandomGuesser(draw_pool=("slate",)), secret, max_guesses=2)
+    assert game.status is Status.LOSE
+    assert not game.won and game.guesses_used == 2
+
+
+def test_default_pools_are_wired_per_guesser() -> None:
+    assert InfoMaxGuesser().default_pool == load_answers()
+    assert ConsistentGuesser().default_pool == load_valid_guesses()
+    pool = ("slate", "crane")
+    assert RandomGuesser(draw_pool=pool).default_pool == pool
 
 
 # --- ConsistentGuesser (the yardstick) -------------------------------------------------------
@@ -175,8 +198,16 @@ def test_infomax_shrinks_more_than_a_random_consistent_pick() -> None:
 
 def test_infomax_solves_easy_secrets_in_four() -> None:
     answers = load_answers()
-    im = InfoMaxGuesser()
+    im = InfoMaxGuesser()  # uses its default_pool (the answer list) — no explicit pool needed
     for secret in ("crane", "money", "light", "abbey"):
         assert secret in answers
-        game = play(im, secret, pool=answers)
+        game = play(im, secret)
         assert game.won and game.guesses_used <= 4
+
+
+def test_winning_game_ends_on_an_all_green_turn() -> None:
+    game = play(InfoMaxGuesser(), "crane")
+    assert game.won
+    assert game.guesses_used == len(game.turns)  # no phantom turns
+    last = game.turns[-1]
+    assert last.feedback is not None and all(c is Color.GREEN for c in last.feedback)
