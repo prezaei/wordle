@@ -12,7 +12,17 @@ import math
 from collections.abc import Callable
 from typing import Any
 
-from wordle_slm.config import RunConfig
+from wordle_slm.config import (
+    CurriculumConfig,
+    DataConfig,
+    EvalConfig,
+    GRPOConfig,
+    ModelConfig,
+    RewardConfig,
+    RunConfig,
+    SFTConfig,
+    TokenizerConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +32,20 @@ PRESETS: dict[str, Callable[[], RunConfig]] = {
 }
 
 
-def _discover_subconfigs() -> dict[str, type]:
-    """Map each dataclass-typed RunConfig field to its type (for round-trip reconstruction).
-
-    Derived from RunConfig itself so it cannot drift from the dataclass definition.
-    """
-    defaults = RunConfig()
-    return {
-        field.name: type(getattr(defaults, field.name))
-        for field in dataclasses.fields(RunConfig)
-        if dataclasses.is_dataclass(getattr(defaults, field.name))
-    }
-
-
-_SUBCONFIGS: dict[str, type] = _discover_subconfigs()
+# Sub-config field name -> dataclass, for round-trip reconstruction. Explicit on purpose: an
+# explicit map has no edge case for a future Optional/None-default sub-config (which an
+# instance-derived map would silently skip), and test_from_dict_reconstructs_all_subconfigs
+# guards it against drift.
+_SUBCONFIGS: dict[str, type] = {
+    "model": ModelConfig,
+    "tokenizer": TokenizerConfig,
+    "reward": RewardConfig,
+    "sft": SFTConfig,
+    "grpo": GRPOConfig,
+    "curriculum": CurriculumConfig,
+    "eval": EvalConfig,
+    "data": DataConfig,
+}
 
 
 def load_preset(name: str) -> RunConfig:

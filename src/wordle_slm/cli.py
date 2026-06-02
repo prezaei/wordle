@@ -47,8 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    args = build_parser().parse_args(argv)
-    cfg = resolve(preset=args.preset, overrides=args.overrides)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        cfg = resolve(preset=args.preset, overrides=args.overrides)
+    except (KeyError, ValueError, TypeError) as exc:
+        parser.error(str(exc))  # clean usage error + exit 2, not a raw traceback
     logger.info(
         "resolved config for %s: %s", args.command, json.dumps(to_dict(cfg), sort_keys=True)
     )
