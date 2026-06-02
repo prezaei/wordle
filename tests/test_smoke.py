@@ -30,10 +30,11 @@ def test_run_config_defaults() -> None:
 
 
 def test_reward_defaults_are_sane() -> None:
-    # v3 speed-dominant reward: positive info-gain weight and a positive win bonus.
+    # §6.4 shaped reward: the dominance inequalities must hold (invalid/clue beat honest progress;
+    # a win beats the most you can farm).
     r = RunConfig().reward
-    assert r.info_gain_weight > 0
-    assert r.win_base > 0
+    assert r.p_invalid > r.b and r.q > r.b
+    assert 5 * r.a + 5 * r.b < r.win_base
 
 
 @pytest.mark.parametrize("command", ["phase0", "sft", "rl", "eval", "play"])
