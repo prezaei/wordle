@@ -147,19 +147,80 @@ def test_tracer_raises_when_every_group_is_filtered() -> None:
         _step(model, tok, (secret,), (secret,), group_size=4)
 
 
-def test_tracer_writes_scalars_to_tensorboard(tmp_path) -> None:
+def test_tracer_writes_the_expected_scalars_to_tensorboard(tmp_path) -> None:
+    from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+
     model, tok, pool, secrets = _setup()
     with RunLog(tmp_path / "run", config={}, seed=0) as run_log:
         _step(model, tok, pool, secrets, run_log=run_log)
-    tb_files = list((tmp_path / "run" / "tb").glob("events.out.tfevents.*"))
-    assert tb_files  # the SummaryWriter recorded the tracer scalars
+    acc = EventAccumulator(str(tmp_path / "run" / "tb"))
+    acc.Reload()
+    # Assert the specific tags were written (an empty RunLog also creates the event file) — the
+    # V DoD requires reward + L_clip(loss) + KL + entropy in TensorBoard.
+    expected = {
+        "tracer/reward_mean",
+        "tracer/advantage_var",
+        "tracer/loss",
+        "tracer/kl",
+        "tracer/entropy",
+        "tracer/grad_norm",
+        "tracer/kept_groups",
+    }
+    assert expected <= set(acc.Tags()["scalars"])
 
 
-# --- trajectory_surrogate (KL positivity on real divergence) ----------------------------------
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS backend not available")
+def test_tracer_step_runs_on_mps() -> None:
+    # V DoD: one update runs on the project's target backend without shape/NaN errors.
+    model, tok, pool, secrets = _setup()
+    model = model.to("mps")
+    ref = make_reference(model)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    generator = torch.Generator().manual_seed(0)  # CPU generator: multinomial samples on CPU
+    stats = grpo_tracer_step(
+        model,
+        ref,
+        tok,
+        secrets,
+        pool,
+        grpo=GRPOConfig(),
+        reward=RewardConfig(),
+        optimizer=optimizer,
+        group_size=4,
+        device="mps",
+        generator=generator,
+    )
+    assert torch.isfinite(torch.tensor(stats.loss))
+    assert stats.kl >= -1e-6 and stats.kept_groups >= 1
+
+
+def test_tracer_restores_caller_training_mode() -> None:
+    model, tok, pool, secrets = _setup()
+    model.train()  # caller expects train mode to survive the call
+    _step(model, tok, pool, secrets)
+    assert model.training is True
+
+
+# --- trajectory_surrogate (surrogate value + KL positivity on real divergence) ----------------
+
+
+def test_trajectory_surrogate_scales_with_advantage() -> None:
+    # At θ_old = θ the per-step ratio is exactly 1 (clip inactive), so the trajectory surrogate is
+    # Σ_t advantage = n_steps · advantage — for BOTH advantage signs.
+    model, tok, pool, _ = _setup()
+    ref = make_reference(model)
+    model.eval()
+    game = play_game(model, tok, pool[0], pool, sample=False)
+    for advantage in (2.0, -2.0):
+        surrogate, _, _, n_steps = trajectory_surrogate(
+            model, ref, tok, game, pool, torch.tensor(advantage), clip_eps=0.2, device="cpu"
+        )
+        assert float(surrogate.detach()) == pytest.approx(advantage * n_steps)
 
 
 def test_kl_is_strictly_positive_when_policy_differs_from_reference() -> None:
-    # Proves the KL term measures real divergence (not just ~0 at θ = ref).
+    # Proves the KL term measures real divergence (not just ~0 at θ = ref). The two seeds MUST
+    # differ — identical seeds give identical nets and KL == 0 exactly.
     model, tok, pool, _ = _setup(seed=0)
     torch.manual_seed(1)
     other = CandidateScorer(ModelConfig(), tok.vocab_size)  # genuinely different params

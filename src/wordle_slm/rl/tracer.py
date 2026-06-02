@@ -26,7 +26,7 @@ import torch
 from torch import nn
 
 from wordle_slm.config import GRPOConfig, RewardConfig
-from wordle_slm.engine import Game, filter_consistent
+from wordle_slm.engine import Game, Turn, filter_consistent
 from wordle_slm.model.scorer import CandidateScorer
 from wordle_slm.model.serialization import encode_board, encode_word
 from wordle_slm.model.tokenizer import Tokenizer
@@ -67,7 +67,9 @@ def compute_group_advantages(
     which StarPO-S filters out (spec §6.3). Advantages carry no gradient (rewards are constants).
     """
     advantages = rewards - rewards.mean()
-    if filter_zero_variance and bool(torch.all(advantages == 0.0)):
+    # Tolerance, not exact == 0: on MPS the mean of bit-identical rewards can carry ULP dust, and
+    # real reward gaps here are ≥ step_cost (~0.02), far above this floor — no true signal is lost.
+    if filter_zero_variance and bool((advantages.abs() < 1e-9).all()):
         return None
     return advantages
 
@@ -95,7 +97,7 @@ def trajectory_surrogate(
     surrogate = torch.zeros((), device=device)
     kl = torch.zeros((), device=device)
     entropy = torch.zeros((), device=device)
-    history: list = []
+    history: list[Turn] = []
     for turn in game.turns:
         board = torch.tensor(encode_board(history, tokenizer), device=device).unsqueeze(0)
         cand_ids = torch.tensor([encode_word(w, tokenizer) for w in candidates], device=device)
@@ -144,6 +146,10 @@ def grpo_tracer_step(
     trajectories, then take a single clipped optimizer step. Scalars are logged to `run_log` (if
     given) and at INFO. Raises if all groups are filtered (no signal) or any tensor is non-finite.
     """
+    if group_size < 2:
+        # A group needs ≥2 rollouts or its mean-centered advantages are all zero (no signal).
+        raise ValueError(f"group_size must be >= 2, got {group_size}")
+    was_training = model.training
     model.eval()  # disable dropout so the replayed log-probs match the sampled rollouts
     total_surrogate = torch.zeros((), device=device)
     total_kl = torch.zeros((), device=device)
@@ -153,40 +159,43 @@ def grpo_tracer_step(
     reward_values: list[float] = []
     advantage_values: list[float] = []
 
-    for secret in secrets:
-        games = [
-            play_game(
-                model, tokenizer, secret, pool, sample=True, generator=generator, device=device
+    try:
+        for secret in secrets:
+            games = [
+                play_game(
+                    model, tokenizer, secret, pool, sample=True, generator=generator, device=device
+                )
+                for _ in range(group_size)
+            ]
+            rewards = torch.tensor(
+                [compute_reward(g, reward, pool).total for g in games], device=device
             )
-            for _ in range(group_size)
-        ]
-        rewards = torch.tensor(
-            [compute_reward(g, reward, pool).total for g in games], device=device
-        )
-        reward_values.extend(rewards.tolist())
-        advantages = compute_group_advantages(
-            rewards, filter_zero_variance=grpo.filter_zero_variance
-        )
-        if advantages is None:
-            logger.debug("secret %r: zero-variance group filtered", secret)
-            continue
-        kept_groups += 1
-        advantage_values.extend(advantages.tolist())
-        for game, advantage in zip(games, advantages, strict=True):
-            surrogate, kl, entropy, n_steps = trajectory_surrogate(
-                model,
-                ref_model,
-                tokenizer,
-                game,
-                pool,
-                advantage,
-                clip_eps=grpo.clip_eps,
-                device=device,
+            reward_values.extend(rewards.tolist())
+            advantages = compute_group_advantages(
+                rewards, filter_zero_variance=grpo.filter_zero_variance
             )
-            total_surrogate = total_surrogate + surrogate
-            total_kl = total_kl + kl
-            total_entropy = total_entropy + entropy
-            total_steps += n_steps
+            if advantages is None:
+                logger.debug("secret %r: zero-variance group filtered", secret)
+                continue
+            kept_groups += 1
+            advantage_values.extend(advantages.tolist())
+            for game, advantage in zip(games, advantages, strict=True):
+                surrogate, kl, entropy, n_steps = trajectory_surrogate(
+                    model,
+                    ref_model,
+                    tokenizer,
+                    game,
+                    pool,
+                    advantage,
+                    clip_eps=grpo.clip_eps,
+                    device=device,
+                )
+                total_surrogate = total_surrogate + surrogate
+                total_kl = total_kl + kl
+                total_entropy = total_entropy + entropy
+                total_steps += n_steps
+    finally:
+        model.train(was_training)  # restore the caller's train/eval state
 
     if kept_groups == 0:
         raise RuntimeError("every group was zero-variance: no learning signal (use ≥2 outcomes)")
@@ -219,6 +228,7 @@ def grpo_tracer_step(
         run_log.log_scalar("tracer/kl", stats.kl, step)
         run_log.log_scalar("tracer/entropy", stats.entropy, step)
         run_log.log_scalar("tracer/grad_norm", stats.grad_norm, step)
+        run_log.log_scalar("tracer/kept_groups", float(stats.kept_groups), step)
     logger.info(
         "tracer step %d: reward_mean=%.4f adv_var=%.4f loss=%.4f kl=%.4f entropy=%.4f "
         "grad_norm=%.4f kept_groups=%d",
