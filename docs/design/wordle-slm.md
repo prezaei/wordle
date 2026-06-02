@@ -13,7 +13,7 @@ in the **Hyperparameters** table (§13), each tagged **Invariant / Hypothesis / 
 
 ## 1. Goal recap (one paragraph)
 
-Build a ~5–10M-parameter decoder-only transformer **from scratch** and teach it Wordle in
+Build a ~1–5M-parameter decoder-only transformer **from scratch** and teach it Wordle in
 two stages: an **imitation head start** (supervised), then **reinforcement learning (GRPO)**.
 The project's primary goal is **learning how SLMs + RL work**; success is the model learning
 the *strategy* — using green/yellow/gray feedback to narrow the answer — measured on
@@ -29,7 +29,7 @@ training cycle**.
 | --- | --- |
 | Architecture | Decoder-only transformer (GPT-style) |
 | Output unit | Character-level (letters + a few special tokens) |
-| Model size | 5–10M params |
+| Model size | 1–5M params (default ~3.2M) |
 | Board representation | Plain text (tokenized) |
 | Guess validity | Free generation, then validate; invalid = explicit penalty **and** wastes a turn |
 | Game interaction | Per-turn stepping (env steps externally) |
@@ -130,7 +130,7 @@ Phase 0 measures and records, on this Mac:
 - **engine games/sec** (pure rollout, no model), and
 - a **model-rollout micro-benchmark** (filled once the Phase-1 model exists): **games/sec and
   peak MPS memory at group size G ∈ {4, 8, 16}.** Group size is the dominant memory cost
-  (each parallel rollout needs its own KV cache); a 5–10M model's cache is tiny vs. a multi-B
+  (each parallel rollout needs its own KV cache); a 1–5M model's cache is tiny vs. a multi-B
   model, so 128 GB likely absorbs G=16 — but we **measure, not assume** (charbull saw large
   memory jumps from 2→4 generations on a 4B model). G is then pinned to the budget.
 
@@ -148,7 +148,7 @@ These feed §13 sizing so a full cycle fits **~1 hour**. Rule: if projections ex
 
 ## 5. Phase 1 — The model & head start (full spec)
 
-Goal: a 5–10M decoder-only transformer that, after an imitation warm-up, **reliably emits valid
+Goal: a 1–5M decoder-only transformer that, after an imitation warm-up, **reliably emits valid
 words and respects obvious clues.** No RL yet.
 
 ### 5.1 Tokenizer (`model/`)
@@ -183,7 +183,7 @@ Example — turn 1 was `CRANE` (secret `NIGHT`: C,R,A,E gray; N yellow), now gen
 
 ### 5.3 Model (`model/`)
 Decoder-only transformer (pre-norm, causal attention, learned position embeddings, weight-tied
-embeddings). Target **5–10M params**; default ~6.3M (§13). PyTorch on the MPS (Metal) backend;
+embeddings). Target **1–5M params**; default ~3.2M (§13). PyTorch on the MPS (Metal) backend;
 CPU fallback for unsupported ops. **MPS caveat:** see §12.
 
 ### 5.4 Head-start data (`teacher/`)
@@ -385,7 +385,7 @@ experiments where the learning happens (route results through the lab notebook).
 
 | Tag | Group | Param | Default | Note |
 | --- | --- | --- | --- | --- |
-| R | Model | d_model/layers/heads/d_ff | 256/8/8/1024 | ≈6.3M; top of range ~288/10/8/1024 ≈8.7M (≤10M) |
+| R | Model | d_model/layers/heads/d_ff | 256/4/8/1024 | ≈3.2M default (1–5M range): small 128/5/4/512 ≈1.0M, top 256/6/8/1024 ≈4.8M |
 | R | Model | context / dropout | 128 / 0.1 | board ~66 tokens |
 | I | Tokenizer | vocab | ~34 | 26 letters + 8 specials |
 | R | SFT | optimizer / lr / wd | AdamW / 3e-4 / 0.01 | |
@@ -418,7 +418,7 @@ experiments where the learning happens (route results through the lab notebook).
 
 - The exact letter-progress shaping ("new info" rule may need iteration; §6.4 is v1).
 - Curriculum tier sizes / promotion threshold / replay rate (tune to observed learning speed).
-- Final model size within 5–10M, pinned to the measured speed + memory budget.
+- Final model size within 1–5M, pinned to the measured speed + memory budget.
 - Whether information-gain reward / turn-level advantage / constrained-candidate decoding help (Phase 3).
 - The clue-respect threshold (§5.6) and KL β — set/tune on first measurement.
 

@@ -12,14 +12,26 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ModelConfig:
-    """Decoder-only transformer (~6.3M params at the defaults). R."""
+    """Decoder-only transformer. Default ~3.2M params; target range 1–5M. R.
+
+    Endpoints (pin to the speed+memory budget in Phase 1): small 128/5/4/512 ≈1.0M,
+    default 256/4/8/1024 ≈3.2M, top 256/6/8/1024 ≈4.8M.
+    """
 
     d_model: int = 256
-    n_layers: int = 8
+    n_layers: int = 4
     n_heads: int = 8
     d_ff: int = 1024
     context_len: int = 128  # a full 6-turn game is ~66 tokens
     dropout: float = 0.1
+
+    def estimated_params(self, vocab_size: int = 34) -> int:
+        """Rough parameter count with weight-tied embeddings.
+
+        Dominated by the transformer blocks; the exact count is verified in step G.
+        """
+        per_layer = 4 * self.d_model**2 + 2 * self.d_model * self.d_ff
+        return self.n_layers * per_layer + (vocab_size + self.context_len) * self.d_model
 
 
 @dataclass

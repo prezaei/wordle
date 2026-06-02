@@ -100,7 +100,7 @@ gets the learner watching RL dynamics on day ~3, not at the final step.
 | --- | --- | --- | --- |
 | **E** | **Game** (`engine/`): 6-guess loop, win/lose/ongoing, validity, invalid-consumes-turn. | B, A | game-flow; invalid consumes a turn; win/lose detection. |
 | **F** | **Board serialization** (§5.2 grammar): state→tokens, parse back; `<GUESS>` only on current turn. | C, B | round-trip; matches §5.2 example exactly. |
-| **G** | **Model** (`model/`): decoder-only transformer (~6.3M), forward + `generate` (length-masked 5 letters), MPS device. | C | param-count 5–10M; forward shape; generate emits exactly 5 letters. |
+| **G** | **Model** (`model/`): decoder-only transformer (~3.2M default, 1–5M range), forward + `generate` (length-masked 5 letters), MPS device. | C | param-count within 1–5M; forward shape; generate emits exactly 5 letters. |
 | **H** | **Reward v1** (`rl/`): §6.4 `green_known`/`min_count` rule + all terms + dominance asserts (`p_invalid>b`, `q>b`, **win > max farming**). | B | first-green-once, yellow→green `a+b`, dup single `b`, re-confirm 0, invalid/clue dominance, win-dominance. |
 | **I** | **Curriculum + replay** (`rl/`): tiered sets + hard-word FIFO replay (10% draw). | A | promotion logic; replay sampling probability. |
 | **Y** | **Shared `play_game()`** (`rl/rollout.py`): `play_game(model, secret, *, sample\|greedy) -> Transcript` driving prompt→generate-5→score→append via E+F+B. **The trainer, all eval/benchmark steps, and the tracer bullet call this — no private copies.** | E, F, B, G | one game round-trips & matches §5.2; sample+greedy paths; ≥2 callers in tests (no duplicated rollout code). |
