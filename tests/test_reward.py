@@ -1,104 +1,115 @@
-"""v3 reward tests (Plan: H): information gain + speed-scaled win bonus."""
+"""Shaped per-guess reward tests (Plan: H; spec §6.4).
+
+Exact values via hand-built feedback (so greens/yellows are controlled), plus the dominance
+inequalities and a real-game integration check.
+"""
 
 from __future__ import annotations
 
-import math
+from types import SimpleNamespace
 
 import pytest
 
 from wordle_slm.config import RewardConfig
-from wordle_slm.data import load_answers, load_valid_guesses
-from wordle_slm.engine import Game, Status
-from wordle_slm.rl import compute_reward
+from wordle_slm.engine import Color, Game, Status, Turn
+from wordle_slm.rl.reward import compute_reward
+
+_FB = {"G": Color.GREEN, "Y": Color.YELLOW, "X": Color.GRAY}
 
 
-def _invalid_word() -> str:
-    valid = set(load_valid_guesses())
-    cand = "aaaaa"
-    while cand in valid:
-        cand = cand[:-1] + chr((ord(cand[-1]) - ord("a") + 1) % 26 + ord("a"))
-    return cand
+def _turn(guess: str, fb: str | None) -> Turn:
+    if fb is None:
+        return Turn(guess, None, False)  # invalid guess
+    return Turn(guess, tuple(_FB[c] for c in fb), True)
 
 
-def test_win_in_one_reward_is_exact() -> None:
-    cfg = RewardConfig()
-    pool = load_answers()
-    secret = pool[0]  # guaranteed in the candidate pool
-    g = Game(secret)
-    g.guess(secret)
-    assert g.won
-    b = compute_reward(g, cfg, pool)
-    # one all-green guess collapses the candidate set to {secret}.
-    expected_ig = cfg.info_gain_weight * math.log(len(pool) / 1)
-    expected_total = expected_ig - cfg.step_cost + cfg.win_base + cfg.win_speed * (6 - 1)
-    assert b.info_gain == pytest.approx(expected_ig)
-    assert b.total == pytest.approx(expected_total)
-
-
-def test_info_gain_telescopes_to_log_pool_for_any_win() -> None:
-    # Sum of log(n_before/n_after) over a winning game = log(|pool| / 1), independent of path.
-    cfg = RewardConfig()
-    pool = load_answers()
-    secret = pool[0]
-    g = Game(secret)
-    g.guess("slate")  # narrows
-    g.guess(secret)  # win
-    assert g.won
-    b = compute_reward(g, cfg, pool)
-    assert b.info_gain == pytest.approx(cfg.info_gain_weight * math.log(len(pool)))
-    expected_total = (
-        cfg.info_gain_weight * math.log(len(pool))
-        - 2 * cfg.step_cost
-        + cfg.win_base
-        + cfg.win_speed * (6 - 2)
+def _game(turns: list[Turn], *, status: Status = Status.ONGOING, max_guesses: int = 6):
+    # compute_reward reads only turns / status / max_guesses / guesses_used.
+    return SimpleNamespace(
+        turns=turns, status=status, max_guesses=max_guesses, guesses_used=len(turns)
     )
-    assert b.total == pytest.approx(expected_total)
 
 
-def test_loss_with_invalid_guesses_has_zero_info_gain() -> None:
+def test_a_new_green_is_paid_once_and_reconfirming_pays_zero() -> None:
     cfg = RewardConfig()
-    pool = load_answers()
-    bad = _invalid_word()
-    g = Game(pool[0])
-    for _ in range(6):
-        g.guess(bad)
-    assert g.status is Status.LOSE
-    b = compute_reward(g, cfg, pool)
-    assert b.info_gain == pytest.approx(0.0)  # invalid guesses don't narrow the field
-    assert b.total == pytest.approx(-6 * cfg.step_cost - cfg.loss_penalty)
+    # turn1 greens pos0 'a' (pays a + the min-count b); turn2 re-confirms it (pays 0).
+    g = _game([_turn("abcde", "GXXXX"), _turn("afghi", "GXXXX")])
+    b = compute_reward(g, cfg)
+    assert b.letter_progress == pytest.approx(cfg.a + cfg.b)  # only turn1 paid
 
 
-def test_faster_win_scores_higher() -> None:
+def test_yellow_then_green_pays_b_then_a_never_double() -> None:
     cfg = RewardConfig()
-    pool = load_answers()
-    secret = pool[0]
-    fast = Game(secret)
-    fast.guess(secret)  # win in 1
-    slow = Game(secret)
-    slow.guess("slate")
-    slow.guess(secret)  # win in 2
-    fast_total = compute_reward(fast, cfg, pool).total
-    slow_total = compute_reward(slow, cfg, pool).total
-    # info_gain telescopes equal across both wins, so the gap is exactly the speed bonus for the
-    # saved guess plus its step cost — this fails if win_speed is dropped from the terminal formula.
-    assert fast_total - slow_total == pytest.approx(cfg.win_speed + cfg.step_cost)
+    # 'a' yellow in turn1 (pays b), green in turn2 (pays a, not another b). Fresh grays each turn.
+    g = _game([_turn("abcde", "YXXXX"), _turn("afghi", "GXXXX")])
+    b = compute_reward(g, cfg)
+    assert b.letter_progress == pytest.approx(cfg.a + cfg.b)
 
 
-def test_ongoing_game_has_no_terminal_reward() -> None:
+def test_duplicate_letter_credited_single_b() -> None:
     cfg = RewardConfig()
-    pool = load_answers()
-    secret = pool[0]
-    g = Game(secret)
-    g.guess("slate")  # valid, not the secret -> ONGOING
-    assert g.status is Status.ONGOING
-    b = compute_reward(g, cfg, pool)
-    assert b.terminal == 0.0
-    assert b.total == pytest.approx(b.info_gain - cfg.step_cost)
+    # 'a' appears twice but only one non-gray (pos0 yellow) -> single b.
+    g = _game([_turn("aabcd", "YXXXX")])
+    b = compute_reward(g, cfg)
+    assert b.letter_progress == pytest.approx(cfg.b)
 
 
-def test_compute_reward_raises_when_secret_not_in_pool() -> None:
-    # The guard (engine.secret_in_pool) must fire at this entry point: a secret outside the pool
-    # would let the consistent set empty out mid-telescope.
-    g = Game("aaaaa")  # a valid 5-letter secret, but not an answer
-    with pytest.raises(ValueError, match="must be in the candidate pool"):
-        compute_reward(g, RewardConfig(), load_answers())
+def test_invalid_guess_penalised_and_no_progress() -> None:
+    cfg = RewardConfig()
+    g = _game([_turn("zzzzz", None)])
+    b = compute_reward(g, cfg)
+    assert b.invalid_penalty == pytest.approx(cfg.p_invalid)
+    assert b.letter_progress == 0.0
+    assert b.total == pytest.approx(-cfg.p_invalid - cfg.c)
+
+
+def test_dropping_a_known_green_is_a_clue_violation() -> None:
+    cfg = RewardConfig()
+    # turn1 fixes pos0='a' green; turn2 puts 'f' at pos0 (drops the green) with fresh grays.
+    g = _game([_turn("abcde", "GXXXX"), _turn("fghij", "XXXXX")])
+    b = compute_reward(g, cfg)
+    assert b.clue_penalty == pytest.approx(cfg.q)
+
+
+def test_reusing_a_known_gray_letter_is_a_clue_violation() -> None:
+    cfg = RewardConfig()
+    # turn1 marks a,b,c,d,e gray; turn2 reuses 'a'.
+    g = _game([_turn("abcde", "XXXXX"), _turn("afghi", "XXXXX")])
+    b = compute_reward(g, cfg)
+    assert b.clue_penalty == pytest.approx(cfg.q)
+
+
+def test_faster_win_scores_higher_by_win_speed() -> None:
+    cfg = RewardConfig()
+    fast = _game([_turn("crane", "GGGGG")], status=Status.WIN)
+    slow = _game(
+        [_turn("aaaaa", "XXXXX"), _turn("bbbbb", "XXXXX"), _turn("crane", "GGGGG")],
+        status=Status.WIN,
+    )
+    fast_terminal = compute_reward(fast, cfg).terminal
+    slow_terminal = compute_reward(slow, cfg).terminal
+    assert fast_terminal - slow_terminal == pytest.approx(cfg.win_speed * 2)  # 2 fewer guesses
+
+
+def test_loss_applies_the_loss_penalty() -> None:
+    cfg = RewardConfig()
+    g = _game([_turn("aaaaa", "XXXXX")], status=Status.LOSE, max_guesses=1)
+    assert compute_reward(g, cfg).terminal == pytest.approx(-cfg.loss_penalty)
+
+
+def test_reward_dominance_inequalities_hold() -> None:
+    cfg = RewardConfig()
+    assert cfg.p_invalid > cfg.b  # invalid is worse than any honest progress
+    assert cfg.q > cfg.b  # a clue violation is worse than any honest progress
+    # max farmable progress in a slow game (5 greens, each also raising min-count) < a win.
+    assert 5 * cfg.a + 5 * cfg.b < cfg.win_base
+
+
+def test_real_game_win_is_positive_and_dominates_farming() -> None:
+    cfg = RewardConfig()
+    game = Game("crane")
+    game.guess("slate")
+    game.guess("crane")  # win in 2
+    assert game.status is Status.WIN
+    b = compute_reward(game, cfg)
+    assert b.total > 5 * cfg.a + 5 * cfg.b  # a win beats the most you could farm

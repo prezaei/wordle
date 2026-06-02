@@ -1,72 +1,111 @@
-"""Speed-dominant reward for the restricted-action-space policy (spec §1.5). (Plan: H)
+"""Shaped per-guess reward for the free-generation policy (spec §6.4). (Plan: H)
 
-Per game:
-- **Information gain** per guess: ``info_gain_weight * log(|C_before| / |C_after|)``, where ``C``
-  is the still-consistent candidate set. (It telescopes to a per-secret constant for wins, so under
-  trajectory-level GRPO it mainly separates losses; ``win_speed`` is the fewest-guesses lever.)
-- **Win bonus, speed-scaled:** ``win_base + win_speed * (max_guesses - t)`` on the winning guess.
-- **Step cost:** ``-step_cost`` per guess.
-- **Loss penalty:** ``-loss_penalty`` if the game is lost.
+Rewards real, clue-respecting words so the generator *learns to play*. Per game, summed over
+guesses, against a knowledge state carried across the game (not per-turn feedback):
 
-(Invalid-word / legal-word terms are gone: under the v3 action space every guess is valid and
-consistent, so winning is near-automatic and the reward optimizes guess count.)
+- **Letter progress** `a·new_greens + b·new_yellows` — a position pays its green bonus once; a
+  yellow→green upgrade pays `b` then `a` (never double); a duplicate letter is credited only when it
+  raises the known min-count; re-confirming a known constraint pays 0 (no farming).
+- **Invalid-word penalty** `−p_invalid` — a non-word guess consumes the turn, no progress.
+- **Clue-violation penalty** `−q` — dropping a known green or reusing a known-gray letter (`q > b`).
+- **Step cost** `−c` per guess.
+- **Terminal** `+(win_base + win_speed·(max_guesses − t))` on a win, `−loss_penalty` on a loss.
+
+Dominance (asserted in tests): `p_invalid > b`, `q > b`, and max farmable progress `< win_base`.
 """
 
 from __future__ import annotations
 
 import logging
-import math
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from wordle_slm.config import RewardConfig
-from wordle_slm.engine.constraints import filter_consistent, secret_in_pool
 from wordle_slm.engine.game import Game, Status
+from wordle_slm.engine.scoring import Color
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class RewardBreakdown:
-    info_gain: float
+    letter_progress: float
+    invalid_penalty: float
+    clue_penalty: float
     step_cost: float
     terminal: float
 
     @property
     def total(self) -> float:
-        return self.info_gain - self.step_cost + self.terminal
-
-
-def compute_reward(game: Game, config: RewardConfig, pool: Iterable[str]) -> RewardBreakdown:
-    """Trajectory reward for a finished/ongoing game. ``pool`` is the candidate pool (answers).
-
-    The secret must be in ``pool`` (it always is in normal use: pool = the answer list). We filter
-    the candidate set incrementally (one clue per turn), so the secret stays consistent and the
-    consistent set is never empty.
-    """
-    candidates: tuple[str, ...] = tuple(pool)
-    if not secret_in_pool(game.secret, candidates):
-        raise ValueError(
-            f"secret {game.secret!r} must be in the candidate pool (size {len(candidates)})"
+        return (
+            self.letter_progress
+            - self.invalid_penalty
+            - self.clue_penalty
+            - self.step_cost
+            + self.terminal
         )
 
-    info_gain = 0.0
-    n_before = len(candidates)  # C_0 = the full pool (no clues yet)
-    for i, turn in enumerate(game.turns, start=1):
-        candidates = filter_consistent(candidates, turn)  # apply only this turn's clue
-        n_after = len(candidates)  # >= 1: the secret stays consistent (guarded above)
-        step_gain = config.info_gain_weight * math.log(n_before / n_after)
-        info_gain += step_gain
-        logger.debug("turn %d: |C| %d -> %d, step_info_gain=%.4f", i, n_before, n_after, step_gain)
-        n_before = n_after
 
-    step_cost = config.step_cost * len(game.turns)
+def _violates_clue(guess: str, green_known: dict[int, str], gray_known: set[str]) -> bool:
+    """A confirmed-clue violation: drops a known green, or reuses a known-absent letter."""
+    drops_green = any(guess[pos] != letter for pos, letter in green_known.items())
+    reuses_gray = any(ch in gray_known for ch in guess)
+    return drops_green or reuses_gray
+
+
+def compute_reward(game: Game, config: RewardConfig) -> RewardBreakdown:
+    """Shaped reward for a finished/ongoing game (spec §6.4).
+
+    Validity, greens, and yellows are read from each turn the engine already scored — no candidate
+    pool is needed (the model generates freely; the engine judged each guess).
+    """
+    green_known: dict[int, str] = {}  # position -> the letter known green there
+    min_count: dict[str, int] = {}  # letter -> known minimum count in the answer
+    gray_known: set[str] = set()  # letters confirmed absent
+
+    letter_progress = 0.0
+    invalid_penalty = 0.0
+    clue_penalty = 0.0
+    for turn in game.turns:
+        if not turn.valid or turn.feedback is None:
+            invalid_penalty += config.p_invalid  # consumes the turn, no letter progress
+            continue
+
+        if _violates_clue(turn.guess, green_known, gray_known):
+            clue_penalty += config.q
+
+        # New greens: positions GREEN this turn not already known green (pay `a` once).
+        for pos, color in enumerate(turn.feedback):
+            if color is Color.GREEN and pos not in green_known:
+                letter_progress += config.a
+                green_known[pos] = turn.guess[pos]
+
+        # New yellows / duplicates: credit only when a letter's observed non-gray count exceeds its
+        # known min-count (pay `b` per newly-required occurrence); update known min-counts.
+        for letter in set(turn.guess):
+            obs = sum(
+                1
+                for pos, ch in enumerate(turn.guess)
+                if ch == letter and turn.feedback[pos] is not Color.GRAY
+            )
+            if obs > min_count.get(letter, 0):
+                letter_progress += config.b * (obs - min_count.get(letter, 0))
+                min_count[letter] = obs
+            if obs == 0:  # this letter showed only gray -> confirmed absent
+                gray_known.add(letter)
+
+    step_cost = config.c * len(game.turns)
     terminal = 0.0
     if game.status is Status.WIN:
         terminal = config.win_base + config.win_speed * (game.max_guesses - game.guesses_used)
     elif game.status is Status.LOSE:
         terminal = -config.loss_penalty
 
-    breakdown = RewardBreakdown(info_gain=info_gain, step_cost=step_cost, terminal=terminal)
+    breakdown = RewardBreakdown(
+        letter_progress=letter_progress,
+        invalid_penalty=invalid_penalty,
+        clue_penalty=clue_penalty,
+        step_cost=step_cost,
+        terminal=terminal,
+    )
     logger.info("reward total=%.4f (%s)", breakdown.total, breakdown)
     return breakdown

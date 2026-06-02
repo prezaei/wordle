@@ -44,21 +44,21 @@ class TokenizerConfig:
 
 @dataclass
 class RewardConfig:
-    """Speed-dominant reward for the v3 restricted-action policy (spec §1.5; tune in Phase 3).
+    """Shaped per-guess reward for free generation (spec §6.4; tune in Phase 3).
 
-    Winning is near-automatic when the agent only plays still-consistent words, so the reward
-    optimizes *guess count*: information gain per guess + a speed-scaled win bonus.
+    Rewards real, clue-respecting words so the generator learns to play. Dominance (must hold):
+    ``p_invalid > b`` and ``q > b`` (any honest progress beats an invalid/stall), and the most
+    progress a slow game can farm (≈ ``5*a + few*b``) ``< win_base`` (a win dominates farming).
     """
 
-    # Dense shaping; kept small so the win/loss terminal dominates (a narrowing-but-LOSING
-    # rollout must not out-score a win). At pool ~2315 the max info-gain is ~0.1*log(2315) ≈ 0.77.
-    info_gain_weight: float = 0.1  # weight on log(|C_before| / |C_after|) per guess
-    win_base: float = 1.0
-    # Within a same-secret group all wins share the telescoped info-gain (it cancels in GRPO's
-    # advantage), so win_speed is the real per-guess speed lever (losses vary). Tunable.
-    win_speed: float = 0.5  # extra per unused guess (faster = more)
-    step_cost: float = 0.02  # per guess
-    loss_penalty: float = 0.5  # subtracted on a loss
+    a: float = 0.2  # new-green bonus (paid once per position)
+    b: float = 0.1  # new-yellow bonus (only when it raises a known min-count)
+    p_invalid: float = 0.5  # penalty for a non-word guess (consumes the turn, no progress)
+    q: float = 0.5  # penalty for violating a confirmed clue (drops a green / reuses a known gray)
+    c: float = 0.02  # per-guess step cost
+    win_base: float = 3.0  # base win bonus (> max farmable progress)
+    win_speed: float = 0.5  # extra per unused guess: win_base + win_speed*(max_guesses - t)
+    loss_penalty: float = 1.0  # subtracted on a loss
 
 
 @dataclass
