@@ -64,33 +64,32 @@ training the model ourselves — is where the learning is.
 
 ## 6. What success looks like
 
-The bar is: **the model clearly learns the strategy, and I can explain why it got
-better.** "Learns the strategy" is measured on **held-out words it never trained
-on.**
+The bar is: **win as many games as possible, in as few guesses as possible** —
+measured on **held-out words it never trained on.** *(Updated 2026-06-02: priority is
+now a high score, not just clearing a floor. The approach pivoted — the model
+**chooses among the words still possible** each turn rather than spelling letters,
+which makes winning near-automatic and focuses learning on using fewer guesses. See
+`docs/design/wordle-slm.md` §1.5.)*
 
 | Signal | What we want to see |
 | --- | --- |
-| **Win rate on unseen words** | % of *held-out* games solved within 6 guesses — far above the random floor and rising over training. **This is the headline metric.** |
-| **Generalization gap** | Win rate on unseen words is *close to* win rate on practiced words. A big gap = memorization, and is a fail. |
-| **Learning curve** | Win rate goes *up* over training — visible improvement, not noise. |
-| **Guess efficiency** | Average guesses-per-win trends *down* over time. |
-| **Legal play** | Model mostly produces real 5-letter words, not gibberish. |
+| **Win rate on unseen words** | % of *held-out* games won within 6 guesses. Headline — target ≥95%. |
+| **Average guesses (unseen)** | Mean guesses to win on held-out games — **the metric we're maximizing the score on.** Lower is better; aim ≤~4.0, stretch toward the ~3.42 optimum. |
+| **Generalization gap** | Held-out performance close to practiced-words performance. A big gap = memorization, and is a fail. |
+| **Learning curve** | Over training, win rate goes up and average guesses come down. |
 
-**The three reference points (provisional numbers, calibrated in Phase 0):**
+**Reference points (provisional, calibrated in Phase 0):**
 
-- **Random floor ≈ 0.26%.** A guesser that ignores feedback essentially never
-  wins (6 random picks from ~2,300 words). Beating this is almost free, so it is a
-  *sanity check, not the success bar.*
-- **Feedback-using yardstick ≈ 96%.** A guesser that just picks any word still
-  consistent with the clues wins ~96–99% of games. This is the *honest, hard*
-  yardstick — our stretch reference, not the pass/fail gate.
-- **Success target: ≥ 80% win rate on unseen words**, with a small generalization
-  gap and a rising curve. This is the goal we're aiming for; Phase 0 will tell us
-  how hard a reach 80% is for a model this small. The **method** of measuring
-  (held-out words, the gap, the curve) is fixed regardless.
+- **Random floor ≈ 0.26%** (ignores feedback) — sanity check only.
+- **Consistent-guesser yardstick** — picking *any* still-consistent word wins ~96–99%
+  but uses ~4.5 guesses on average. Since our model now plays *only* consistent words,
+  it should **match that win rate and beat it on guess count.** That's the baseline to beat.
+- **Success target: win rate ≥ 95% on unseen words AND average guesses ≤ ~4.0**
+  (stretch toward the proven optimum ~3.42), within the ~1-hour budget. Calibrated after Phase 0.
 
-We declare this round a win when the model **comfortably beats the random floor on
-unseen words, with a small generalization gap and an explainable learning curve.**
+We declare this round a win when, on held-out words, the model **wins ≥ 95% in an average
+of ≤ ~4.0 guesses with a small generalization gap** — matching the consistent-guesser's win
+rate while using meaningfully fewer guesses.
 
 ## 7. Who it's for
 

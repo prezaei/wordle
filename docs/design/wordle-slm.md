@@ -23,6 +23,42 @@ learning curve. **Aspirational stretch target: ≥80% held-out win rate** (see �
 this is a stretch, not the gate). Everything runs locally on the M5 Max within a **~1-hour
 training cycle**.
 
+## 1.5 Architecture v3 — restricted action space (CURRENT; supersedes char-generation)
+
+**Pivot (2026-06-02):** priority changed to **maximize win rate and minimize guesses**. The
+char-level free-generation design (§5.2, §6.1–6.4) caps at ~15–31% win rate (prior art) because
+most capacity goes to *spelling valid words*. We switch to a **restricted action space**, which
+makes a high win rate near-automatic and refocuses all learning on the real objective: **fewest
+guesses.** This section is authoritative where it conflicts with §5–6 below.
+
+- **Objective / success:** maximize a score = **win rate ≥ 95% on held-out** AND **average
+  guesses ≤ ~4.0** (stretch toward the proven optimum ~3.42), within the ~1-hour budget.
+- **Action space:** each turn the agent picks one word from the **still-consistent candidate
+  set** `C_t` = valid words consistent with every clue so far. (Turn 1: `C_1` = the answer pool
+  / a learned opener.) Because every action stays consistent, the game is ~always winnable in 6;
+  the policy's job is to pick the candidate that shrinks `C` fastest. (This is "hard-mode"
+  consistent-only play: excellent and simple. Allowing inconsistent probe words could reach the
+  3.42 optimum but enlarges the action space — deferred.)
+- **Model (candidate scorer/policy):** a small (~1–5M) from-scratch transformer used as a
+  **ranker over candidates**, not a char generator: given the board constraints (greens by
+  position, required-letter min-counts, absent letters) it scores each candidate in `C_t`;
+  softmax over `C_t` = the policy. Greedy argmax at eval, sample at train. (Exact board/candidate
+  encoding pinned in the Phase-1 build.)
+- **Reward (speed-dominant)** — win is near-guaranteed, so optimize guesses:
+  - **Information gain** per guess (e.g. `log(|C_before| / |C_after|)`) — now CORE (was deferred).
+  - **Win bonus, strongly speed-scaled** (big bonus × `(max_guesses − t)`).
+  - small per-guess step cost. (Invalid-word penalty and legal-word-rate are now moot — actions
+    are always valid + consistent.)
+- **RL:** GRPO over candidate selection; group = rollouts on the same secret. Far more
+  sample-efficient than char-gen (tiny per-turn action set, win near-certain) → fits ~1 hour.
+- **Anti-memorization:** unchanged in spirit — evaluate on **held-out** secrets; the model must
+  rank informative words for *unseen* secrets (generalize the policy), not memorize. Held-out win
+  rate + avg guesses + generalization gap remain the metrics.
+- **What carries over from §4–8:** the engine (§4), curriculum + hard-word replay (§6.5), the
+  ~1-hour budget (§6.6), telemetry (§8), and held-out eval (§6.7). **What's superseded:** the
+  char-level free-generation sequence (§5.2) and the char-token GRPO + green/yellow/invalid
+  reward (§6.1–6.4).
+
 ## 2. Decisions captured from the interview
 
 | Area | Decision |
