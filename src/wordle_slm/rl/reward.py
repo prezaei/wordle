@@ -2,7 +2,8 @@
 
 Per game:
 - **Information gain** per guess: ``info_gain_weight * log(|C_before| / |C_after|)``, where ``C``
-  is the still-consistent candidate set. Rewards guesses that shrink the field fastest.
+  is the still-consistent candidate set. (It telescopes to a per-secret constant for wins, so under
+  trajectory-level GRPO it mainly separates losses; ``win_speed`` is the fewest-guesses lever.)
 - **Win bonus, speed-scaled:** ``win_base + win_speed * (max_guesses - t)`` on the winning guess.
 - **Step cost:** ``-step_cost`` per guess.
 - **Loss penalty:** ``-loss_penalty`` if the game is lost.
@@ -51,10 +52,12 @@ def compute_reward(game: Game, config: RewardConfig, pool: Iterable[str]) -> Rew
 
     info_gain = 0.0
     n_before = len(candidates)  # C_0 = the full pool (no clues yet)
-    for turn in game.turns:
+    for i, turn in enumerate(game.turns, start=1):
         candidates = filter_consistent(candidates, turn)  # apply only this turn's clue
-        n_after = max(1, len(candidates))  # secret stays consistent, so >= 1
-        info_gain += config.info_gain_weight * math.log(n_before / n_after)
+        n_after = len(candidates)  # >= 1: the secret stays consistent (guarded above)
+        step_gain = config.info_gain_weight * math.log(n_before / n_after)
+        info_gain += step_gain
+        logger.debug("turn %d: |C| %d -> %d, step_info_gain=%.4f", i, n_before, n_after, step_gain)
         n_before = n_after
 
     step_cost = config.step_cost * len(game.turns)

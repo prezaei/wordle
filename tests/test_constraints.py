@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from wordle_slm.data import load_answers
-from wordle_slm.engine import Turn, consistent_candidates, is_consistent, score
+from wordle_slm.engine import (
+    Turn,
+    consistent_candidates,
+    filter_consistent,
+    is_consistent,
+    score,
+)
 
 
 def _turn(guess: str, secret: str) -> Turn:
@@ -61,3 +67,16 @@ def test_mixed_valid_and_invalid_history_uses_only_valid_clues() -> None:
     valid = _turn("slate", "crane")  # 's' absent
     assert is_consistent("grace", [invalid, valid]) is True  # consistent via the valid clue
     assert is_consistent("scare", [invalid, valid]) is False  # 's' present -> contradicts
+
+
+def test_incremental_filter_matches_from_scratch() -> None:
+    # The reward filters incrementally (one turn at a time on the shrinking set); it must equal
+    # filtering the full pool by the whole history — including an interleaved invalid turn.
+    pool = load_answers()
+    secret = pool[0]
+    history = [_turn("slate", secret), Turn("zzzzz", None, False), _turn("trace", secret)]
+    incremental = tuple(pool)
+    for turn in history:
+        incremental = filter_consistent(incremental, turn)
+    assert set(incremental) == set(consistent_candidates(history, pool))
+    assert secret in incremental

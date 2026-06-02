@@ -82,7 +82,7 @@ def test_sample_mixes_replay_and_tier_when_prob_between_zero_and_one() -> None:
 
 
 def test_invalid_tiers_raise() -> None:
-    with pytest.raises(ValueError):
-        Curriculum(_train(100), CurriculumConfig(tiers=()))
-    with pytest.raises(ValueError):
-        Curriculum(_train(100), CurriculumConfig(tiers=(0, None)))
+    # empty, non-positive, non-increasing (shrinks/duplicates), and None-not-last all rejected.
+    for bad in ((), (0, None), (200, 50, None), (10, 10, None), (None, 200)):
+        with pytest.raises(ValueError):
+            Curriculum(_train(100), CurriculumConfig(tiers=bad))

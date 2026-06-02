@@ -25,6 +25,9 @@ class Curriculum:
             raise ValueError("curriculum.tiers must be non-empty")
         if any(t is not None and t <= 0 for t in config.tiers):
             raise ValueError(f"tier sizes must be positive or None, got {config.tiers!r}")
+        resolved = [float("inf") if t is None else t for t in config.tiers]
+        if any(b <= a for a, b in zip(resolved, resolved[1:], strict=False)):
+            raise ValueError(f"tiers must strictly increase (widen), got {config.tiers!r}")
         self.train_words = train_words
         self.config = config
         self._tier_index = 0
