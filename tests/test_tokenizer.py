@@ -42,3 +42,10 @@ def test_unknown_id_raises() -> None:
     t = Tokenizer()
     with pytest.raises(KeyError):
         t.id_to_token(999)
+
+
+def test_id_to_token_rejects_non_int_index() -> None:
+    t = Tokenizer()
+    for bad in (1.0, True, False, "1"):
+        with pytest.raises(KeyError):
+            t.id_to_token(bad)  # type: ignore[arg-type]

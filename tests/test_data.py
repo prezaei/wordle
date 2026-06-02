@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from wordle_slm.data import (
@@ -53,12 +55,21 @@ def test_split_seed_changes_the_heldout_set() -> None:
     assert set(held0) != set(held1)
 
 
-def test_heldout_words_are_valid_guesses_but_never_training_secrets() -> None:
+def test_split_is_disjoint_and_heldout_words_are_valid_guesses() -> None:
+    # Held-out words remain valid GUESSES (the model may guess them) and are disjoint from
+    # train. The stronger "never sampled as a training secret" guarantee binds to the secret
+    # sampler, so it is tested with that sampler (Wave 7), not here.
     train, held = split(seed=0)
-    # The model MAY guess held-out words (they are valid)...
     assert all(is_valid(w) for w in held)
-    # ...but they are never in the training (secret) pool.
     assert set(held).isdisjoint(set(train))
+
+
+def test_heldout_split_is_byte_stable_golden() -> None:
+    # Tripwire for the IMMUTABLE held-out set: any change to the answer data or split logic
+    # that alters held-out membership/order must be deliberate (then update this hash).
+    _, held = split(seed=0)
+    digest = hashlib.sha256("\n".join(held).encode()).hexdigest()
+    assert digest == "b6c02ffe0f9405941b8b6a92e24aa09a934dc8691b8b0f269b1c0dcca6381e79"
 
 
 def test_train_probe_matched_to_heldout_subset_and_stable() -> None:

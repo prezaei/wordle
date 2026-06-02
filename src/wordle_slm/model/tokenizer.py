@@ -74,9 +74,11 @@ class Tokenizer:
             raise KeyError(f"unknown token: {token!r}") from None
 
     def id_to_token(self, idx: int) -> str:
-        if 0 <= idx < len(self.vocab):
+        # `type(idx) is int` rejects bool (aliases 0/1) and float (a float in range would
+        # still index the tuple) — only a genuine int id is valid.
+        if type(idx) is int and 0 <= idx < len(self.vocab):
             return self.vocab[idx]
-        raise KeyError(f"unknown token id: {idx}")
+        raise KeyError(f"unknown token id: {idx!r}")
 
     def encode(self, tokens: list[str]) -> list[int]:
         """Encode a list of vocab tokens (letters and/or special tokens) to ids."""

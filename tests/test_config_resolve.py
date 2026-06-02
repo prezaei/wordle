@@ -54,6 +54,13 @@ def test_malformed_override_raises() -> None:
         resolve("default", ["grpo.group_size"])  # missing '='
 
 
+def test_non_finite_float_override_is_rejected() -> None:
+    # CLAUDE.md invariant: no NaN/inf hidden. A poisoned float must error loudly.
+    for bad in ("nan", "inf", "-inf"):
+        with pytest.raises(ValueError):
+            resolve("default", [f"sft.lr={bad}"])
+
+
 def test_dict_round_trip_in_memory_is_identity() -> None:
     cfg = resolve("default", ["grpo.group_size=12"])
     assert from_dict(to_dict(cfg)) == cfg

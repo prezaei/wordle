@@ -7,6 +7,7 @@ per-phase logic is implemented in its build-plan wave (docs/design/wordle-slm-pl
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 
 from wordle_slm.config.resolve import resolve, to_dict
@@ -48,7 +49,9 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     args = build_parser().parse_args(argv)
     cfg = resolve(preset=args.preset, overrides=args.overrides)
-    logger.info("resolved config for %s: %s", args.command, to_dict(cfg))
+    logger.info(
+        "resolved config for %s: %s", args.command, json.dumps(to_dict(cfg), sort_keys=True)
+    )
     return _not_implemented(args.command)
 
 

@@ -37,16 +37,21 @@ class RunLog:
         self.run_dir = Path(run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._writer = SummaryWriter(log_dir=str(self.run_dir / "tb"))
-        self._transcripts_path = self.run_dir / "transcripts.jsonl"
-        self.meta: dict[str, Any] = {
-            "seed": seed,
-            "git_sha": _git_sha(),
-            "created_at": time.time(),
-            "config": config,
-        }
-        (self.run_dir / "run.json").write_text(
-            json.dumps(self.meta, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        try:
+            self._transcripts_path = self.run_dir / "transcripts.jsonl"
+            self.meta: dict[str, Any] = {
+                "seed": seed,
+                "git_sha": _git_sha(),
+                "created_at": time.time(),
+                "config": config,
+            }
+            (self.run_dir / "run.json").write_text(
+                json.dumps(self.meta, indent=2, sort_keys=True), encoding="utf-8"
+            )
+        except Exception:
+            # Don't leak the open SummaryWriter (and its event-file handle) on partial init.
+            self._writer.close()
+            raise
         logger.info(
             "run log initialized at %s (seed=%d, git=%s)",
             self.run_dir,

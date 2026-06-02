@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 from collections.abc import Callable
 from typing import Any
 
@@ -62,7 +63,10 @@ def _coerce(value: str, current: Any) -> Any:
     if isinstance(current, int):
         return int(value)
     if isinstance(current, float):
-        return float(value)
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError(f"non-finite float not allowed (no NaN/inf): {value!r}")
+        return parsed
     if isinstance(current, str):
         return value
     raise TypeError(

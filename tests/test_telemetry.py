@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from wordle_slm.telemetry import RunLog
 
 
@@ -59,3 +61,26 @@ def test_run_json_is_valid_reloadable_json(tmp_path: Path) -> None:
     meta = json.loads((tmp_path / "j" / "run.json").read_text())
     assert meta["config"] == config
     assert meta["seed"] == 3
+
+
+def test_run_log_closes_writer_if_init_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    closed = {"v": False}
+
+    class _FakeWriter:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def close(self) -> None:
+            closed["v"] = True
+
+    monkeypatch.setattr("wordle_slm.telemetry.run_log.SummaryWriter", _FakeWriter)
+
+    def _boom(self: Path, *args: object, **kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", _boom)
+    with pytest.raises(OSError):
+        RunLog(tmp_path / "x", config={}, seed=0)
+    assert closed["v"] is True  # writer was closed on the failed init
