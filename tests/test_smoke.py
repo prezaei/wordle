@@ -40,3 +40,9 @@ def test_reward_dominance_preconditions() -> None:
 def test_cli_subcommands_parse(command: str) -> None:
     ns = cli.build_parser().parse_args([command])
     assert ns.command == command
+
+
+def test_cli_bad_preset_exits_cleanly() -> None:
+    # A bad --preset must be a clean CLI error (SystemExit), not a raw traceback.
+    with pytest.raises(SystemExit):
+        cli.main(["phase0", "--preset", "does-not-exist"])
