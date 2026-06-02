@@ -153,8 +153,15 @@ Both also seed the head-start teachers (§5.4).
   headline** to match the PRD; the full-valid-list floor (~0.05%) is also logged. Either way this
   is a **sanity check, not the success bar.**
 - **Feedback-consistent guesser** (the *honest yardstick*): open with a fixed strong word, then
-  each turn pick a random word from the valid list **still consistent with all clues**. Expected
-  **~96–99%**. A stretch reference, not the pass bar.
+  each turn pick a random word **still consistent with all clues**. We report two pools, because the
+  measured numbers differ a lot (Phase-0 run, held-out, seed 0):
+  - **over the valid list** (spec's original strategy): **~91.6%** @ ~4.48 avg guesses — drawing
+    random consistent words from the 14,855-valid superset wastes guesses on non-answers, so it lands
+    *below* the originally-estimated ~96–99%.
+  - **over the answer pool** (the **v3 action space** — the model selects among consistent *answers*,
+    §1.5): **~98.9%** @ ~3.85 avg guesses. This is the architecture's **untrained floor** and it
+    already clears the PRD gate (≥95% win, ≤4.0 avg); GRPO's job is to push toward the 3.42 optimum
+    and trim the 6-guess tail. A reference, not the pass bar.
 
 ### 4.4 Telemetry (Phase 0)
 For each baseline over the full held-out set: win rate, average guesses (wins), guess-count
@@ -319,15 +326,20 @@ Verify in telemetry (§8); tune in Phase 3. **Information-gain reward is deferre
 - The model is always **evaluated on the full immutable held-out set**, regardless of tier.
 
 ### 6.6 Budget model (ties GRPO to the ~45-min RL window)
+The circular form (#updates ← eval_overhead ← #updates) is linear, so it resolves directly — each
+update costs `rollout_batch` rollout games + an amortized **two-tier** eval cost:
 ```
-rollout_batch = secrets_per_update × G
-#updates ≈ (rollout_throughput[games/sec] × 45min×60 − eval_overhead) / rollout_batch
-eval_overhead = full_heldout_games(≈463) × (#updates / full_eval_cadence)
+rollout_batch   = secrets_per_update × G
+eval_per_update = full_heldout/full_cadence + curve_subsample/curve_cadence   (both eval tiers)
+#updates        = (rollout_throughput[games/sec] × 45min×60) / (rollout_batch + eval_per_update)
 ```
+(The implementation, `baselines/phase0.py:estimate_budget`, includes **both** eval tiers — the
+earlier single-term form under-counted by omitting the curve subsample.)
 Defaults (§13): `secrets_per_update = 8` (→ 128 rollouts/update at G=16). **Two-tier eval** to
 keep eval cheap: a **128-secret held-out subsample every ~25 updates** for the learning curve;
 the **full ~463 held-out every ~200 updates** for checkpoint selection. All starting points —
-re-derive from the Phase-0 games/sec number before committing.
+re-derive from the Phase-0 games/sec number before committing. (Phase 0 estimates with *engine*
+throughput, an optimistic upper bound; the binding model-rollout number is the §4.5 micro-benchmark.)
 
 ### 6.7 Evaluation, selection, gate
 - **Generalization gap** = (fixed train *probe* set win rate − held-out win rate), measured on a
