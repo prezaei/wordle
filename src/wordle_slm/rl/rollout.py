@@ -33,7 +33,7 @@ def play_game(
 ) -> Game:
     """Play one game; the model selects among still-consistent candidates each turn."""
     candidates: tuple[str, ...] = tuple(pool)  # turn 1: every word is still consistent
-    if secret.lower() not in set(candidates):
+    if secret.lower() not in {c.lower() for c in candidates}:
         raise ValueError(f"secret {secret!r} must be in the candidate pool")
     game = Game(secret, max_guesses=max_guesses)
     pad_id = tokenizer.pad_id
@@ -50,7 +50,7 @@ def play_game(
             if sample:
                 probs = torch.softmax(
                     logits, dim=0
-                ).cpu()  # sample on CPU: device-agnostic generator
+                ).cpu()  # sample on CPU; `generator` must be a CPU generator
                 index = int(torch.multinomial(probs, 1, generator=generator).item())
             else:
                 index = int(torch.argmax(logits).item())
