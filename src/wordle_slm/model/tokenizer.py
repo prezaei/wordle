@@ -29,7 +29,6 @@ class Tokenizer:
     def __init__(self) -> None:
         self.vocab: tuple[str, ...] = SPECIAL_TOKENS + LETTERS
         self._tok_to_id: dict[str, int] = {t: i for i, t in enumerate(self.vocab)}
-        self._id_to_tok: dict[int, str] = dict(enumerate(self.vocab))
         logger.info("tokenizer initialized: vocab_size=%d", len(self.vocab))
 
     @property
@@ -75,10 +74,9 @@ class Tokenizer:
             raise KeyError(f"unknown token: {token!r}") from None
 
     def id_to_token(self, idx: int) -> str:
-        try:
-            return self._id_to_tok[idx]
-        except KeyError:
-            raise KeyError(f"unknown token id: {idx}") from None
+        if 0 <= idx < len(self.vocab):
+            return self.vocab[idx]
+        raise KeyError(f"unknown token id: {idx}")
 
     def encode(self, tokens: list[str]) -> list[int]:
         """Encode a list of vocab tokens (letters and/or special tokens) to ids."""

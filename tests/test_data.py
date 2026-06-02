@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from wordle_slm.data import (
     is_valid,
     load_answers,
@@ -88,3 +90,30 @@ def test_is_valid_false_for_a_non_member() -> None:
         last = chr((ord(candidate[-1]) - ord("a") + 1) % 26 + ord("a"))
         candidate = candidate[:-1] + last
     assert is_valid(candidate) is False
+
+
+def test_train_probe_negative_size_raises() -> None:
+    with pytest.raises(ValueError):
+        train_probe(seed=0, size=-1)
+
+
+def test_train_probe_size_larger_than_train_clamps_to_train() -> None:
+    train, _ = split(seed=0)
+    assert len(train_probe(seed=0, size=10**9)) == len(train)
+
+
+def test_split_with_non_default_train_frac_is_consistent() -> None:
+    n = len(load_answers())
+    train, held = split(seed=0, train_frac=0.5)
+    assert len(train) == round(n * 0.5)
+    assert len(held) == n - round(n * 0.5)
+    assert set(train).isdisjoint(set(held))
+    assert set(train) | set(held) == set(load_answers())
+
+
+def test_is_valid_handles_mixed_case_and_wrong_length() -> None:
+    word = load_valid_guesses()[0]
+    assert is_valid(word[0].upper() + word[1:]) is True  # mixed case
+    assert is_valid(word[:4]) is False  # too short
+    assert is_valid(word + "s") is False  # too long
+    assert is_valid("") is False

@@ -8,6 +8,7 @@ import pytest
 
 from wordle_slm.config import RunConfig
 from wordle_slm.config.resolve import (
+    _SUBCONFIGS,
     from_dict,
     load_preset,
     resolve,
@@ -53,11 +54,40 @@ def test_malformed_override_raises() -> None:
         resolve("default", ["grpo.group_size"])  # missing '='
 
 
-def test_dict_round_trip_is_identity() -> None:
+def test_dict_round_trip_in_memory_is_identity() -> None:
     cfg = resolve("default", ["grpo.group_size=12"])
     assert from_dict(to_dict(cfg)) == cfg
+
+
+def test_dict_round_trip_through_json_is_identity() -> None:
+    # The real persistence path (run.json): tuples must survive as tuples, not lists.
+    cfg = resolve("default", ["grpo.group_size=12"])
+    reloaded = from_dict(json.loads(json.dumps(to_dict(cfg))))
+    assert reloaded == cfg
+    assert isinstance(reloaded.curriculum.tiers, tuple)
 
 
 def test_to_dict_is_json_serializable() -> None:
     blob = json.dumps(to_dict(RunConfig()), sort_keys=True)
     assert "group_size" in blob
+
+
+def test_overriding_a_tuple_field_errors_clearly() -> None:
+    with pytest.raises(TypeError):
+        resolve("default", ["curriculum.tiers=200,500"])
+
+
+def test_override_value_may_contain_equals() -> None:
+    cfg = resolve("default", ["data.data_dir=a=b"])
+    assert cfg.data.data_dir == "a=b"
+
+
+def test_subconfigs_map_covers_all_dataclass_fields() -> None:
+    import dataclasses
+
+    sub_fields = {
+        f.name
+        for f in dataclasses.fields(RunConfig)
+        if dataclasses.is_dataclass(getattr(RunConfig(), f.name))
+    }
+    assert set(_SUBCONFIGS) == sub_fields

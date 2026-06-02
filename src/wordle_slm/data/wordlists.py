@@ -24,7 +24,8 @@ _VALID_FILE = "valid_guesses.txt"
 
 def _load_file(name: str) -> tuple[str, ...]:
     text = resources.files("wordle_slm.data").joinpath("words", name).read_text(encoding="utf-8")
-    return tuple(line.strip() for line in text.splitlines() if line.strip())
+    # Sort for a deterministic, documented order independent of the file's on-disk order.
+    return tuple(sorted(line.strip() for line in text.splitlines() if line.strip()))
 
 
 @lru_cache(maxsize=1)
@@ -85,6 +86,8 @@ def train_probe(
     train, held_out = split(seed=seed, train_frac=train_frac)
     if size is None:
         size = len(held_out)
+    if size < 0:
+        raise ValueError(f"train_probe size must be >= 0, got {size}")
     size = min(size, len(train))
     # A seed-derived RNG independent of the split's own shuffle, so the probe is stable.
     shuffled = list(train)

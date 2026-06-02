@@ -56,7 +56,9 @@ class RunLog:
 
     def log_scalar(self, tag: str, value: float, step: int) -> None:
         self._writer.add_scalar(tag, value, step)
-        logger.info("scalar %s=%.6g @ step %d", tag, value, step)
+        # DEBUG, not INFO: scalars are logged per-step during RL and would flood the log;
+        # TensorBoard is the system of record for them (spec §8).
+        logger.debug("scalar %s=%.6g @ step %d", tag, value, step)
 
     def log_transcript(self, record: dict[str, Any]) -> None:
         """Append one game transcript (or any structured record) as a JSON line."""

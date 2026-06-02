@@ -65,7 +65,10 @@ def _coerce(value: str, current: Any) -> Any:
         return float(value)
     if isinstance(current, str):
         return value
-    raise TypeError(f"unsupported override target type {type(current).__name__} for {value!r}")
+    raise TypeError(
+        f"cannot override {type(current).__name__}-typed field via --set (scalar values only); "
+        f"got {value!r}. Use a config preset for container fields like tuples."
+    )
 
 
 def apply_override(cfg: RunConfig, dotted_key: str, raw_value: str) -> None:
@@ -100,9 +103,30 @@ def to_dict(cfg: RunConfig) -> dict[str, Any]:
     return dataclasses.asdict(cfg)
 
 
+def _restore_field_types(sub_cls: type, data: dict[str, Any]) -> dict[str, Any]:
+    """Coerce JSON-degraded values back to a sub-config's field types (list -> tuple).
+
+    A JSON round-trip turns tuples into lists; comparing against a default instance lets us
+    restore tuple-typed fields so ``from_dict(to_dict(...))`` is a true inverse even via JSON.
+    """
+    defaults = sub_cls()
+    restored: dict[str, Any] = {}
+    for key, value in data.items():
+        default = getattr(defaults, key, None)
+        if isinstance(default, tuple) and isinstance(value, list):
+            restored[key] = tuple(value)
+        else:
+            restored[key] = value
+    return restored
+
+
 def from_dict(d: dict[str, Any]) -> RunConfig:
-    """Reconstruct a RunConfig from ``to_dict`` output (round-trip inverse)."""
+    """Reconstruct a RunConfig from ``to_dict`` output; a true inverse even through JSON."""
     kwargs: dict[str, Any] = {}
     for key, value in d.items():
-        kwargs[key] = _SUBCONFIGS[key](**value) if key in _SUBCONFIGS else value
+        if key in _SUBCONFIGS:
+            sub_cls = _SUBCONFIGS[key]
+            kwargs[key] = sub_cls(**_restore_field_types(sub_cls, value))
+        else:
+            kwargs[key] = value
     return RunConfig(**kwargs)

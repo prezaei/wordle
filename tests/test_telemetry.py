@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from wordle_slm.telemetry import RunLog
@@ -42,3 +43,19 @@ def test_transcripts_append_across_calls(tmp_path: Path) -> None:
     run.close()
     lines = (tmp_path / "run2" / "transcripts.jsonl").read_text().splitlines()
     assert [json.loads(line)["i"] for line in lines] == [1, 2]
+
+
+def test_git_sha_is_40_hex_or_unknown(tmp_path: Path) -> None:
+    run = RunLog(tmp_path / "g", config={}, seed=0)
+    run.close()
+    sha = json.loads((tmp_path / "g" / "run.json").read_text())["git_sha"]
+    assert sha == "unknown" or re.fullmatch(r"[0-9a-f]{40}", sha)
+
+
+def test_run_json_is_valid_reloadable_json(tmp_path: Path) -> None:
+    config = {"a": 1, "nested": {"b": [1, 2, 3]}}
+    run = RunLog(tmp_path / "j", config=config, seed=3)
+    run.close()
+    meta = json.loads((tmp_path / "j" / "run.json").read_text())
+    assert meta["config"] == config
+    assert meta["seed"] == 3
