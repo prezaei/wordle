@@ -1,12 +1,17 @@
 """Command-line entrypoints for wordle-slm.
 
-Subcommands are stubs in S0; each is implemented in its build-plan wave
-(docs/design/wordle-slm-plan.md).
+Each subcommand resolves a config (preset + ``--set`` overrides, Plan: K) and logs it; the
+per-phase logic is implemented in its build-plan wave (docs/design/wordle-slm-plan.md).
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
+
+from wordle_slm.config.resolve import resolve, to_dict
+
+logger = logging.getLogger(__name__)
 
 _COMMANDS: dict[str, str] = {
     "phase0": "Phase 0: engine, data, baselines, floor/yardstick + speed budget",
@@ -26,12 +31,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="wordle-slm", description="Wordle SLM toolkit.")
     sub = parser.add_subparsers(dest="command", required=True)
     for name, help_text in _COMMANDS.items():
-        sub.add_parser(name, help=help_text)
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("--preset", default="default", help="config preset name")
+        p.add_argument(
+            "--set",
+            dest="overrides",
+            action="append",
+            default=[],
+            metavar="KEY=VALUE",
+            help="override a config field, e.g. --set grpo.group_size=16 (repeatable)",
+        )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     args = build_parser().parse_args(argv)
+    cfg = resolve(preset=args.preset, overrides=args.overrides)
+    logger.info("resolved config for %s: %s", args.command, to_dict(cfg))
     return _not_implemented(args.command)
 
 
