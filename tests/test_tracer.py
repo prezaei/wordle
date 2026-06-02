@@ -12,8 +12,11 @@ import torch
 
 from wordle_slm.config import GRPOConfig, ModelConfig, RewardConfig
 from wordle_slm.data import load_answers
+from wordle_slm.engine import filter_consistent
 from wordle_slm.model import Tokenizer
 from wordle_slm.model.scorer import CandidateScorer
+from wordle_slm.model.serialization import encode_board, encode_word
+from wordle_slm.rl.reward import compute_reward
 from wordle_slm.rl.rollout import play_game
 from wordle_slm.rl.tracer import (
     compute_group_advantages,
@@ -22,6 +25,23 @@ from wordle_slm.rl.tracer import (
     trajectory_surrogate,
 )
 from wordle_slm.telemetry.run_log import RunLog
+
+
+def _sum_chosen_logp(model: CandidateScorer, tok: Tokenizer, game, pool: tuple[str, ...]) -> float:
+    """Σ_t logπ(chosen guess | board_t), replayed independently of trajectory_surrogate, no grad."""
+    pad_id = tok.pad_id
+    candidates: tuple[str, ...] = tuple(pool)
+    total = 0.0
+    history: list = []
+    with torch.no_grad():
+        for turn in game.turns:
+            board = torch.tensor(encode_board(history, tok)).unsqueeze(0)
+            cand_ids = torch.tensor([encode_word(w, tok) for w in candidates])
+            logprobs = torch.log_softmax(model.score(board, cand_ids, pad_id), dim=0)
+            total += float(logprobs[candidates.index(turn.guess)])
+            history.append(turn)
+            candidates = filter_consistent(candidates, turn)
+    return total
 
 
 def _setup(seed: int = 0) -> tuple[CandidateScorer, Tokenizer, tuple[str, ...], tuple[str, ...]]:
@@ -121,6 +141,54 @@ def test_tracer_advantage_has_signal() -> None:
     model, tok, pool, secrets = _setup()
     _, stats = _step(model, tok, pool, secrets)
     assert stats.advantage_var > 0.0  # varied guess counts -> non-degenerate group
+
+
+def test_tracer_update_ascends_the_advantage_weighted_objective() -> None:
+    # The Layer-1 SIGN check: one update must move θ UPHILL on Σ_traj adv·Σ_t logπ(chosen) — i.e.
+    # gradient ASCENT. "Gradient is non-zero" alone passes even with a flipped (descent) loss sign;
+    # this fails on that bug. At θ=ref the KL gradient is 0, so the first step is pure surrogate.
+    model, tok, pool, _ = _setup()
+    secret = pool[0]
+    ref = make_reference(model)
+
+    # Reproduce the exact group grpo_tracer_step samples (same seed, pre-update model).
+    model.eval()
+    gen = torch.Generator().manual_seed(0)
+    games = [play_game(model, tok, secret, pool, sample=True, generator=gen) for _ in range(6)]
+    rewards = torch.tensor([compute_reward(g, RewardConfig(), pool).total for g in games])
+    advantages = rewards - rewards.mean()
+    assert not bool((advantages.abs() < 1e-9).all())  # the group must carry signal
+
+    def objective() -> float:
+        model.eval()
+        return sum(
+            float(a) * _sum_chosen_logp(model, tok, g, pool)
+            for g, a in zip(games, advantages, strict=True)
+        )
+
+    before = objective()
+    grpo_tracer_step(
+        model,
+        ref,
+        tok,
+        (secret,),
+        pool,
+        grpo=GRPOConfig(),
+        reward=RewardConfig(),
+        optimizer=torch.optim.AdamW(model.parameters(), lr=1e-2),
+        group_size=6,
+        device="cpu",
+        generator=torch.Generator().manual_seed(0),
+    )
+    assert objective() > before  # ascent on the same rollouts; a flipped loss sign would descend
+
+
+def test_reference_receives_no_gradient_after_a_step() -> None:
+    # The v3 analogue of the old "gradient is zero on context/feedback tokens": no gradient must
+    # leak into the frozen π_ref (it is consulted only under no_grad for the KL penalty).
+    model, tok, pool, secrets = _setup()
+    ref, _ = _step(model, tok, pool, secrets)
+    assert all(p.grad is None for p in ref.parameters())
 
 
 def test_tracer_kl_is_nonnegative_at_the_reference() -> None:
