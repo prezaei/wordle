@@ -1,7 +1,25 @@
-# Rust / Cargo
-/target
-**/*.rs.bk
-Cargo.lock.orig
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# uv
+# (uv.lock IS committed)
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runs / artifacts
+runs/
+checkpoints/
+*.pt
+*.ckpt
+tb_logs/
 
 # Editor / OS
 .DS_Store
