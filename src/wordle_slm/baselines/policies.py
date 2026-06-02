@@ -66,7 +66,11 @@ def _require_candidates(consistent: tuple[str, ...]) -> None:
 
 
 class RandomGuesser:
-    """The floor: uniformly random words from `draw_pool`, ignoring all feedback."""
+    """The floor: uniformly random words from `draw_pool`, ignoring all feedback.
+
+    Reuse a *single* instance across a measurement sweep — a fresh instance per game replays the
+    identical seeded sequence, which would correlate every game's draws and bias the floor estimate.
+    """
 
     needs_consistent = False
 
@@ -86,7 +90,11 @@ class RandomGuesser:
 
 
 class ConsistentGuesser:
-    """The yardstick: a fixed opener, then a uniformly random still-consistent word (valid list)."""
+    """The yardstick: a fixed opener, then a uniformly random still-consistent word (valid list).
+
+    Reuse a *single* instance across a sweep (see `RandomGuesser`) so each game's draws are
+    independent rather than a replay of the same seeded sequence.
+    """
 
     needs_consistent = True
 
@@ -161,10 +169,13 @@ def play(
 ) -> Game:
     """Drive one full game with `guesser`.
 
-    The base set for consistency tracking defaults to `guesser.default_pool` (the right pool for
-    each guesser — valid list for the yardstick, answers for the teacher); pass `pool` only to
-    override it (e.g. a small pool in tests). For `needs_consistent` guessers it is narrowed
-    incrementally (one clue per turn) and passed to `choose`; for the floor it is unused.
+    `pool` is the *candidate universe* (the set the guesser may draw/score over), NOT the set of
+    secrets to sweep: which secrets to play — held-out for the §4.4 baseline measurement, train
+    answers for §5.4 teacher data — is the caller's choice, passed one at a time as `secret`.
+    It defaults to `guesser.default_pool` (the right universe per guesser — valid list for the
+    yardstick, answers for the teacher); pass `pool` only to override it (e.g. a small test pool).
+    For `needs_consistent` guessers it is narrowed incrementally (one clue per turn) and passed to
+    `choose`; for the floor it is unused.
     """
     base_pool = guesser.default_pool if pool is None else pool
     if guesser.needs_consistent and not secret_in_pool(secret, base_pool):
@@ -174,6 +185,15 @@ def play(
     consistent = base_pool
     while game.status is Status.ONGOING:
         word = guesser.choose(game.turns, consistent)
+        # The per-turn policy decision. DEBUG, not INFO: one line per guess would flood a sweep —
+        # play() logs the game outcome at INFO below (cf. RunLog's DEBUG-per-step convention).
+        logger.debug(
+            "%s turn %d: chose %r from %d candidate(s)",
+            type(guesser).__name__,
+            game.guesses_used + 1,
+            word,
+            len(consistent),
+        )
         turn = game.guess(word)
         if guesser.needs_consistent:
             consistent = filter_consistent(consistent, turn)

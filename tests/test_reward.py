@@ -94,3 +94,11 @@ def test_ongoing_game_has_no_terminal_reward() -> None:
     b = compute_reward(g, cfg, pool)
     assert b.terminal == 0.0
     assert b.total == pytest.approx(b.info_gain - cfg.step_cost)
+
+
+def test_compute_reward_raises_when_secret_not_in_pool() -> None:
+    # The guard (engine.secret_in_pool) must fire at this entry point: a secret outside the pool
+    # would let the consistent set empty out mid-telescope.
+    g = Game("aaaaa")  # a valid 5-letter secret, but not an answer
+    with pytest.raises(ValueError, match="must be in the candidate pool"):
+        compute_reward(g, RewardConfig(), load_answers())
