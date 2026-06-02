@@ -33,6 +33,14 @@ def test_encode_board_empty_is_bos_eos() -> None:
     assert tok.decode(encode_board([], tok)) == ["<BOS>", "<EOS>"]
 
 
+def test_encode_board_two_turns_layout() -> None:
+    tok = Tokenizer()
+    toks = tok.decode(encode_board([_turn("crane", "night"), _turn("slate", "night")], tok))
+    assert toks.count("<SEP>") == 2
+    assert toks[1:6] == list("crane")  # turn 1 letters
+    assert toks[12:17] == list("slate")  # turn 2 letters (after BOS + 11-token turn 1)
+
+
 def test_encode_word_is_case_insensitive() -> None:
     tok = Tokenizer()
     assert tok.decode(encode_word("CRANE", tok)) == list("crane")

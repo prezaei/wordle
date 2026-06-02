@@ -48,3 +48,23 @@ def test_sampling_path_runs() -> None:
     gen = torch.Generator().manual_seed(0)
     game = play_game(model, tok, pool[0], pool, sample=True, generator=gen)
     assert game.status in (Status.WIN, Status.LOSE)
+
+
+def test_sampling_is_reproducible_with_a_seed() -> None:
+    model, tok, pool = _setup()
+    g1 = play_game(
+        model, tok, pool[0], pool, sample=True, generator=torch.Generator().manual_seed(7)
+    )
+    g2 = play_game(
+        model, tok, pool[0], pool, sample=True, generator=torch.Generator().manual_seed(7)
+    )
+    assert [t.guess for t in g1.turns] == [t.guess for t in g2.turns]
+
+
+def test_lose_path_when_first_guess_misses_at_cap() -> None:
+    model, tok, pool = _setup()
+    first = play_game(model, tok, pool[0], pool, sample=False, max_guesses=1).turns[0].guess
+    secret = next(w for w in pool if w != first)  # guarantee the single guess misses
+    game = play_game(model, tok, secret, pool, sample=False, max_guesses=1)
+    assert game.status is Status.LOSE
+    assert game.guesses_used == 1

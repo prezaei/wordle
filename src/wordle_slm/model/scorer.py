@@ -37,7 +37,9 @@ class CandidateScorer(nn.Module):
             batch_first=True,
         )
         self.board_encoder = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
-        self.cand_proj = nn.Linear(d, d)
+        self.word_len = 5
+        # Flatten the per-letter embeddings (order-preserving) so anagrams get distinct vectors.
+        self.cand_proj = nn.Linear(self.word_len * d, d)
         logger.info(
             "CandidateScorer: %d params (d_model=%d, layers=%d, heads=%d)",
             sum(p.numel() for p in self.parameters()),
@@ -49,6 +51,8 @@ class CandidateScorer(nn.Module):
     def board_vector(self, board_ids: torch.Tensor, pad_id: int) -> torch.Tensor:
         """Encode board sequences ``[B, L]`` to mean-pooled board vectors ``[B, d]``."""
         length = board_ids.shape[1]
+        if length > self.context_len:
+            raise ValueError(f"board length {length} exceeds context_len {self.context_len}")
         positions = torch.arange(length, device=board_ids.device).unsqueeze(0)
         x = self.token_embed(board_ids) + self.pos_embed(positions)
         pad_mask = board_ids == pad_id  # True at padded positions
@@ -57,11 +61,12 @@ class CandidateScorer(nn.Module):
         return (hidden * keep).sum(dim=1) / keep.sum(dim=1).clamp(min=1.0)
 
     def candidate_vectors(self, candidate_ids: torch.Tensor) -> torch.Tensor:
-        """Encode candidate words ``[N, 5]`` to candidate vectors ``[N, d]``."""
-        width = candidate_ids.shape[1]
-        positions = torch.arange(width, device=candidate_ids.device).unsqueeze(0)
-        emb = self.token_embed(candidate_ids) + self.pos_embed(positions)
-        return self.cand_proj(emb.mean(dim=1))
+        """Encode candidate words ``[N, word_len]`` to vectors ``[N, d]`` (order-preserving)."""
+        n, width = candidate_ids.shape
+        if width != self.word_len:
+            raise ValueError(f"candidate width {width} != word_len {self.word_len}")
+        emb = self.token_embed(candidate_ids)  # [N, word_len, d]
+        return self.cand_proj(emb.reshape(n, width * self.d_model))  # flatten keeps letter order
 
     def score(
         self, board_ids: torch.Tensor, candidate_ids: torch.Tensor, pad_id: int
@@ -69,6 +74,8 @@ class CandidateScorer(nn.Module):
         """Logits over the candidate set for one board (one logit per candidate)."""
         if board_ids.dim() == 1:
             board_ids = board_ids.unsqueeze(0)
+        if board_ids.shape[0] != 1:
+            raise ValueError("score() takes one board ([L] or [1, L]); batch in the trainer")
         board = self.board_vector(board_ids, pad_id).squeeze(0)  # [d]
         cands = self.candidate_vectors(candidate_ids)  # [N, d]
         return (cands @ board) / (self.d_model**0.5)  # [N]
