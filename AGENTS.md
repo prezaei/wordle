@@ -2,7 +2,9 @@
 
 Project context and working agreement for AI coding agents. Keep this file small — it loads into every agent's context on every task.
 
-> Stack is Rust (Cargo workspace). Fill in the remaining project-specific blanks (host, CI, issue tracker) under **Project** below.
+> **Stack:** Python 3.12 + PyTorch (Apple-Silicon **MPS** backend). This repo trains a small
+> language model from scratch and uses RL (GRPO) to play Wordle. Runs **locally** on the M5 Max;
+> no external services. See `PRD.md` (product) and `docs/design/wordle-slm.md` (spec).
 
 ## Working Style
 
@@ -42,8 +44,8 @@ Project context and working agreement for AI coding agents. Keep this file small
 - **Issues:** GitHub Issues
 - **Merge strategy:** squash — single commit per PR
 - **Branch naming:** feature branches off `main`
-- **Package manager:** Cargo (with `Cargo.lock` committed)
-- **Do NOT** use nightly-only features without discussion
+- **Package manager:** **uv** (with `uv.lock` committed)
+- **Do NOT** depend on unreleased/experimental APIs without discussion
 
 ## Skills
 
@@ -56,34 +58,34 @@ Project context and working agreement for AI coding agents. Keep this file small
 
 ## Repo Invariants
 
-- `cargo clippy -- -D warnings` must pass (all warnings are errors)
-- `cargo fmt --check` must pass (rustfmt enforced)
-- No `unsafe` without explicit justification in a comment
-- No `unwrap()` in library/production code — use proper error handling (`anyhow`, `thiserror`)
-- Workspace layout: `services/` for binaries, `libs/` for shared crates
+- `ruff check` must pass (lint clean — warnings treated as errors)
+- `ruff format --check` must pass (formatting enforced)
+- Full **type hints** on public functions/classes
+- **No swallowed exceptions** — raise or handle explicitly; never `except:`/silent failure
+- **No `unsafe` numerics silently** — no NaN/inf hidden; assert on critical tensor state
+- Layout: `src/wordle_slm/` package; `tests/` mirrors it
+- **Determinism:** fixed seeds for runs; note MPS is only *approximately* reproducible (document, don't pretend bit-exact)
 
 ## Prerequisites
 
 | Need | Why |
 |------|-----|
-| Rust stable toolchain | Build and test |
+| Python 3.12+ and `uv` | Build, deps, run |
+| Apple-Silicon Mac (MPS) | Train on the GPU |
 | `gh` CLI authenticated to your git host | PRs, issues |
-| PostgreSQL 16 (local or container) | Integration tests |
-| Docker | Worker runtime (local mode) |
 
-Bootstrap: `cargo build && cargo test`
+Bootstrap: `uv sync && uv run pytest`
 
 ## PR Quality Checklist
 
 ```bash
 # Run everything
-cargo fmt --check && cargo clippy -- -D warnings && cargo test
+uv run ruff format --check && uv run ruff check && uv run pytest
 
 # Individual gates
-cargo fmt --check            # formatting
-cargo clippy -- -D warnings  # lint
-cargo test                   # tests
-cargo build                  # compile check
+uv run ruff format --check   # formatting
+uv run ruff check            # lint
+uv run pytest                # tests
 ```
 
 Every PR must also pass:
@@ -93,18 +95,18 @@ Every PR must also pass:
 ## Testing Guardrails
 
 - Tests required for new code paths.
-- No hardcoded ports — use port 0 or dynamic allocation.
+- No hardcoded ports/paths — use temp dirs / dynamic allocation.
 - No global mutable state — tests run in parallel by default.
-- Scoped test runs: `cargo test -p <crate-name>`
-- **Every enum variant through every entry point.** If an API accepts an enum, every variant gets a test through every path. Not one variant that happens to work.
-- **Test names are contracts.** If a test is named `create_with_owns_relationship`, it must exercise that relationship. A mismatch between test name and test body is a bug.
-- **Exactly-once is always tested.** Any system that delivers events must assert the exact count, not "at least N."
+- Scoped test runs: `uv run pytest tests/<area>` or `pytest -k <pattern>`.
+- **Exact expected values.** Engine color-scoring (duplicate letters) and the reward function assert the exact output, not a paraphrase.
+- **Every enum variant through every entry point.** If an API accepts an enum (e.g. `Color`), every variant gets a test through every path. Not one variant that happens to work.
+- **Test names are contracts.** A mismatch between test name and test body is a bug.
 - **No optimizations.** An optimization is a second codepath. A second codepath hides bugs. One path.
 - **Design → tests → code.** Always in that order. Tests define the contract. Code fulfills it.
 
 ## Telemetry
 
-**Every activity in the system is logged. Every event, every outcome, every decision. No exceptions.** If something happens and there's no log, that's a critical gap. If you can't diagnose a problem from the logs alone, the telemetry is insufficient.
+**Every activity in the system is logged. Every event, every outcome, every decision. No exceptions.** If something happens and there's no log, that's a critical gap. If you can't diagnose a problem from the logs alone, the telemetry is insufficient. (This project: TensorBoard scalars + a structured JSON run log; see `docs/design/wordle-slm.md` §8.)
 
 ## Keeping this file small
 
