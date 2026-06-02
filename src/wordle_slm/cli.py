@@ -142,7 +142,7 @@ def _run_sft(cfg: RunConfig, args: argparse.Namespace) -> int:
 
 def _run_rl(cfg: RunConfig, args: argparse.Namespace) -> int:
     """Phase-2 GRPO (Plan: Q): init from the SFT checkpoint, train, eval on held-out."""
-    from wordle_slm.data import split
+    from wordle_slm.data import split, train_probe
     from wordle_slm.model import Tokenizer, WordleGenerator
     from wordle_slm.rl.curriculum import Curriculum
     from wordle_slm.rl.grpo import eval_win_rate, train_grpo
@@ -164,6 +164,8 @@ def _run_rl(cfg: RunConfig, args: argparse.Namespace) -> int:
     ref = make_reference(model)  # frozen π_ref = the SFT model
     curriculum = Curriculum(train, cfg.curriculum)
     eval_secrets = heldout[: cfg.eval.curve_subsample]
+    probe = train_probe(seed=cfg.data.split_seed, train_frac=cfg.data.train_frac)
+    best_path = Path(cfg.run_dir) / "best.pt"
     with RunLog(Path(cfg.run_dir) / "rl", config=to_dict(cfg), seed=cfg.seed) as run_log:
         history = train_grpo(
             model,
@@ -174,6 +176,8 @@ def _run_rl(cfg: RunConfig, args: argparse.Namespace) -> int:
             reward=cfg.reward,
             n_updates=args.updates,
             eval_secrets=eval_secrets,
+            probe_secrets=probe,  # generalization-gap telemetry (spec §6.7)
+            best_checkpoint=best_path,  # keep the best-by-held-out model, not the last
             eval_every=cfg.eval.curve_cadence,
             device=device,
             run_log=run_log,
@@ -183,7 +187,7 @@ def _run_rl(cfg: RunConfig, args: argparse.Namespace) -> int:
     summary = f"RL done: {len(history)} updates ({stepped} stepped)"
     if eval_secrets:
         win = eval_win_rate(model, tok, eval_secrets, device=device)
-        summary += f", held-out win rate {win * 100:.1f}%"
+        summary += f", held-out win rate {win * 100:.1f}% (best checkpoint → {best_path})"
     print(summary)
     return 0
 

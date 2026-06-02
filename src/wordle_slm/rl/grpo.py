@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from random import Random
 
 import torch
@@ -247,13 +248,23 @@ def train_grpo(
     reward: RewardConfig,
     n_updates: int,
     eval_secrets: tuple[str, ...] = (),
+    probe_secrets: tuple[str, ...] = (),
+    best_checkpoint: str | Path | None = None,
     eval_every: int = 25,
     warmup_updates: int | None = None,
     device: str = "cpu",
     run_log: RunLog | None = None,
     seed: int = 0,
 ) -> list[UpdateStats]:
-    """Run `n_updates` GRPO updates: curriculum sampling, LR warmup, telemetry, periodic eval."""
+    """Run `n_updates` GRPO updates: curriculum sampling, LR warmup, telemetry, periodic eval.
+
+    At each eval point (every `eval_every`): held-out win rate drives curriculum promotion and, if
+    `best_checkpoint` is set, **best-checkpoint-by-held-out** selection (so a late collapse can't
+    lose the best model — spec §6.7). With `probe_secrets` (the fixed train probe) it also logs the
+    signed **generalization gap** = probe − held-out (large positive = memorization).
+    """
+    from wordle_slm.sft.train import save_checkpoint  # lazy: avoids an import cycle
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=grpo.lr)
     rng = Random(seed)
     generator = torch.Generator().manual_seed(seed)
@@ -261,6 +272,7 @@ def train_grpo(
         warmup_updates if warmup_updates is not None else max(1, int(n_updates * grpo.warmup_ratio))
     )
     history: list[UpdateStats] = []
+    best_win_rate = -1.0
 
     for update in range(n_updates):
         secrets = tuple(curriculum.sample(rng) for _ in range(grpo.secrets_per_update))
@@ -302,6 +314,16 @@ def train_grpo(
             if run_log is not None:
                 run_log.log_scalar("grpo/eval_win_rate", win_rate, update)
                 run_log.log_scalar("grpo/tier", float(curriculum.tier_index), update)
+            if probe_secrets:  # signed generalization gap = probe − held-out (spec §6.7)
+                probe_win = eval_win_rate(model, tokenizer, probe_secrets, device=device)
+                gap = probe_win - win_rate
+                if run_log is not None:
+                    run_log.log_scalar("grpo/probe_win_rate", probe_win, update)
+                    run_log.log_scalar("grpo/gen_gap", gap, update)
+            if best_checkpoint is not None and win_rate > best_win_rate:
+                best_win_rate = win_rate  # keep the best-by-held-out model, not the last one
+                save_checkpoint(best_checkpoint, model, optimizer, update, grpo)
+                logger.info("update %d: new best held-out win_rate=%.3f -> saved", update, win_rate)
             logger.info(
                 "update %d: eval win_rate=%.3f tier=%d%s",
                 update,
