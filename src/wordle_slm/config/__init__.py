@@ -52,7 +52,9 @@ class RewardConfig:
 
     info_gain_weight: float = 1.0  # weight on log(|C_before| / |C_after|) per guess
     win_base: float = 1.0
-    win_speed: float = 0.2  # extra per unused guess (faster = more)
+    # Raised for the fewest-guesses priority: info-gain telescopes (constant across wins, so it
+    # cancels in GRPO's group-relative advantage), making win_speed the real speed lever. Tunable.
+    win_speed: float = 0.5  # extra per unused guess (faster = more)
     step_cost: float = 0.02  # per guess
     loss_penalty: float = 0.5  # subtracted on a loss
 
