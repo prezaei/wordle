@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 _COMMANDS: dict[str, str] = {
     "phase0": "Phase 0: engine, data, baselines, floor/yardstick + speed budget",
+    "pretrain": "Spell warm-up: LM over the word list (learn to spell before SFT)",
     "sft": "Phase 1: imitation head-start (SFT) training",
     "rl": "Phase 2: GRPO reinforcement learning",
     "eval": "Evaluate a checkpoint on the held-out set",
@@ -71,11 +72,43 @@ def _checkpoint_path(cfg: RunConfig, override: str | None) -> Path:
     return Path(override) if override else Path(cfg.run_dir) / "sft.pt"
 
 
+def _run_pretrain(cfg: RunConfig, args: argparse.Namespace) -> int:
+    """Spell warm-up: LM over the valid word list so the model learns to spell (migration §6)."""
+    from wordle_slm.model import Tokenizer, WordleGenerator
+    from wordle_slm.sft import pretrain_lm, pretrain_words, save_checkpoint
+    from wordle_slm.telemetry.run_log import RunLog
+
+    device = args.device or cfg.device
+    tok = Tokenizer()
+    model = WordleGenerator(cfg.model, tok.vocab_size).to(device)
+    words = pretrain_words()
+    if args.limit:
+        words = words[: args.limit]
+    with RunLog(Path(cfg.run_dir) / "pretrain", config=to_dict(cfg), seed=cfg.seed) as run_log:
+        out = pretrain_lm(
+            model,
+            words,
+            tok,
+            cfg.sft,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            device=device,
+            max_seconds=cfg.sft.cap_minutes * 60.0,
+            run_log=run_log,
+            seed=cfg.seed,
+        )
+    path = Path(cfg.run_dir) / "pretrain.pt"
+    save_checkpoint(path, model, out["optimizer"], out["step"], cfg.sft)
+    print(f"pretrain done: {out['step']} steps, loss {out['loss']:.4f} → checkpoint {path}")
+    print("  next: wordle-slm sft --init " + str(path))
+    return 0
+
+
 def _run_sft(cfg: RunConfig, args: argparse.Namespace) -> int:
     """Phase-1 SFT (Plan: M+N): teacher data → masked imitation → reloadable checkpoint."""
     from wordle_slm.data import split
     from wordle_slm.model import Tokenizer, WordleGenerator
-    from wordle_slm.sft import save_checkpoint, train_sft
+    from wordle_slm.sft import load_checkpoint, save_checkpoint, train_sft
     from wordle_slm.teacher import generate_transcripts
     from wordle_slm.telemetry.run_log import RunLog
 
@@ -86,6 +119,8 @@ def _run_sft(cfg: RunConfig, args: argparse.Namespace) -> int:
     transcripts = generate_transcripts(train, weak_frac=cfg.sft.teacher_weak_frac, seed=cfg.seed)
     tok = Tokenizer()
     model = WordleGenerator(cfg.model, tok.vocab_size).to(device)
+    if args.init:  # warm-start from the spell-warm-up checkpoint
+        load_checkpoint(args.init, model)
     with RunLog(Path(cfg.run_dir) / "sft", config=to_dict(cfg), seed=cfg.seed) as run_log:
         out = train_sft(
             model,
@@ -175,6 +210,9 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument(
             "--checkpoint", default=None, help="SFT checkpoint path (default run_dir/sft.pt)"
         )
+        p.add_argument(
+            "--init", default=None, help="warm-start SFT from this checkpoint (pretrain)"
+        )
     return parser
 
 
@@ -191,6 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "phase0":
         return _run_phase0(cfg)
+    if args.command == "pretrain":
+        return _run_pretrain(cfg, args)
     if args.command == "sft":
         return _run_sft(cfg, args)
     if args.command == "rl":

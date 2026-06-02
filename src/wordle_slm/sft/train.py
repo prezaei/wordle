@@ -35,8 +35,19 @@ def make_batch(
     `target_letter_idx[i, p]` (where the mask is 1) is the realized letter's index in the 26-letter
     action space for the token predicted at position `p` (= q-1 for each guess-letter position q).
     """
-    letter_lo = tokenizer.token_to_id("a")
     seqs = [encode_completed_game(g.turns, tokenizer) for g in games]
+    return pad_and_mask(seqs, tokenizer, device)
+
+
+def pad_and_mask(
+    seqs: list[list[int]], tokenizer: Tokenizer, device: str = "cpu"
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Right-pad token-id sequences and mask the loss to the guess-letter positions (the §5.5 mask).
+
+    Shared by SFT (game transcripts) and the spell warm-up (single-word sequences). Returns
+    (input_ids, target_letter_idx, loss_mask), each ``[B, L]``.
+    """
+    letter_lo = tokenizer.token_to_id("a")
     max_len = max(len(s) for s in seqs)
     batch = len(seqs)
     input_ids = torch.full((batch, max_len), tokenizer.pad_id, dtype=torch.long)
