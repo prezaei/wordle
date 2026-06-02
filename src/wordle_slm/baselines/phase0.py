@@ -14,6 +14,7 @@ number comes later from the model-rollout micro-benchmark (Plan: O). All numbers
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import time
@@ -99,7 +100,7 @@ def measure_baseline(name: str, guesser, secrets: tuple[str, ...]) -> BaselineSt
         wins,
         games,
         win_rate,
-        f"{avg_guesses_on_wins:.4f}" if avg_guesses_on_wins else "n/a",
+        f"{avg_guesses_on_wins:.4f}" if avg_guesses_on_wins is not None else "n/a",
     )
     return BaselineStats(name, games, wins, win_rate, avg_guesses_on_wins, win_distribution)
 
@@ -141,6 +142,14 @@ def estimate_budget(
     each update costs ``rollout_batch`` rollout games plus an amortized two-tier eval cost
     ``eval_per_update``, and ``n_updates = capacity / (rollout_batch + eval_per_update)``.
     """
+    # Guard the denominators — a hostile override (e.g. --set eval.full_cadence=0) would otherwise
+    # raise a bare ZeroDivisionError instead of a clear message.
+    if eval_cfg.full_cadence <= 0 or eval_cfg.curve_cadence <= 0:
+        raise ValueError("eval cadences must be positive")
+    if grpo.secrets_per_update <= 0 or grpo.group_size <= 0:
+        raise ValueError("grpo.secrets_per_update and group_size must be positive")
+    if min_updates <= 0:
+        raise ValueError("min_updates must be positive")
     rl_seconds = rl_minutes * 60.0
     rollout_batch = grpo.secrets_per_update * grpo.group_size
     # Amortized eval games per update: full held-out every full_cadence + 128-subsample every curve.
@@ -186,27 +195,24 @@ def _log_report(run_log: RunLog, report: Phase0Report) -> None:
     run_log.log_scalar("phase0/floor_valid_win_rate", report.floor_valid.win_rate, 0)
     run_log.log_scalar("phase0/yardstick_valid_win_rate", report.yardstick_valid.win_rate, 0)
     run_log.log_scalar("phase0/yardstick_answers_win_rate", report.yardstick_answers.win_rate, 0)
-    run_log.log_scalar(
-        "phase0/yardstick_answers_avg_guesses",
-        report.yardstick_answers.avg_guesses_on_wins or 0.0,
-        0,
-    )
+    avg = report.yardstick_answers.avg_guesses_on_wins
+    run_log.log_scalar("phase0/yardstick_answers_avg_guesses", avg if avg is not None else 0.0, 0)
     run_log.log_scalar("phase0/games_per_sec", report.games_per_sec, 0)
     run_log.log_scalar("phase0/budget_n_updates", report.budget.n_updates, 0)
     run_log.log_scalar(
         "phase0/budget_fitting_group_size", float(report.budget.fitting_group_size), 0
     )
-    run_log.log_transcript(
-        {
-            "kind": "phase0_report",
-            "floor_answers": report.floor_answers.__dict__,
-            "floor_valid": report.floor_valid.__dict__,
-            "yardstick_valid": report.yardstick_valid.__dict__,
-            "yardstick_answers": report.yardstick_answers.__dict__,
-            "games_per_sec": report.games_per_sec,
-            "budget": report.budget.__dict__,
-        }
-    )
+    run_log.log_transcript({"kind": "phase0_report", **_report_record(report)})
+
+
+def _report_record(report: Phase0Report) -> dict:
+    """JSON-ready report dict: dataclasses.asdict, with win_distribution keys stringified so the
+    transcript schema is explicit (JSON has no integer keys — make the coercion deliberate)."""
+    record = dataclasses.asdict(report)
+    for key in ("floor_answers", "floor_valid", "yardstick_valid", "yardstick_answers"):
+        dist = record[key]["win_distribution"]
+        record[key]["win_distribution"] = {str(turn): count for turn, count in dist.items()}
+    return record
 
 
 def run_phase0(
@@ -239,6 +245,8 @@ def run_phase0(
         "yardstick_answers", ConsistentGuesser(seed=seed, pool=answers), heldout
     )
     bench = heldout if bench_games is None else heldout[:bench_games]
+    # Benchmark over the ANSWER pool: that is the v3 RL action space (the model rollout filters the
+    # answers — spec §1.5), so this matches the engine cost of a real GRPO rollout.
     games_per_sec = engine_games_per_sec(bench, answers, seed=seed)
     budget = estimate_budget(games_per_sec, grpo=grpo, eval_cfg=eval_cfg, full_heldout=len(heldout))
     report = Phase0Report(

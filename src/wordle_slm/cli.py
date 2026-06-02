@@ -50,13 +50,15 @@ def _run_phase0(cfg: RunConfig) -> int:
             seed=cfg.seed,
         )
     b = report.budget
+    avg = report.yardstick_answers.avg_guesses_on_wins
+    avg_str = f"{avg:.3f}" if avg is not None else "n/a"  # None only if the yardstick won 0 games
     print(
         f"Phase 0 over {len(heldout)} held-out secrets:\n"
         f"  floor (answers): {report.floor_answers.win_rate * 100:.3f}%   "
         f"floor (valid): {report.floor_valid.win_rate * 100:.3f}%\n"
         f"  yardstick (valid, §4.3): {report.yardstick_valid.win_rate * 100:.2f}%   "
         f"yardstick (answers, v3 floor): {report.yardstick_answers.win_rate * 100:.2f}% "
-        f"(avg {report.yardstick_answers.avg_guesses_on_wins:.3f} guesses)\n"
+        f"(avg {avg_str} guesses)\n"
         f"  engine: {report.games_per_sec:.0f} games/sec   "
         f"budget: ~{b.n_updates:.0f} updates fit {b.rl_seconds / 60:.0f}-min RL at G="
         f"{cfg.grpo.group_size} (fits={b.fits}, max G={b.fitting_group_size}; engine is an "

@@ -7,6 +7,8 @@ budget formula resolves to the hand-computed #updates and the largest group size
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from wordle_slm.baselines.phase0 import (
@@ -89,11 +91,26 @@ def test_estimate_budget_matches_the_hand_computed_formula() -> None:
     assert budget.fits is True
 
 
-def test_estimate_budget_flags_insufficient_throughput() -> None:
-    budget = estimate_budget(0.01, grpo=GRPOConfig(), eval_cfg=EvalConfig(), full_heldout=463)
+def test_estimate_budget_flags_insufficient_throughput_with_a_real_shrink() -> None:
+    # gps=1.0 -> capacity 2700, n_updates 2700/135.435 ≈ 19.9 (< 100): doesn't fit. The largest G
+    # that WOULD fit is floor((2700/100 - 7.435)/8) = 2 — a concrete "shrink G from 16 to 2".
+    budget = estimate_budget(1.0, grpo=GRPOConfig(), eval_cfg=EvalConfig(), full_heldout=463)
     assert budget.fits is False
     assert budget.n_updates < budget.min_updates
-    assert budget.fitting_group_size < GRPOConfig().group_size  # would need to shrink G
+    assert budget.fitting_group_size == 2
+
+
+def test_estimate_budget_rejects_nonpositive_cadence() -> None:
+    with pytest.raises(ValueError, match="cadences must be positive"):
+        estimate_budget(
+            100.0, grpo=GRPOConfig(), eval_cfg=EvalConfig(full_cadence=0), full_heldout=463
+        )
+
+
+def test_estimate_budget_rejects_nonfinite_throughput() -> None:
+    for bad in (float("inf"), float("nan")):
+        with pytest.raises(FloatingPointError):
+            estimate_budget(bad, grpo=GRPOConfig(), eval_cfg=EvalConfig(), full_heldout=463)
 
 
 # --- run_phase0 -------------------------------------------------------------------------------
@@ -133,5 +150,9 @@ def test_run_phase0_logs_scalars_and_a_report_record(tmp_path) -> None:
         "phase0/games_per_sec",
         "phase0/budget_n_updates",
     } <= tags
-    transcript = (tmp_path / "p0" / "transcripts.jsonl").read_text(encoding="utf-8")
-    assert "phase0_report" in transcript
+    lines = (tmp_path / "p0" / "transcripts.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    record = json.loads(lines[-1])
+    assert record["kind"] == "phase0_report"
+    assert record["budget"]["rollout_batch"] == 128  # the report body serialized, not just the kind
+    # win_distribution keys are deliberately stringified (JSON has no integer keys).
+    assert all(isinstance(k, str) for k in record["yardstick_answers"]["win_distribution"])
