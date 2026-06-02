@@ -64,32 +64,36 @@ training the model ourselves — is where the learning is.
 
 ## 6. What success looks like
 
-The bar is: **win as many games as possible, in as few guesses as possible** —
-measured on **held-out words it never trained on.** *(Updated 2026-06-02: priority is
-now a high score, not just clearing a floor. The approach pivoted — the model
-**chooses among the words still possible** each turn rather than spelling letters,
-which makes winning near-automatic and focuses learning on using fewer guesses. See
-`docs/design/wordle-slm.md` §1.5.)*
+The bar is: **the model learns to play — held-out win rate clearly and steadily above the random
+floor, with an explainable learning curve and a small practiced-vs-held-out gap.** The point is
+that a small model, **generating its own guesses letter-by-letter**, genuinely learns word structure
++ Wordle strategy from scratch. *(Updated 2026-06-02: a brief "v3" pivot to a candidate-ranker —
+which the model would select from a pre-filtered word list — was **reverted**, because it makes
+winning automatic without the model understanding words at all. We're back to free generation: the
+model spells its own guesses; the engine just judges them. See `docs/design/wordle-slm.md` §5/§6 and
+`docs/design/wordle-slm-back-to-generation.md`.)*
 
 | Signal | What we want to see |
 | --- | --- |
-| **Win rate on unseen words** | % of *held-out* games won within 6 guesses. Headline — target ≥95%. |
-| **Average guesses (unseen)** | Mean guesses to win on held-out games — **the metric we're maximizing the score on.** Lower is better; aim ≤~4.0, stretch toward the ~3.42 optimum. |
+| **Win rate on unseen words** | % of *held-out* games won within 6 guesses — **clearly above the random floor.** Aspirational stretch ≥80%, but from-scratch in ~1hr the primary bar is a real, rising curve, not a fixed %. |
+| **Valid-word rate** | The model generates real 5-letter words (≥95% after the head-start) — direct evidence it learned word structure, not a list. |
 | **Generalization gap** | Held-out performance close to practiced-words performance. A big gap = memorization, and is a fail. |
 | **Learning curve** | Over training, win rate goes up and average guesses come down. |
 
 **Reference points (provisional, calibrated in Phase 0):**
 
-- **Random floor ≈ 0.26%** (ignores feedback) — sanity check only.
-- **Consistent-guesser yardstick** — picking *any* still-consistent word wins ~96–99%
-  but uses ~4.5 guesses on average. Since our model now plays *only* consistent words,
-  it should **match that win rate and beat it on guess count.** That's the baseline to beat.
-- **Success target: win rate ≥ 95% on unseen words AND average guesses ≤ ~4.0**
-  (stretch toward the proven optimum ~3.42), within the ~1-hour budget. Calibrated after Phase 0.
+- **Random floor ≈ 0.26%** (ignores feedback) — the bar to clearly beat.
+- **Consistent-guesser ceiling reference** — a (classical, non-model) player that only plays
+  still-consistent words wins ~92% drawing from the full dictionary, ~99% drawing from the answer
+  pool, at ~3.85–4.5 guesses. That's what *perfect* consistency play gets — a **ceiling reference**
+  for how good a strategy can be, NOT something our from-scratch generator will match in ~1hr.
+- **Primary success: held-out win rate clearly + steadily above the random floor, with a rising
+  learning curve and a small generalization gap.** **Aspirational stretch: ≥80%** held-out win rate.
 
-We declare this round a win when, on held-out words, the model **wins ≥ 95% in an average
-of ≤ ~4.0 guesses with a small generalization gap** — matching the consistent-guesser's win
-rate while using meaningfully fewer guesses.
+We declare this round a win when, on held-out words, the model **wins clearly more than the random
+floor, on a rising learning curve, with a small generalization gap** — i.e. it demonstrably *learned
+to play Wordle by generating its own words*. (≥80% would be a stretch success; matching the
+consistent-guesser ceiling is explicitly not expected for a from-scratch 1–5M model in ~1 hour.)
 
 ## 7. Who it's for
 

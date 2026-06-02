@@ -23,13 +23,22 @@ learning curve. **Aspirational stretch target: ≥80% held-out win rate** (see �
 this is a stretch, not the gate). Everything runs locally on the M5 Max within a **~1-hour
 training cycle**.
 
-## 1.5 Architecture v3 — restricted action space (CURRENT; supersedes char-generation)
+## 1.5 Considered & REJECTED: restricted action space ("v3") — kept for the record
 
-**Pivot (2026-06-02):** priority changed to **maximize win rate and minimize guesses**. The
-char-level free-generation design (§5.2, §6.1–6.4) caps at ~15–31% win rate (prior art) because
-most capacity goes to *spelling valid words*. We switch to a **restricted action space**, which
-makes a high win rate near-automatic and refocuses all learning on the real objective: **fewest
-guesses.** This section is authoritative where it conflicts with §5–6 below.
+> **Status: rejected and reverted (2026-06-02).** This approach was specced and built through
+> Wave 4, then **reverted to free char-generation (§5/§6, the architecture of record)** — see
+> `docs/design/wordle-slm-back-to-generation.md`. **Why rejected:** it makes the model a *ranker
+> over a pre-filtered list of still-consistent words*; classical code (`engine/constraints.py` + the
+> word list) does all the lexical work, so the model never learns to understand or spell words — it
+> only learns which handed-to-it candidate splits best. That hits ~99% win for free but defeats the
+> project's purpose (train an SLM that genuinely understands words + learns the strategy). It is
+> retained below as a documented alternative; **§5–6 are authoritative, not this section.**
+
+**Original pivot rationale (2026-06-02, since reversed):** priority had changed to **maximize win
+rate and minimize guesses**. The char-level free-generation design (§5.2, §6.1–6.4) caps at ~15–31%
+win rate (prior art) because most capacity goes to *spelling valid words*. The restricted action
+space made a high win rate near-automatic and refocused learning on **fewest guesses** — at the cost
+of the model not learning words at all, which is why it was reverted.
 
 - **Objective / success:** maximize a score = **win rate ≥ 95% on held-out** AND **average
   guesses ≤ ~4.0** (stretch toward the proven optimum ~3.42), within the ~1-hour budget.
@@ -54,10 +63,11 @@ guesses.** This section is authoritative where it conflicts with §5–6 below.
 - **Anti-memorization:** unchanged in spirit — evaluate on **held-out** secrets; the model must
   rank informative words for *unseen* secrets (generalize the policy), not memorize. Held-out win
   rate + avg guesses + generalization gap remain the metrics.
-- **What carries over from §4–8:** the engine (§4), curriculum + hard-word replay (§6.5), the
-  ~1-hour budget (§6.6), telemetry (§8), and held-out eval (§6.7). **What's superseded:** the
-  char-level free-generation sequence (§5.2) and the char-token GRPO + green/yellow/invalid
-  reward (§6.1–6.4).
+- **What would have carried over from §4–8:** the engine (§4), curriculum + hard-word replay
+  (§6.5), the ~1-hour budget (§6.6), telemetry (§8), and held-out eval (§6.7) — all of which **do**
+  carry over to the (restored) generation architecture. **Architecture of record:** the char-level
+  free-generation sequence (§5.2) and char-token GRPO + green/yellow/invalid reward (§6.1–6.4). The
+  candidate-ranker described in this §1.5 is **not** built going forward.
 
 ## 2. Decisions captured from the interview
 
