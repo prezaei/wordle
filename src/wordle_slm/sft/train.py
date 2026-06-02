@@ -16,7 +16,7 @@ from random import Random
 
 import torch
 
-from wordle_slm.config import SFTConfig
+from wordle_slm.config import GRPOConfig, SFTConfig
 from wordle_slm.engine import Game
 from wordle_slm.model.serialization import encode_completed_game, guess_letter_target_positions
 from wordle_slm.model.tokenizer import Tokenizer
@@ -134,9 +134,12 @@ def save_checkpoint(
     model: WordleGenerator,
     optimizer: torch.optim.Optimizer,
     step: int,
-    config: SFTConfig,
+    config: SFTConfig | GRPOConfig,
 ) -> None:
-    """Save a reloadable checkpoint {model, optim, step, rng, config} (spec §5.5 / Plan N)."""
+    """Save a reloadable checkpoint {model, optim, step, rng, config} (spec §5.5 / Plan N).
+
+    `config` is any stage config dataclass (stored via ``dataclasses.asdict`` as run metadata).
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
