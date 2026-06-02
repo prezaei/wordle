@@ -200,6 +200,43 @@ def eval_win_rate(
     return wins / len(secrets)
 
 
+def overfit_one_secret(
+    model: WordleGenerator,
+    ref_model: WordleGenerator,
+    tokenizer: Tokenizer,
+    secret: str,
+    *,
+    grpo: GRPOConfig,
+    reward: RewardConfig,
+    n_updates: int,
+    device: str = "cpu",
+    generator: torch.Generator | None = None,
+    lr: float | None = None,
+) -> list[UpdateStats]:
+    """Layer-2 gate (Plan: X): run GRPO on ONE fixed secret and return the per-update stats.
+
+    The decisive pre-flight check that the *full* loop actually learns: warm-start a model that can
+    produce valid, varied guesses, then confirm mean group reward **rises** over updates and the
+    model learns to solve this secret — if it can't improve on one word, it won't on the full set.
+    """
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr if lr is not None else grpo.lr)
+    return [
+        grpo_update(
+            model,
+            ref_model,
+            tokenizer,
+            (secret,),
+            grpo=grpo,
+            reward=reward,
+            optimizer=optimizer,
+            group_size=grpo.group_size,
+            device=device,
+            generator=generator,
+        )
+        for _ in range(n_updates)
+    ]
+
+
 def train_grpo(
     model: WordleGenerator,
     ref_model: WordleGenerator,

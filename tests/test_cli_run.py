@@ -44,6 +44,9 @@ def test_sft_then_rl_end_to_end(tmp_path) -> None:
     assert cli.main(rl_args) == 0
     assert (tmp_path / "rl" / "run.json").exists()
 
+    # the Phase-1 readiness gate runs and returns a pass/fail exit code (tiny model → likely fail)
+    assert cli.main(["eval", "--limit", "5", *common]) in (0, 1)
+
 
 def test_rl_without_a_checkpoint_errors_cleanly(tmp_path) -> None:
     # No SFT checkpoint present -> exit 1 with a helpful message, no traceback.

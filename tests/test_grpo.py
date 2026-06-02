@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from wordle_slm.config import CurriculumConfig, GRPOConfig, ModelConfig, RewardConfig
+from wordle_slm.config import CurriculumConfig, GRPOConfig, ModelConfig, RewardConfig, SFTConfig
 from wordle_slm.engine import Game
 from wordle_slm.model import Tokenizer, WordleGenerator
 from wordle_slm.rl import grpo as G
@@ -191,3 +191,41 @@ def test_train_loop_evaluates_and_can_promote(monkeypatch) -> None:
         eval_every=1,
     )
     assert curriculum.tier_index == 1  # 100% eval win rate promoted past the first tier
+
+
+# --- X: GRPO overfit-one-secret gate (Plan: X) ------------------------------------------------
+
+
+def test_grpo_overfits_one_secret_reward_rises_and_solves() -> None:
+    # The decisive pre-flight gate: warm-start a model that can spell a tiny vocab (so turn-1
+    # rollouts are valid + varied → real reward variance), then GRPO on ONE secret must RAISE mean
+    # reward and learn to solve it greedily — the go/no-go before a real run.
+    from wordle_slm.data import load_answers
+    from wordle_slm.rl.rollout import play_game
+    from wordle_slm.sft.pretrain import pretrain_lm
+
+    torch.manual_seed(0)
+    tok = Tokenizer()
+    model = WordleGenerator(_CFG, tok.vocab_size)
+    vocab = load_answers()[:10]
+    secret = vocab[0]
+    pretrain_lm(model, vocab, tok, SFTConfig(lr=1e-3), epochs=120, batch_size=10, seed=0)
+
+    from wordle_slm.rl.tracer import make_reference
+
+    history = G.overfit_one_secret(
+        model,
+        make_reference(model),
+        tok,
+        secret,
+        grpo=GRPOConfig(group_size=10, inner_epochs=2, kl_beta=0.01),
+        reward=RewardConfig(),
+        n_updates=25,
+        lr=3e-4,
+        generator=torch.Generator().manual_seed(0),
+    )
+    rewards = [h.reward_mean for h in history]
+    assert sum(rewards[-5:]) > sum(rewards[:5])  # mean group reward rises — the loop learns
+    assert all(torch.isfinite(torch.tensor([h.kl, h.grad_norm, h.entropy])).all() for h in history)
+    model.eval()
+    assert play_game(model, tok, secret, sample=False).won  # solves the secret greedily by the end
