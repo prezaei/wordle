@@ -27,6 +27,7 @@ tb_logs/
 
 # Agent tooling (local overrides only — shared config & skills are committed)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .ship-it/
 
 # Local env

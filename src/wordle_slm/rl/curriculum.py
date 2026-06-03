@@ -1,7 +1,13 @@
-"""Performance-triggered word-set curriculum + hard-word replay queue (spec §6.5). (Plan: I)
+"""Difficulty-ordered, diversity-first curriculum + hard-word replay (redesigned; §6.5; Plan I).
 
-Start on a small slice of the train answers and widen when win rate on the current tier clears a
-threshold. A bounded FIFO replays recently-lost words so the policy keeps practicing hard cases.
+Redesign rationale (from the measured generalization wall):
+- The secret pool is the FULL valid list, not just the 2,315 answers — 8x the diversity, the lever
+  that actually reduces the train/held-out gap. ``build_curriculum_pool`` orders it easy->hard:
+  common answers first (the eval distribution), then the rarer non-answer valid words.
+- Tiers WIDEN over that ordered pool; ``maybe_promote`` advances on the win-rate gate OR after
+  ``promote_patience`` eval points (the old fixed gate never fired at our win rates, leaving the
+  policy stuck on a tiny slice — a curriculum that never progresses is worse than none).
+- A bounded FIFO replays recently-lost words so the policy keeps practicing hard cases.
 """
 
 from __future__ import annotations
@@ -11,12 +17,43 @@ from collections import deque
 from random import Random
 
 from wordle_slm.config import CurriculumConfig
+from wordle_slm.data import load_answers, load_valid_guesses, split
 
 logger = logging.getLogger(__name__)
 
 
+def difficulty(word: str) -> tuple[int, str]:
+    """Curriculum difficulty key (lower = easier). Repeated letters are the model's documented weak
+    spot, so all-distinct words rank easiest; alphabetical tie-break keeps the order stable."""
+    return (len(word) - len(set(word)), word)
+
+
+def build_curriculum_pool(seed: int = 0, train_frac: float = 0.80) -> tuple[str, ...]:
+    """Difficulty-ordered, diversity-first secret pool: common answers first, then rarer words.
+
+    Held-out answers are excluded (they must never be trained on). Returns ~8x the answer-only pool
+    so the policy can't memorize a tiny secret set — the redesign's central change.
+    """
+    train_answers, held_out = split(seed=seed, train_frac=train_frac)
+    answer_set = set(load_answers())
+    held_set = set(held_out)
+    easy = sorted(train_answers, key=difficulty)  # common answers (the eval distribution)
+    hard = sorted(
+        (w for w in load_valid_guesses() if w not in answer_set and w not in held_set),
+        key=difficulty,
+    )  # rarer non-answer valid words (diversity / generalization)
+    pool = tuple(easy + hard)
+    logger.info(
+        "curriculum pool: %d secrets (%d train answers + %d rarer valid), held-out excluded",
+        len(pool),
+        len(easy),
+        len(hard),
+    )
+    return pool
+
+
 class Curriculum:
-    """Manages the active word tier and the hard-word replay queue."""
+    """Manages the active difficulty tier and the hard-word replay queue."""
 
     def __init__(self, train_words: tuple[str, ...], config: CurriculumConfig) -> None:
         if not train_words:
@@ -31,9 +68,13 @@ class Curriculum:
         self.train_words = train_words
         self.config = config
         self._tier_index = 0
+        self._evals_on_tier = 0  # eval points since the last promotion (drives patience widening)
         self._replay: deque[str] = deque(maxlen=config.replay_capacity)
         logger.info(
-            "curriculum: %d tiers, starting tier size=%d", len(config.tiers), self._tier_size()
+            "curriculum: %d tiers over %d secrets, starting tier size=%d",
+            len(config.tiers),
+            len(train_words),
+            self._tier_size(),
         )
 
     def _tier_size(self) -> int:
@@ -57,13 +98,23 @@ class Curriculum:
         self._replay.append(secret)
 
     def maybe_promote(self, win_rate: float) -> bool:
-        """Advance to the next tier if win rate clears the threshold and a next tier exists."""
+        """Widen to the next tier on the win-rate gate OR after ``promote_patience`` evals (robust).
+
+        The patience fallback guarantees progress even when the win-rate gate is never cleared (the
+        old failure mode): a curriculum stuck on its first tier is strictly worse than none.
+        """
         if self._tier_index >= len(self.config.tiers) - 1:
             return False
-        if win_rate >= self.config.promote_threshold:
+        self._evals_on_tier += 1
+        forced = self._evals_on_tier >= self.config.promote_patience
+        if win_rate >= self.config.promote_threshold or forced:
             self._tier_index += 1
+            self._evals_on_tier = 0
             logger.info(
-                "curriculum promoted to tier %d (size=%d)", self._tier_index, self._tier_size()
+                "curriculum promoted to tier %d (size=%d)%s",
+                self._tier_index,
+                self._tier_size(),
+                " [patience]" if forced and win_rate < self.config.promote_threshold else "",
             )
             return True
         return False

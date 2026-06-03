@@ -29,6 +29,7 @@ packages = ["src/wordle_slm"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["scripts"]  # experimental training drivers, not part of the package
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
