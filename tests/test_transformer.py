@@ -26,7 +26,28 @@ def _prompt(tok: Tokenizer) -> torch.Tensor:
 
 def test_param_count_within_target_range() -> None:
     n = sum(p.numel() for p in _model().parameters())
-    assert 1_000_000 <= n <= 5_000_000
+    assert 1_000_000 <= n <= 5_000_000  # the small DEFAULT (tests/smoke); real runs use presets
+
+
+def test_model_presets_are_depth_emphasized_and_scale_up() -> None:
+    from wordle_slm.config import MODEL_PRESETS, ModelConfig
+
+    sizes = {}
+    for name in MODEL_PRESETS:
+        cfg = ModelConfig.preset(name)
+        assert cfg.d_model % cfg.n_heads == 0  # heads must divide width
+        assert cfg.n_layers >= 6  # redesign: depth-emphasized everywhere
+        sizes[name] = cfg.estimated_params()
+    assert sizes["tiny"] < sizes["base"] < sizes["large"] < sizes["xl"]
+    assert sizes["large"] > 40_000_000  # recommended config scales past the old 1-5M cap
+    with pytest.raises(ValueError, match="unknown model preset"):
+        ModelConfig.preset("nope")
+
+
+def test_preset_builds_a_working_model() -> None:
+    model = WordleGenerator(ModelConfig.preset("tiny"), Tokenizer().vocab_size)
+    ids = torch.tensor([Tokenizer().encode(["<BOS>", "<GUESS>", "c", "r", "a", "n", "e"])])
+    assert model.forward(ids).shape[1] == 7
 
 
 def test_forward_shape() -> None:

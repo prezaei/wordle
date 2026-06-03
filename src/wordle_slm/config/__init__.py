@@ -9,13 +9,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Redesigned model presets (name -> d_model, n_layers, n_heads, d_ff, dropout).
+# Philosophy: DEPTH over width (Wordle is multi-turn deduction -> sequential reasoning -> layers),
+# size co-designed with the diverse curriculum (~14k secrets supports a bigger model without the
+# memorization measured on the 2,315-answer set), and extra dropout at scale to fight overfitting.
+MODEL_PRESETS: dict[str, tuple[int, int, int, int, float]] = {
+    "tiny": (128, 6, 4, 512, 0.10),  # ~1.2M — smoke/tests
+    "base": (320, 10, 8, 1280, 0.10),  # ~12M
+    "large": (512, 16, 8, 2048, 0.15),  # ~50M — recommended WITH the diverse curriculum
+    "xl": (640, 20, 10, 2560, 0.15),  # ~98M — depth-heavy, the upper end for MPS
+}
+
 
 @dataclass
 class ModelConfig:
-    """Decoder-only transformer. Default ~3.2M params; target range 1–5M. R.
+    """Decoder-only char transformer. Redesigned: DEPTH-emphasized, co-designed with data. R.
 
-    Endpoints (pin to the speed+memory budget in Phase 1): small 128/5/4/512 ≈1.0M,
-    default 256/4/8/1024 ≈3.2M, top 256/6/8/1024 ≈4.8M.
+    Wordle is multi-turn logical deduction, which rewards DEPTH (sequential reasoning steps) over
+    width — the presets stack layers at moderate width. Size is meant to scale WITH the data: the
+    old 1–5M cap suited the 2,315-answer set, but the redesigned curriculum's ~14k diverse secrets
+    support a larger model without the memorization we measured, so ``preset("large")`` ~50M (with
+    extra dropout) is the recommended training config. The dataclass default stays small for
+    tests/smoke; use ``ModelConfig.preset(name)`` for real runs.
     """
 
     d_model: int = 256
@@ -24,6 +39,14 @@ class ModelConfig:
     d_ff: int = 1024
     context_len: int = 128  # a full 6-turn game is ~66 tokens
     dropout: float = 0.1
+
+    @classmethod
+    def preset(cls, name: str) -> ModelConfig:
+        """A redesigned, depth-emphasized config by name (see ``MODEL_PRESETS``)."""
+        if name not in MODEL_PRESETS:
+            raise ValueError(f"unknown model preset {name!r}; choose from {sorted(MODEL_PRESETS)}")
+        d_model, n_layers, n_heads, d_ff, dropout = MODEL_PRESETS[name]
+        return cls(d_model=d_model, n_layers=n_layers, n_heads=n_heads, d_ff=d_ff, dropout=dropout)
 
     def estimated_params(self, vocab_size: int = 34) -> int:
         """Rough parameter count with weight-tied embeddings.
@@ -96,13 +119,21 @@ class GRPOConfig:
 
 @dataclass
 class CurriculumConfig:
-    """Performance-triggered widening + hard-word replay (spec §6.5). H."""
+    """Difficulty-ordered, diversity-first curriculum + hard-word replay (redesigned; spec §6.5). H.
 
-    # None marks the full train set (the final tier).
-    tiers: tuple[int | None, ...] = (200, 500, 1000, None)
-    promote_threshold: float = 0.60  # win rate on the current tier to widen
-    replay_capacity: int = 256
-    replay_prob: float = 0.10
+    Secrets are drawn from the FULL valid list (``build_curriculum_pool``), ordered easy->hard
+    (common answers first, rarer valid words later) — 8x the answer-only pool, the change that
+    matters for generalization. Tiers are cumulative pool sizes (None = full) that WIDEN as the
+    policy improves; ``promote_patience`` force-widens after that many eval points even when the
+    win-rate gate isn't cleared, so the curriculum always progresses (the old gate never fired).
+    """
+
+    # Cumulative pool sizes over the ~14k diverse pool; None marks the full pool (final tier).
+    tiers: tuple[int | None, ...] = (2000, 6000, 10000, None)
+    promote_threshold: float = 0.55  # win rate on the current tier to widen
+    promote_patience: int = 6  # force-widen after this many evals on a tier (robust progress)
+    replay_capacity: int = 512
+    replay_prob: float = 0.15
 
 
 @dataclass
@@ -144,6 +175,7 @@ class RunConfig:
 
 
 __all__ = [
+    "MODEL_PRESETS",
     "ModelConfig",
     "TokenizerConfig",
     "RewardConfig",
