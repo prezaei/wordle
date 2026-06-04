@@ -8,6 +8,7 @@ from wordle_slm.sft.train import (
     save_checkpoint,
     sft_loss,
     train_sft,
+    valid_continuation_mask,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "save_checkpoint",
     "sft_loss",
     "train_sft",
+    "valid_continuation_mask",
 ]

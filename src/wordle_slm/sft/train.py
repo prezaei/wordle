@@ -17,8 +17,13 @@ from random import Random
 import torch
 
 from wordle_slm.config import GRPOConfig, SFTConfig
+from wordle_slm.data import load_valid_guesses
 from wordle_slm.engine import Game
-from wordle_slm.model.serialization import encode_completed_game, guess_letter_target_positions
+from wordle_slm.model.serialization import (
+    GUESS_LEN,
+    encode_completed_game,
+    guess_letter_target_positions,
+)
 from wordle_slm.model.tokenizer import Tokenizer
 from wordle_slm.model.transformer import WordleGenerator
 from wordle_slm.rl.rollout import letter_id_tensor
@@ -61,18 +66,69 @@ def pad_and_mask(
     return input_ids.to(device), target_idx.to(device), loss_mask.to(device)
 
 
+_VALID_TRIE: dict | None = None
+
+
+def _valid_trie() -> dict:
+    """Lazy prefix trie of the valid word list, keyed by 26-letter action index (0='a')."""
+    global _VALID_TRIE
+    if _VALID_TRIE is None:
+        lo = ord("a")
+        trie: dict = {}
+        for word in load_valid_guesses():
+            node = trie
+            for ch in word:
+                node = node.setdefault(ord(ch) - lo, {})
+        _VALID_TRIE = trie
+    return _VALID_TRIE
+
+
+def valid_continuation_mask(
+    seqs: list[list[int]], tokenizer: Tokenizer, device: str = "cpu"
+) -> torch.Tensor:
+    """[B, L, 26] mask: at each guess-letter predict position (q-1), the dictionary-valid next
+    letters given the guess prefix so far. Built on CPU (one transfer) — drives the aux loss.
+    """
+    trie = _valid_trie()
+    letter_lo = tokenizer.token_to_id("a")
+    max_len = max(len(s) for s in seqs)
+    vmask = torch.zeros((len(seqs), max_len, 26))
+    for i, seq in enumerate(seqs):
+        positions = guess_letter_target_positions(seq, tokenizer)
+        for g0 in range(0, len(positions), GUESS_LEN):
+            node = trie
+            for q in positions[g0 : g0 + GUESS_LEN]:
+                for child_idx in node:
+                    vmask[i, q - 1, child_idx] = 1.0
+                node = node.get(seq[q] - letter_lo, {})  # descend by the realized letter
+    return vmask.to(device)
+
+
 def sft_loss(
     model: WordleGenerator,
     input_ids: torch.Tensor,
     target_idx: torch.Tensor,
     loss_mask: torch.Tensor,
     letter_ids: torch.Tensor,
+    *,
+    valid_mask: torch.Tensor | None = None,
+    aux_lambda: float = 0.0,
 ) -> torch.Tensor:
-    """Guess-letter-masked next-token NLL over the 26-letter action space (spec §5.5)."""
+    """Guess-letter-masked next-token NLL over the 26-letter action space (spec §5.5).
+
+    With ``aux_lambda > 0`` and a ``valid_mask``, adds the auxiliary trie-validity term
+    ``-log P(next letter is a dictionary-valid continuation)`` at each guess-letter position — the
+    empirically best lever for held-out win (bakes spelling into the weights; inference unaided).
+    """
     logits = model.forward(input_ids)  # [B, L, vocab]
     logp = torch.log_softmax(logits[:, :, letter_ids], dim=-1)  # [B, L, 26]
     nll = -logp.gather(-1, target_idx.unsqueeze(-1)).squeeze(-1)  # [B, L]
-    return (nll * loss_mask).sum() / loss_mask.sum()
+    imit = (nll * loss_mask).sum() / loss_mask.sum()
+    if valid_mask is None or aux_lambda == 0.0:
+        return imit
+    valid_mass = (logp.exp() * valid_mask).sum(-1).clamp_min(1e-9)  # [B, L]
+    aux = (-valid_mass.log() * loss_mask).sum() / loss_mask.sum()
+    return imit + aux_lambda * aux
 
 
 def _batches(n: int, batch_size: int, rng: Random) -> list[list[int]]:
@@ -109,8 +165,22 @@ def train_sft(
     last_loss = float("nan")
     for epoch in range(epochs):
         for indices in _batches(len(games), batch_size, rng):
-            ids, target_idx, mask = make_batch([games[i] for i in indices], tokenizer, device)
-            loss = sft_loss(model, ids, target_idx, mask, letter_ids)
+            seqs = [encode_completed_game(games[i].turns, tokenizer) for i in indices]
+            ids, target_idx, mask = pad_and_mask(seqs, tokenizer, device)
+            vmask = (
+                valid_continuation_mask(seqs, tokenizer, device)
+                if config.aux_validity_lambda > 0.0
+                else None
+            )
+            loss = sft_loss(
+                model,
+                ids,
+                target_idx,
+                mask,
+                letter_ids,
+                valid_mask=vmask,
+                aux_lambda=config.aux_validity_lambda,
+            )
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"non-finite SFT loss at step {step}: {loss.item()}")
             optimizer.zero_grad()
