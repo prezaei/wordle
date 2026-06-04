@@ -86,11 +86,18 @@ class RewardConfig:
 
 @dataclass
 class SFTConfig:
-    """Imitation head-start (spec §5.4-5.6). lr/wd are R; bars/blend are H."""
+    """Imitation head-start (spec §5.4-5.6). lr/wd are R; bars/blend are H.
+
+    ``aux_validity_lambda`` weights the auxiliary trie-validity loss (the empirically best lever:
+    +3.4pts held-out, runs/sft_aux). At each guess-letter step it pushes probability mass onto the
+    dictionary's valid next-letters, so free-generation learns to spell real words — the trie is a
+    training signal only; inference stays unaided. Default-on; set 0.0 for the plain masked NLL.
+    """
 
     optimizer: str = "adamw"
     lr: float = 3e-4
     weight_decay: float = 0.01
+    aux_validity_lambda: float = 0.5  # H: auxiliary trie-validity loss weight (0.0 = off)
     cap_minutes: float = 15.0  # I: outcome-based stop, capped
     valid_word_bar: float = 0.95  # Phase-1 DoD
     clue_respect_bar: float = 0.80  # Phase-1 DoD (provisional)
