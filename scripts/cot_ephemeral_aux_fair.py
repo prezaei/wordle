@@ -46,7 +46,7 @@ WORD_STARTS = {THINK, tok.guess_id}
 ANSWERS = load_answers()
 VALID = load_valid_guesses()  # the PUBLIC dictionary (14,855 valid guesses) — what a real solver knows
 K_CANDS = 3
-AUX_LAMBDA = 0.5
+AUX_LAMBDA = 1.0  # cranked from 0.5: stronger in-the-weights validity pressure (push free-gen spelling)
 SQ = {Color.GREEN: "🟩", Color.YELLOW: "🟨", Color.GRAY: "⬜"}
 
 
@@ -163,7 +163,7 @@ print(f"[fair] openers={SAFE_OPENERS} |VAL|={len(VAL)} |TEST|={len(TEST)}  cand-
 print(f"[viz] per-epoch dashboard eval on |VIZ|={len(VIZ)} -> {PROG}", flush=True)
 print(f"[pretrain] 50M (vocab {VOCAB}) spell warm-up …", flush=True)
 model = WordleGenerator(CFG, VOCAB).to(DEV)
-pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=10, batch_size=256, device=DEV, seed=0)
+pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=30, batch_size=256, device=DEV, seed=0)  # 10->30: stronger spell prior over the full 14,855-word dictionary
 
 print("[data] teacher games -> per-turn ephemeral examples …", flush=True)
 games = []

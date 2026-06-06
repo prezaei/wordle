@@ -47,8 +47,8 @@ _, HELD = split(seed=0)
 VIZ_SECRETS = list(HELD[:10])
 REFS = [("clean-SFT 0.166", 0.166)]  # honest held-out floor (overnight clean run); fair run should beat it
 
-STATE: dict = {"games": [], "curve": [], "ckpt": "—", "log": "—", "metric": "win", "ts": 0,
-               "status": "starting…", "refs": REFS}
+STATE: dict = {"games": [], "curve": [], "curve2": [], "ckpt": "—", "log": "—", "metric": "win",
+               "ts": 0, "status": "starting…", "refs": REFS}
 LOCK = threading.Lock()
 
 
@@ -150,6 +150,7 @@ def progress_state(prog):
     latest = recs[-1]
     metric = "win" if latest.get("win") is not None else "reward_mean"  # SFT: win · RL: reward_mean
     curve = [{"i": r["epoch"], "v": r[metric]} for r in recs if r.get(metric) is not None]
+    curve2 = [{"i": r["epoch"], "v": r["valid"]} for r in recs if r.get("valid") is not None]  # validity line
     refs = REFS if metric == "win" else []  # the 0.166 ref is a win rate — hide it on a reward curve
     won = sum(g.get("status") == "win" for g in latest["games"])
     val = latest.get(metric)
@@ -158,7 +159,7 @@ def progress_state(prog):
     status = (f"{latest.get('kind', 'sft')} {xlabel} {latest['epoch']} · "
               f"{metric}={val:.3f}{extra} · {won}/{len(latest['games'])} shown won"
               if val is not None else f"{xlabel} {latest['epoch']}")
-    return {"games": latest["games"], "curve": curve, "metric": metric, "refs": refs,
+    return {"games": latest["games"], "curve": curve, "curve2": curve2, "metric": metric, "refs": refs,
             "ckpt": os.path.basename(prog), "log": os.path.basename(prog), "status": status}
 
 
@@ -263,13 +264,14 @@ function board(g){
 }
 const CV=document.getElementById('chart'),CTX=CV.getContext('2d'),DPR=window.devicePixelRatio||1,CW=540,CH=350;
 CV.style.width=CW+'px';CV.style.height=CH+'px';CV.width=CW*DPR;CV.height=CH*DPR;CTX.scale(DPR,DPR);
-function chart(curve,metric,refs){
+function chart(curve,metric,refs,curve2){
   const ctx=CTX,W=CW,H=CH; ctx.clearRect(0,0,W,H);
   const Lm=46,Rm=W-16,Tm=16,Bm=H-26;
   if(!curve.length){ctx.fillStyle='#666';ctx.font='12px sans-serif';ctx.fillText('waiting for eval points…',Lm,H/2);return;}
   const xs=curve.map(p=>p.i),ys=curve.map(p=>p.v),refv=refs.map(r=>r[1]);
+  const ys2=(curve2||[]).map(p=>p.v);  // validity series (shares the 0..1 axis)
   const xmax=Math.max(1,...xs);
-  let lo=Math.min(...ys,...refv),hi=Math.max(...ys,...refv),pad=Math.max(0.02,(hi-lo)*0.2);
+  let lo=Math.min(...ys,...ys2,...refv),hi=Math.max(...ys,...ys2,...refv),pad=Math.max(0.02,(hi-lo)*0.2);
   let ymin=Math.max(0,lo-pad),ymax=Math.min(1,hi+pad);
   if(ymax-ymin<0.12){const c=(ymax+ymin)/2;ymin=Math.max(0,c-0.06);ymax=Math.min(1,c+0.06);}  // zoom in
   const X=i=>Lm+(Rm-Lm)*(i/xmax), Y=v=>Bm-(Bm-Tm)*((v-ymin)/(ymax-ymin));
@@ -290,13 +292,19 @@ function chart(curve,metric,refs){
   ctx.strokeStyle='#6aaa64';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
   curve.forEach((p,k)=>{const x=X(p.i),y=Y(p.v);k?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
   ctx.fillStyle='#8fd47f';for(const p of curve){ctx.beginPath();ctx.arc(X(p.i),Y(p.v),3,0,7);ctx.fill();}
+  if(curve2&&curve2.length){  // validity rate, second line (blue) — the spelling signal
+    ctx.strokeStyle='#5a8fd4';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();
+    curve2.forEach((p,k)=>{const x=X(p.i),y=Y(p.v);k?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+    ctx.fillStyle='#8fb8e8';for(const p of curve2){ctx.beginPath();ctx.arc(X(p.i),Y(p.v),2.5,0,7);ctx.fill();}
+  }
   const last=ys[ys.length-1],lx=X(xmax),ly=Y(last),txt=last.toFixed(3);
   ctx.font='bold 13px -apple-system,sans-serif';const tw=ctx.measureText(txt).width;
   let bx=lx-tw-12,by=ly-9; if(bx<Lm+2)bx=lx+8; if(by<Tm)by=Tm; if(by>Bm-18)by=Bm-18;
   ctx.fillStyle='#173a17';ctx.fillRect(bx-4,by-2,tw+8,18);
   ctx.fillStyle='#8fd47f';ctx.textBaseline='top';ctx.fillText(txt,bx,by);
+  const v2=(curve2&&curve2.length)?` <span class=pill>valid=<b style="color:#8fb8e8">${curve2[curve2.length-1].v.toFixed(3)}</b></span>`:'';
   document.getElementById('curvelegend').innerHTML=
-    `<span class=pill>${curve.length} eval points</span><span class=pill>latest ${metric}=<b style="color:#8fd47f">${last.toFixed(3)}</b></span>`;
+    `<span class=pill>${curve.length} pts</span><span class=pill>${metric}=<b style="color:#8fd47f">${last.toFixed(3)}</b></span>${v2}`;
 }
 async function tick(){
   try{
@@ -307,7 +315,7 @@ async function tick(){
     document.getElementById('metric').textContent=d.metric;
     document.getElementById('logname').textContent='· '+d.log;
     document.getElementById('games').innerHTML=(d.games||[]).map(board).join('');
-    chart(d.curve||[],d.metric,d.refs||[]);
+    chart(d.curve||[],d.metric,d.refs||[],d.curve2||[]);
   }catch(e){document.getElementById('sub').textContent='waiting for server…';}
 }
 tick();setInterval(tick,2500);
