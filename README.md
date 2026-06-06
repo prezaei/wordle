@@ -128,8 +128,9 @@ makes our benchmark **stricter** than real Wordle. Hard mode (reuse hints) not e
 | 14:56–15:08 | **self-consistency probe (`self_consistency.py`)** | vote vs pass@N (held-out 150, 6-row) | greedy 0.607 · **vote@12 0.627 (+0.02)** · **pass@12 0.953** | PIVOTAL: pass@12=0.95 (huge latent ceiling) but **voting barely helps** — the winning line is a *minority*; the lever is **selection**, not voting |
 | 15:11–15:32 | **DPO, noisy pairs (`dpo_commit.py` → `dpo.pt`)** | DPO on first-divergence win/loss pairs | full-463 6-row **0.631** (+1.5 over 0.616); pref_acc 0.60→0.73 | **first preference method to move held-out.** Capped by noisy credit (outcome ≠ caused by the first divergent guess) |
 | 15:34–17:20 | **DPO, decisive-board (`dpo_decisive.py`)** | clean pairs: commit-the-secret vs commit-a-wrong-consistent-word at the same reachable board (6519 pairs) | **flat — reverted to 0.616** (all 5 epochs regressed) | clean credit didn't help: DPO logp over the whole `<think>`+guess let the **long think dilute/hijack** the 5-token commit (loss fell but held6 dropped). Fix = score **guess-tokens only** |
+| 17:23–18:00 | **DPO, guess-tokens only (`dpo_guessonly.py`)** | score DPO on the 5 committed letters only | **knife-edge — no gain**: lr 5e-6 too weak (loss flat, never learned), lr 3e-5 collapses (held6 0.000, valid 0.000) | the 5-token gradient is either too small to move or destroys the letter distribution; the think tokens in full-response DPO actually **regularize** it — which is why full-response (0.631) worked. **Preference-method ceiling reached: 0.631** |
 
-> **RL/technique verdict (2026-06-05):** The bottleneck is the **commit gap**, not knowledge — reachability is 99.5% and pass@12 = 0.95, yet greedy commits wrong. Methods that *reweight outcomes* — GRPO (flat, 9×), self-consistency voting (+2pts) — barely move it. The ones that *sharpen the commit with clean training signal* do: expert-iteration unlocked the extra rows (10-row 0.637), and **DPO is the first to lift honest 6-row greedy (0.616 → 0.631)**, limited by credit-assignment noise — which the decisive-board variant targets.
+> **RL/technique verdict (2026-06-05):** The bottleneck is the **commit gap**, not knowledge — reachability is 99.5% and pass@12 = 0.95, yet greedy commits wrong. Methods that *reweight outcomes* barely move it: GRPO flat (9×), self-consistency voting +2pts. **Full-response DPO is the one that helped (0.616 → 0.631)** — but the commit gap is fragile: the decisive-board variant flattened (think-token dilution) and guess-tokens-only was a knife-edge (too-weak → no learning, or too-strong → collapse). The think tokens in full-response DPO turned out to **regularize** the update, which is why it alone worked. **Preference-method ceiling here ≈ 0.631.** Remaining honest levers: richer reasoning targets (generalize the commit) or scale.
 
 ### Algorithm reference (exact)
 
@@ -397,7 +398,14 @@ only, held-out greedy eval, no inference rules)
   turns of winning rollouts, secret reachable), **resample M=14 responses/board**, pair **chosen =
   commits the secret** vs **rejected = valid + consistent + ≠ secret** at the same board (clean label).
   Same DPO (β=0.1, lr 5e-6, 5 ep, revert-on-regress). Δ vs dpo_commit: clean credit (decisive-board
-  re-sampling) instead of noisy first-divergence pairs. **In progress.**
+  re-sampling) instead of noisy first-divergence pairs. **Flat → reverted to 0.616**: DPO logp over the
+  whole think+guess let the long `<think>` dominate (loss fell, held6 dropped — think dilution).
+- **DPO, guess-tokens only — `scripts/dpo_guessonly.py`** (`dpo_go.pt`). Same noisy first-divergence
+  pairs, but `guess_logp` masks the DPO logp to the **5 committed guess-letter positions only** (the
+  commit, not the scratchpad). Δ vs dpo_commit: score guess-tokens only. **Knife-edge, no gain**: lr
+  5e-6 → loss flat at 0.693 (5-token gradient too weak to move); lr 3e-5 → collapse (held6 0.000, valid
+  0.000 — the letter distribution breaks). The think tokens in full-response DPO regularize the update;
+  isolating the commit removes that. **Full-response DPO 0.631 stands.**
 
 ### Current standing
 

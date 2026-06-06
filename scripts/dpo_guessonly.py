@@ -223,7 +223,7 @@ t0 = time.time()
 pairs = build_pairs(policy, secrets, rng)
 print(f"[dpo-go] {len(pairs)} pairs  ({time.time() - t0:.0f}s)", flush=True)
 
-opt = torch.optim.AdamW(policy.parameters(), lr=5e-6, weight_decay=0.0)
+opt = torch.optim.AdamW(policy.parameters(), lr=3e-5, weight_decay=0.0)  # higher: only 5 tokens/pair
 best = base["win"]
 save_checkpoint("runs/dpo_go.pt", policy, opt, 0, SFTConfig())
 EPOCHS, BATCH = 5, 16
