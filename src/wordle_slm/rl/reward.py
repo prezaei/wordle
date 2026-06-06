@@ -8,6 +8,8 @@ guesses, against a knowledge state carried across the game (not per-turn feedbac
   raises the known min-count; re-confirming a known constraint pays 0 (no farming).
 - **Invalid-word penalty** `−p_invalid` — a non-word guess consumes the turn, no progress.
 - **Clue-violation penalty** `−q` — dropping a known green or reusing a known-gray letter (`q > b`).
+- **Repeat penalty** `−repeat_penalty` — re-emitting a previous (valid) guess (a wasted turn).
+- **Drop-present penalty** `−drop_present_penalty` — omitting a known-present (yellow) letter.
 - **Step cost** `−c` per guess.
 - **Terminal** `+(win_base + win_speed·(max_guesses − t))` on a win, `−loss_penalty` on a loss.
 
@@ -31,6 +33,8 @@ class RewardBreakdown:
     letter_progress: float
     invalid_penalty: float
     clue_penalty: float
+    repeat_penalty: float
+    drop_present_penalty: float
     step_cost: float
     terminal: float
 
@@ -40,6 +44,8 @@ class RewardBreakdown:
             self.letter_progress
             - self.invalid_penalty
             - self.clue_penalty
+            - self.repeat_penalty
+            - self.drop_present_penalty
             - self.step_cost
             + self.terminal
         )
@@ -61,17 +67,29 @@ def compute_reward(game: Game, config: RewardConfig) -> RewardBreakdown:
     green_known: dict[int, str] = {}  # position -> the letter known green there
     min_count: dict[str, int] = {}  # letter -> known minimum count in the answer
     gray_known: set[str] = set()  # letters confirmed absent
+    seen_guesses: set[str] = set()  # valid guesses already played (to penalise repeats)
 
     letter_progress = 0.0
     invalid_penalty = 0.0
     clue_penalty = 0.0
+    repeat_penalty = 0.0
+    drop_present_penalty = 0.0
     for turn in game.turns:
         if not turn.valid or turn.feedback is None:
             invalid_penalty += config.p_invalid  # consumes the turn, no letter progress
             continue
 
+        if turn.guess in seen_guesses:  # re-emitting a prior valid guess wastes the turn
+            repeat_penalty += config.repeat_penalty
+        # Reuse your yellows: a known-present, non-green letter omitted from this guess.
+        present_nongreen = {ch for ch, cnt in min_count.items() if cnt > 0} - set(
+            green_known.values()
+        )
+        if any(ch not in turn.guess for ch in present_nongreen):
+            drop_present_penalty += config.drop_present_penalty
         if _violates_clue(turn.guess, green_known, gray_known):
             clue_penalty += config.q
+        seen_guesses.add(turn.guess)
 
         # New greens: positions GREEN this turn not already known green (pay `a` once).
         for pos, color in enumerate(turn.feedback):
@@ -104,6 +122,8 @@ def compute_reward(game: Game, config: RewardConfig) -> RewardBreakdown:
         letter_progress=letter_progress,
         invalid_penalty=invalid_penalty,
         clue_penalty=clue_penalty,
+        repeat_penalty=repeat_penalty,
+        drop_present_penalty=drop_present_penalty,
         step_cost=step_cost,
         terminal=terminal,
     )

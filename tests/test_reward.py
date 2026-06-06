@@ -97,10 +97,35 @@ def test_loss_applies_the_loss_penalty() -> None:
     assert compute_reward(g, cfg).terminal == pytest.approx(-cfg.loss_penalty)
 
 
+def test_repeating_a_valid_guess_is_penalised_once_per_repeat() -> None:
+    cfg = RewardConfig()
+    # same valid guess twice -> the second one pays repeat_penalty (the first does not).
+    g = _game([_turn("abcde", "GXXXX"), _turn("abcde", "GXXXX")])
+    assert compute_reward(g, cfg).repeat_penalty == pytest.approx(cfg.repeat_penalty)
+    # a non-repeating game pays no repeat penalty.
+    g2 = _game([_turn("abcde", "GXXXX"), _turn("afghi", "GXXXX")])
+    assert compute_reward(g2, cfg).repeat_penalty == 0.0
+
+
+def test_omitting_a_known_yellow_is_penalised_and_reusing_it_is_not() -> None:
+    cfg = RewardConfig()
+    # turn1 marks 'b' yellow (known present, non-green); turn2 drops it -> drop_present_penalty.
+    dropped = _game([_turn("abcde", "XYXXX"), _turn("fghij", "XXXXX")])
+    assert compute_reward(dropped, cfg).drop_present_penalty == pytest.approx(
+        cfg.drop_present_penalty
+    )
+    # turn2 that still includes 'b' (reuses the yellow) pays nothing.
+    kept = _game([_turn("abcde", "XYXXX"), _turn("bfghi", "YXXXX")])
+    assert compute_reward(kept, cfg).drop_present_penalty == 0.0
+
+
 def test_reward_dominance_inequalities_hold() -> None:
     cfg = RewardConfig()
     assert cfg.p_invalid > cfg.b  # invalid is worse than any honest progress
     assert cfg.q > cfg.b  # a clue violation is worse than any honest progress
+    assert (
+        cfg.repeat_penalty > cfg.b and cfg.drop_present_penalty > cfg.b
+    )  # both worse than progress
     # max farmable progress in a slow game (5 greens, each also raising min-count) < a win.
     assert 5 * cfg.a + 5 * cfg.b < cfg.win_base
 

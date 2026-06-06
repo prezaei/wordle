@@ -78,6 +78,8 @@ class RewardConfig:
     b: float = 0.1  # new-yellow bonus (only when it raises a known min-count)
     p_invalid: float = 0.5  # penalty for a non-word guess (consumes the turn, no progress)
     q: float = 0.5  # penalty for violating a confirmed clue (drops a green / reuses a known gray)
+    repeat_penalty: float = 0.4  # penalty for re-emitting a previous (valid) guess (wasted turn)
+    drop_present_penalty: float = 0.3  # penalty for omitting a known-present (yellow) letter
     c: float = 0.02  # per-guess step cost
     win_base: float = 3.0  # base win bonus (> max farmable progress)
     win_speed: float = 0.5  # extra per unused guess: win_base + win_speed*(max_guesses - t)
