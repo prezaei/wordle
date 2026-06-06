@@ -36,7 +36,8 @@ high-water mark are listed separately at the bottom — they are **not** compara
 
 | Approach | Size | Held-out win | Valid-rate | Avg guesses | Notes |
 | --- | --- | --- | --- | --- | --- |
-| **ephemeral-CoT + aux trie-validity** 🏆 | 50M | **0.616** | 0.788 | 3.87 | **Honest best.** `cot_eph_aux.pt` (`cot_ephemeral_aux.py`); the two honest levers stack **super-additively**; greedy, no rules — beats the inference-aided beam+dict mark |
+| **DPO commit-sharpening** 🏆 | 50M | **0.631** | 0.779 | 3.89 | **Honest best.** `dpo.pt` (`dpo_commit.py`); DPO on self-play win/loss commit pairs atop the model below; first preference method to move held-out (GRPO was flat) |
+| ephemeral-CoT + aux trie-validity | 50M | 0.616 | 0.788 | 3.87 | `cot_eph_aux.pt` (`cot_ephemeral_aux.py`); the two honest SFT levers stack **super-additively**; the DPO base |
 | char + aux trie-validity loss | 50M | 0.436 | 0.675 | 3.62 | `sft_aux.pt` (`train_auxvalid.py`); the spelling lever alone |
 | ephemeral-CoT (honest scratchpad) | 50M | 0.430 | 0.671 | 3.69 | `cot_eph.pt` (`cot_ephemeral.py`); plain-CE, the search lever alone |
 | char SFT, deep + converged | 50M | 0.402 | 0.664 | 3.58 | `sft_deep.pt` (`train_deep.py`); the matched no-CoT/no-aux plain-CE baseline |
@@ -111,6 +112,24 @@ high-water mark are listed separately at the bottom — they are **not** compara
 | **2026-06-05 22:27–00:40** | **ephemeral-CoT + aux 🏆 (`cot_ephemeral_aux.py` → cot_eph_aux.pt)** | stack the two honest levers, run long | 50M, CoT (ephemeral) + aux λ=0.5 **gated to current-turn**, 50 ep, cosine 4e-4→4e-5, 5 teacher passes | **held-out 0.616** (285/463), valid 0.788, avg 3.87 (best ckpt e45; curve 0.604) | 🏆 **NEW HONEST BEST.** Super-additive: 0.402 → +aux 0.436 → +CoT 0.430 → **+both 0.616** (+0.214). Honest-greedy now **beats** the inference-aided beam+dict mark (0.58–0.60). Wins sleek/surer/weedy; loses only the hard tail (joist `_oist`, salsa) |
 
 > **CoT status (resolved → breakthrough):** Done honestly (ephemeral scratchpad, no filter at inference, train==infer), CoT works: 0.402 → 0.430 alone, and **stacked with aux-validity it reaches 0.616 honest held-out** — the two levers are super-additive (CoT enumerates candidates, aux makes the enumeration valid). The earlier 0.415/0.456 were a leak (past `<think>` rebuilt via the consistency filter; honest ≈ 0.192). The model genuinely reasons (traces: 💭candidate → 🎯GUESS) and **pass@10 = 0.787** holds (leak-free), so the decoding/search gap was real and reasoning closed it. The honest-greedy 0.616 now exceeds the inference-aided beam+dict mark (0.58–0.60). Remaining losses are the hard tail (joist `_oist`; salsa double-s/a).
+
+#### 2026-06-05 — Wordle-rules audit, then RL on the 0.616 base (10-row), self-consistency, and DPO
+
+Rules audit first: verified the engine against the official rules (`scoring.py` two-pass duplicate
+handling exact — `lever`/`eaten`, `geese`/`these`; 5 letters; 6 guesses; win = all-green). One
+deliberate deviation — the engine **accepts** a non-word and burns the turn (the app rejects it), which
+makes our benchmark **stricter** than real Wordle. Hard mode (reuse hints) not enforced (standard mode).
+
+| Time | Experiment (script) | What it tested | Result | Takeaway |
+| --- | --- | --- | --- | --- |
+| 08:00–09:08 | **expert-iteration / ReST (`rl_expert_10row.py` → `rl_expert.pt`)** | distill self-play wins, 10-row | held10 0.604→0.635→**0.646**→revert; full-463 ≈ 6-row 0.62 / **10-row 0.637** | **the RL that works** — taught the model to *use* rows 7–10 (base wasted them: held6==held10==0.604). +4pts on 10-row, ~flat on 6-row. Naive STaR on the model's own noisy think first **degraded** it (0.604→0.531) → fixed by clean teacher-think rebuild (RAFT) |
+| 09:42–14:01 | **higher-ceiling / reachability (`rl_expert_tail.py`)** | full-coverage + tail-focus high-K | **solved 1843/1852 = 99.5%**; full-coverage SFT reverted (no gain) | **coverage is NOT the bottleneck** — sampling wins ~every train secret; the gap is commit/generalization, not reach. More expert-iter = dead end |
+| 14:07–14:56 | **GRPO polish (`rl_grpo_polish.py`)** | token-level GRPO on the CoT policy, 10-row | full-463: 6-row 0.622 / 10-row 0.637 (flat) | **9th GRPO confirmation: flat.** First attempt blew up (KL 12→294, degraded) from a dropout-in-forward bug; fixed (eval-mode forward + KL 0.05 + lr 5e-6) → stable but barely moves |
+| 14:56–15:08 | **self-consistency probe (`self_consistency.py`)** | vote vs pass@N (held-out 150, 6-row) | greedy 0.607 · **vote@12 0.627 (+0.02)** · **pass@12 0.953** | PIVOTAL: pass@12=0.95 (huge latent ceiling) but **voting barely helps** — the winning line is a *minority*; the lever is **selection**, not voting |
+| 15:11–15:32 | **DPO, noisy pairs (`dpo_commit.py` → `dpo.pt`)** | DPO on first-divergence win/loss pairs | full-463 6-row **0.631** (+1.5 over 0.616); pref_acc 0.60→0.73 | **first preference method to move held-out.** Capped by noisy credit (outcome ≠ caused by the first divergent guess) |
+| 15:34–17:20 | **DPO, decisive-board (`dpo_decisive.py`)** | clean pairs: commit-the-secret vs commit-a-wrong-consistent-word at the same reachable board (6519 pairs) | **flat — reverted to 0.616** (all 5 epochs regressed) | clean credit didn't help: DPO logp over the whole `<think>`+guess let the **long think dilute/hijack** the 5-token commit (loss fell but held6 dropped). Fix = score **guess-tokens only** |
+
+> **RL/technique verdict (2026-06-05):** The bottleneck is the **commit gap**, not knowledge — reachability is 99.5% and pass@12 = 0.95, yet greedy commits wrong. Methods that *reweight outcomes* — GRPO (flat, 9×), self-consistency voting (+2pts) — barely move it. The ones that *sharpen the commit with clean training signal* do: expert-iteration unlocked the extra rows (10-row 0.637), and **DPO is the first to lift honest 6-row greedy (0.616 → 0.631)**, limited by credit-assignment noise — which the decisive-board variant targets.
 
 ### Algorithm reference (exact)
 
@@ -338,34 +357,69 @@ algorithmic change relative to the named run.
   regenerates reasoning each turn and **discards** it (never enters later context) — train and inference
   distributions are now identical, filter never called. Model = 50M CoT config (vocab 35); **4 teacher
   passes (weak 0.2)**; 30 ep, batch 128, lr 4e-4. Δ vs cot_50m: past-turn `<think>` removed from
-  context (ephemeral scratchpad) — removes both the leak and the train/infer shift. **In progress** —
-  latest epoch 24 (subsample 0.375); best validation-subsample 0.406 (epoch 18); no `COTEPH DONE` /
-  full-463 line yet.
+  context (ephemeral scratchpad) — removes both the leak and the train/infer shift. **Full held-out 463
+  = 0.430** (best ckpt e29); +2.8pts over the matched no-CoT baseline (0.402).
+- **ephemeral-CoT + aux — `scripts/cot_ephemeral_aux.py`** (`cot_eph_aux.pt`). Ephemeral-CoT **plus** the
+  aux-validity term, **λ=0.5 GATED to the current-turn supervised positions** (past guesses live in the
+  board-only history → must not get aux; `aux_pos = (vmask>0) * loss_mask`). 50M, **50 ep, cosine LR
+  4e-4→4e-5, 5 teacher passes**, batch 128. Δ vs ephemeral-CoT: adds gated aux + longer cosine schedule.
+  **Full held-out 463 = 0.616** (285/463), valid 0.788 — super-additive with CoT; the prior honest best
+  and the base for all 2026-06-05 RL/DPO runs.
+
+**2026-06-05** (RL on the 0.616 base + DPO; shared: batched multi-game roller — sample ~80 games in
+parallel, right-pad causal, per-seq finish; `play` = greedy ephemeral-CoT; honest = TRAIN-secret labels
+only, held-out greedy eval, no inference rules)
+
+- **expert-iteration — `scripts/rl_expert_10row.py`** (`rl_expert.pt`). Per iter: sample **K=12**
+  rollouts/secret (10-row, temp 0.9, 400 secrets/iter), keep ≤2 shortest wins (≤8 turns), **rebuild with
+  CLEAN teacher think + the model's winning guesses** (RAFT — *not* the noisy sampled think, which
+  degraded it), SFT (aux λ=0.5 + teacher-mix), lr 3e-5, 3 ep, **revert-on-regress**. Δ vs SFT: RL via
+  self-play win distillation at 10 rows. held10 0.604→**0.646** (full-463 ≈ 6-row 0.62 / 10-row 0.637).
+- **higher-ceiling / reachability — `scripts/rl_expert_tail.py`** (`rl_expert_tail.pt`). Pass 0 = **all
+  1852 secrets, K=10, temp 1.0** (coverage); passes 1–3 = unsolved tail only, **K=24/32/48, temp
+  1.1/1.2/1.3**; accumulate the union of clean-think wins, SFT, revert-on-regress. Δ vs expert-iter:
+  full coverage + tail-focused high-K. **Reachability = 1843/1852 = 99.5%**; full-coverage SFT reverted
+  (no gain) → coverage is not the bottleneck.
+- **GRPO polish — `scripts/rl_grpo_polish.py`** (`rl_grpo.pt`). Token-level GRPO on the CoT policy:
+  **G=8, 8 secrets/update**, advantage `A=r−mean(group)` (no ÷std), clip **ε=0.2**, **k3 KL to frozen
+  ref β=0.05**, reward `win·(2+0.25·(10−t)) − 0.1·invalid`, lr **5e-6**, **eval-mode policy forward (no
+  dropout)**. Δ vs the failed first try: eval-mode forward + β 0.01→0.05 + lr 1e-5→5e-6 (the first
+  attempt's dropout-on forward made KL explode 12→294 and degraded). Result: stable but **flat** (6-row
+  0.622, KL ~0.005 — policy barely moves).
+- **self-consistency probe — `scripts/self_consistency.py`** (no training). Per turn, sample **N=12**
+  traces (temp 0.9), commit the **majority-voted** guess (pure vote — no dict/filter); also pass@N (any
+  of N sampled games wins). held 150, 6-row: greedy 0.607 · vote **0.627** · **pass@12 0.953**.
+- **DPO, noisy pairs — `scripts/dpo_commit.py`** (`dpo.pt`). Sample N=8 rollouts/secret; pair at the
+  **first win/loss divergence board** (chosen=winning think+guess, rejected=losing). DPO `−logσ(β·((logπ−logπ_ref)_chosen − (…)_rejected))`, **β=0.1**, lr 5e-6, ref=frozen base, 4 ep, response-token
+  logp, revert-on-regress. Δ vs SFT: preference loss on commits. **Full-463 6-row 0.631** (+1.5);
+  pref_acc 0.60→0.73 — capped by noisy credit.
+- **DPO, decisive-board — `scripts/dpo_decisive.py`** (`dpo_decisive.pt`). Find decisive boards (last 2
+  turns of winning rollouts, secret reachable), **resample M=14 responses/board**, pair **chosen =
+  commits the secret** vs **rejected = valid + consistent + ≠ secret** at the same board (clean label).
+  Same DPO (β=0.1, lr 5e-6, 5 ep, revert-on-regress). Δ vs dpo_commit: clean credit (decisive-board
+  re-sampling) instead of noisy first-divergence pairs. **In progress.**
 
 ### Current standing
 
-The honest best is **ephemeral-CoT + auxiliary trie-validity loss = 0.616 held-out** (`runs/cot_eph_aux.pt`,
-`scripts/cot_ephemeral_aux.py`) — greedy, free-generation, no inference rules. It comes from stacking the two
-**orthogonal honest levers**: an *ephemeral chain-of-thought scratchpad* (the model enumerates consistent
-candidates each turn, then commits — reasoning regenerated and discarded, never fed back, filter never at
-inference) for **search/strategy**, and the *aux-validity trie loss* (bakes the dictionary into the weights;
-no trie at inference) for **spelling**. They are super-additive (no-CoT/no-aux 0.402 → +aux 0.436 → +CoT 0.430
-→ **+both 0.616**), because CoT enumerates candidates and aux forces that enumeration onto valid words —
-together they close both the decoding-search gap *and* the late-game valid-word wall that capped every prior
-run near 0.44. The honest-greedy 0.616 now **exceeds** the old inference-aided beam+dict high-water mark
-(0.58–0.60). The pass@10 = 0.787 probe had shown the knowledge was there and the limiter was a
-**decoding/search gap, not a capacity wall** — the combined model realizes most of that latent capability
-without any inference-time assistance. Residual losses are the genuinely hard tail (e.g. `joist` = `_oist`,
-`salsa` double-s/a). **RL is a dead end** (8 GRPO formulations, all flat or
-degrading, including the decisive consistency-constrained run that surfaced and reinforced the answer). **Context
-management is a non-lever** (explicit state hurt; context length is neutral). **BPE/real-text only wins by
-memorizing the answer set** — oreo-ai's headline 0.89 was 100% train/test contamination (reproduced as SEEN
-0.87 / honest held-out 0.257), and on honest deduction-on-unseen-words our char-50M+aux beats it. The standing
-honesty rule: **always evaluate on the strict held-out split; never train on the answer set to inflate the
-score.** The inference-aided beam+dict high-water mark (0.58–0.60) shows the strategy is mostly there; closing
-the honest greedy gap needs a better *decoder* (the search/spelling gap). **The honest lever that works is
-chain-of-thought** — done correctly as an ephemeral scratchpad (board-only history, think regenerated and
-discarded each turn, consistency filter never at inference), it reaches **0.430 held-out, +2.8pts over the
-matched no-CoT baseline (0.402)** and ≈ ties the 0.436 best, at 50M plain-CE and not yet converged. The clear
-next shot at a genuine new honest best is **ephemeral-CoT + aux-validity** (orthogonal: CoT = search/strategy,
-aux = spelling) — the residual losses are still late-game invalid words on hard secrets.
+The honest best (6-row greedy, free-generation, no inference rules) is **DPO commit-sharpening = 0.631 held-out**
+(`runs/dpo.pt`, `scripts/dpo_commit.py`), built on top of **ephemeral-CoT + aux-validity = 0.616**
+(`runs/cot_eph_aux.pt`). The SFT base stacks two **orthogonal honest levers** super-additively
+(no-CoT/no-aux 0.402 → +aux 0.436 → +CoT 0.430 → **+both 0.616**): the *ephemeral CoT scratchpad* (enumerate
+candidates, commit, discard the reasoning — filter never at inference) for **search/strategy**, and the
+*aux-validity trie loss* (dictionary baked into the weights; no trie at inference) for **spelling**. That
+already **exceeds** the inference-aided beam+dict mark (0.58–0.60), honestly.
+
+The remaining bottleneck is the **commit gap**: reachability is **99.5%** (sampling wins almost every train
+secret) and **pass@12 = 0.95**, yet greedy commits wrong — so the knowledge is there; the model just doesn't
+output it. Methods that *reweight sampled outcomes* can't move it: **GRPO is flat** (9 formulations now; the
+stabilized run barely moves), and **self-consistency voting adds only +2pts** (the winning line is a minority,
+not the mode). What helps is *sharpening the commit with clean training signal*: **expert-iteration** unlocked
+the extra rows (10-row 0.604→0.637), and **DPO** is the first method to lift honest 6-row greedy
+(0.616→0.631), currently limited by credit-assignment noise — which the **decisive-board DPO** run targets.
+
+Dead ends remain dead: **BPE/real-text only wins by memorizing the answer set** (oreo-ai's 0.89 was train/test
+contamination — reproduced as SEEN 0.87 / honest held-out 0.257), and **context management is a non-lever**
+(explicit state hurt; length neutral). The standing **honesty rule**: answer-derived signals are fine in
+*training* (teacher, engine-labeled wins, aux trie, DPO preference labels — all on TRAIN secrets); inference is
+always **greedy on the strict held-out split with zero rules** — no dictionary, filter, candidate list, or
+verifier.
