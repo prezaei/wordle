@@ -26,7 +26,7 @@ The honest headline metric is the **held-out win rate** on the immutable 463-wor
 (`data/wordlists.split` — train/held disjoint, held never trained on), greedy, free-generation,
 **no inference-time rules** (no dictionary, no consistency filter, no candidate list). Numbers that
 are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked CoT) are labeled as
-such. The whole thread runs 2026-06-02 → 06-04 on the M5 Max (MPS). All experiment drivers live in
+such. The whole thread runs 2026-06-02 → 06-06 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
@@ -81,16 +81,94 @@ magnitude (**expected ≈ 0.60–0.62**).
 ~100-game slices.** Many reported deltas — 0.616 vs 0.631, the +1.5 DPO gain, the +2.8 CoT gain — sit
 near or within this noise band. **Prefer full-463 and/or multi-seed evals for any claimed delta.**
 
+### 🔬 Overnight clean re-run (2026-06-06): honest held-out ≈ 0.17 — the audit's "inert" call is OVERTURNED
+
+The clean re-run (the remediation the audit set up) is in and it **reverses** the audit's win-impact
+verdict. The 2026-06-05 DA had concluded the leaks were **inert** ("numbers most likely real, ~0.60–0.62");
+the leak-free pipeline — **train-only candidate + teacher pools, held-out-free openers, disjoint
+VAL(`held[:96]`)/TEST(`held[96:]`)** — shows the honest held-out **collapses from 0.616 to ~0.17**. The
+whole **0.40 → 0.62 progression was largely held-out vocabulary leakage** (teacher guesses + CoT `<think>`
+candidates were drawn from the full answer pool, so the model was taught the held-out answer words as
+playable, clue-consistent guesses). Commit `d00f89d`.
+
+**This is verified, not a bug.** The clean SFT **converged** (loss 1.93 → 0.43) and shows a textbook
+generalization gap — it learned, it just cannot produce words it was never trained to output as answers:
+
+| check | clean SFT | reading |
+| --- | --- | --- |
+| win on **TRAIN[:120]** | **0.858** | learned the task |
+| win on **TEST (`held[96:]`)[:120]** | **0.175** | does not generalize |
+| final training loss | **0.43** (from 1.93) | converged, not under-trained |
+| held-game guesses that are **held-out words** | **28 / 690 = 4%** | almost never emits an unseen secret |
+| held-game guesses that are **train answers** | 457 / 690 = 66% | plays the vocabulary it was trained on |
+| sample held secret `befit` | `slate meter debit hefit begut penco` → LOSE | never emits `befit` |
+
+The 0.858/0.175 split is the proof: trained only on **train-answer outputs**, the model plays train answers
+(66%) and almost never produces a held-out word (4%), so it cannot commit a held-out secret → ~0.17 win.
+
+**Clean leaderboard (all stages leak-free; TEST = `held[96:]`, honest):**
+
+| setup | VAL (`held[:96]`) | **TEST (honest)** | full | valid | avg |
+| --- | --- | --- | --- | --- | --- |
+| SFT (ephemeral-CoT + aux) | 0.188 | **0.166** | 0.171 | 0.749 | 4.66 |
+| DPO (on SFT) | 0.188 | 0.166 | 0.171 | 0.749 | 4.66 |
+| GRPO (on best, clean reward) | 0.188 | 0.166 | 0.171 | 0.749 | 4.66 |
+| DAgger (on SFT) | 0.146 | 0.144 | 0.145 | 0.813 | 4.64 |
+| DPO ∘ DAgger | 0.146 | 0.144 | 0.145 | 0.813 | 4.64 |
+| DAgger ×2 | 0.125 | 0.169 | 0.160 | 0.794 | 4.89 |
+
+Everything sits in a **0.14–0.17 band**: the plain clean **SFT (TEST 0.166)** wins; **DPO and GRPO revert to
+the SFT base (no gain)** and **DAgger slightly hurts**. The 0.166 is stable — confirmed by a **3-seed TEST
+mean 0.1662** (not MPS noise). **No downstream lever (DPO/GRPO/DAgger) moves the clean ceiling.**
+
+**Why the audit was wrong about "inert":** the DA read "the 0.616 model emits held-out words 9.2%, below the
+20% base-rate → leak is inert." That was a misread — 9.2% of *all* guesses being held-out words is the very
+mechanism that lets it win held-out secrets, and "20%" was the wrong baseline. The contaminated pipeline fed
+held-out answer words in as **loss-True targets** (teacher guesses over the full pool + `consistent_candidates(history, ANSWERS)`),
+which **taught the held-out answer vocabulary as playable words** — exactly the knowledge needed to commit a
+held-out secret. The clean re-run is ground truth. (FM-1 selection bias *was* within noise, as the DA found;
+but the **FM-2/FM-3 vocabulary leak was the dominant ~45-point effect**, not inert.)
+
+**The fundamental insight — the vocabulary wall.** Wordle "deduction" *requires* the candidate-word
+vocabulary: clue-narrowing only works if you can enumerate words that fit the pattern, i.e. **knowing the
+words** (from `_oist` you cannot produce `joist` unless you know `joist` is a word). So "generalize to
+held-out" = **play words never seen as targets ≈ impossible**; the honest held-out ceiling is essentially
+capped by **spelling knowledge alone (~0.17 here)**. The only way to lift it is to give the model the answer
+vocabulary — which, under the strict held-out rule, **is** the leak.
+
+**Two legitimate framings (decide which game you're measuring):**
+
+1. **Strict held-out generalization** ("deduce, don't look up"): honest = **~0.17** — the real ceiling.
+   RL/DAgger/DPO/GRPO are **exhausted** (they can't inject unseen vocabulary). The next move is a different
+   framing, not more training.
+2. **Deployed real Wordle** (the answer set is **fixed and known** — 2,315 words, no novel secrets):
+   training on all answers is **not cheating for the actual game**; that model plays the real game at
+   **~0.62**, a legitimate *deployed-player* score. The held-out split is an artificial generalization probe
+   we imposed.
+
+Both are real; they measure different things — **0.17 = "can it deduce novel words" (no); 0.62 = "can it play
+the real, fixed-vocabulary game" (yes, decently)**.
+
 ### Results leaderboard
 
 Honest held-out only (greedy, free-gen, no rules), best-first. Yardsticks and the inference-aided
 high-water mark are listed separately at the bottom — they are **not** comparable honest-greedy numbers.
 
-> ⚠️ **Audit caveat (2026-06-05):** these held-out numbers were produced with a now-fixed
-> **training-target** leak (FM-2 CoT candidates / FM-3 teacher guesses over the full answer pool) plus
-> selection-on-`held[:96]` (FM-1). The leak **measured inert** (model emits held-out vocab *below*
-> base-rate; inference never calls the filter), so the numbers are **not relabeled fake** — a clean
-> re-run (`cot_ephemeral_aux_clean.py`, fixes `a41b1b2`) is confirming. See the audit subsection above.
+> 🔬 **STRICT-HELD-OUT CORRECTION (2026-06-06):** under a fully leak-free pipeline the honest
+> strict-held-out numbers are **~0.17**, not 0.40–0.62. The clean re-run (commit `d00f89d`) shows the
+> entire 0.40 → 0.62 column reflects **held-out-vocabulary leakage** (held-out answer words fed in as
+> loss-True teacher/CoT targets). **Read the column below under one of two framings:** (a) these are
+> **deployed-real-Wordle / contaminated-methodology** numbers — legitimate only if the fixed, known
+> 2,315-answer set is accepted as fair game (no novel secrets); under that framing the best *player*
+> scores **~0.62**. (b) Under **strict held-out generalization** (deduce unseen words) the honest ceiling
+> is **~0.17** (plain clean SFT; RL/DPO/DAgger/GRPO all 0.14–0.17, exhausted against the vocabulary wall).
+> The rows are kept for the record but are **not** strict-honest numbers. See the overnight subsection above.
+
+> ⚠️ **Prior audit caveat (2026-06-05, now superseded on win-impact):** these held-out numbers were
+> produced with a now-fixed **training-target** leak (FM-2 CoT candidates / FM-3 teacher guesses over the
+> full answer pool) plus selection-on-`held[:96]` (FM-1). The audit's DA called the leak **inert** — the
+> **2026-06-06 clean re-run OVERTURNED that** (honest collapses to ~0.17; the leak was the dominant lever,
+> not inert). See the overturn subsection above.
 
 | Approach | Size | Held-out win | Valid-rate | Avg guesses | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -233,6 +311,32 @@ held-out-free openers, disjoint VAL/TEST); **clean re-run in progress** (`runs/c
 > **Audit verdict:** the **methodology was contaminated and is now fixed**; the **win numbers are likely
 > real** (the leak measured inert), with confirmation pending the clean re-run. New standing caveat: **MPS
 > greedy eval is ±2-3pt noisy on ~100-game slices** — prefer full-463 / multi-seed for any claimed delta.
+
+#### 2026-06-06 — overnight clean re-run: the audit's "inert" is OVERTURNED; honest held-out ≈ 0.17
+
+The leak-free re-run (train-only candidate + teacher pools, held-out-free openers, disjoint
+VAL(`held[:96]`)/TEST(`held[96:]`)) landed and **reversed the audit's win-impact call**. Commit `d00f89d`,
+full analysis in [`OVERNIGHT_ANALYSIS.md`](./OVERNIGHT_ANALYSIS.md).
+
+| Stage (all CLEAN) | What it tested | Result (TEST = `held[96:]`) | Takeaway |
+| --- | --- | --- | --- |
+| SFT (ephemeral-CoT + aux) | the 0.616 recipe, leak-free | **TEST 0.166** (VAL 0.188, full 0.171, valid 0.749, avg 4.66) | **honest collapses 0.616 → ~0.17**; converged (loss 0.43), 3-seed TEST mean 0.1662 (stable) |
+| DPO (on clean SFT) | preference sharpening, clean | TEST 0.166 (reverted to base) | **no gain** — can't inject unseen vocabulary |
+| GRPO (on best, clean reward) | RL, clean | TEST 0.166 (reverted to base) | **no gain** — 11th GRPO confirmation |
+| DAgger / DPO∘DAgger | failure-state relabeling, clean | TEST 0.144 | **slightly hurts** |
+| DAgger ×2 | full-coverage ×4 corrections | TEST 0.169 | within the 0.14–0.17 band |
+| train/test split proof | is 0.17 a bug? | **TRAIN[:120] 0.858 vs TEST[:120] 0.175** | textbook generalization gap — learned (86% train), cannot generalize; held games emit held-out words **4%** (28/690) vs train answers **66%** (457/690) |
+
+> **Clean re-run verdict:** the audit's "leaks inert" was a **misread** — the FM-2/FM-3 vocabulary leak was
+> the **dominant ~45-point lever**, not inert (FM-1 selection bias *was* within noise). The 0.40 → 0.62
+> progression was largely **held-out-vocabulary leakage** (held-out answer words fed in as loss-True
+> teacher/CoT targets, teaching the held-out vocabulary as playable). **Fundamental wall:** Wordle deduction
+> needs the candidate-word vocabulary, so "generalize to held-out" = play words never seen as targets ≈
+> impossible; the honest ceiling ≈ spelling knowledge **~0.17**, and RL/DAgger/DPO/GRPO are exhausted
+> against it. **Two framings:** (1) strict held-out generalization = **~0.17** (the real ceiling); (2)
+> deployed real Wordle (fixed, known 2,315-answer set, no novel secrets) = **~0.62** is a legitimate
+> deployed-player score (training on all answers isn't cheating for the real game). **Decide which game
+> you're measuring** before the next step.
 
 ### Algorithm reference (exact)
 
@@ -561,9 +665,24 @@ batched roller, honest = TRAIN-secret labels, held-out greedy eval, no inference
 
 ### Current standing
 
-The honest best (6-row greedy, free-generation, no inference rules) is **DPO commit-sharpening = 0.631 held-out**
+**Headline (2026-06-06 clean re-run, commit `d00f89d`):** the honest **strict-held-out** best is
+**~0.17 — plain clean SFT** (ephemeral-CoT + aux), 3-seed TEST mean **0.1662**. **RL/DPO/DAgger/GRPO are
+exhausted** against the vocabulary wall (clean leaderboard all 0.14–0.17; DPO/GRPO revert to base, DAgger
+hurts). The **deployed-fixed-answer-set** best (training on all 2,315 known answers, no novel secrets) is
+**~0.62** — a legitimate *deployed-player* score for the real game, **not** a strict-generalization number.
+**Recommendation: decide which game is being measured** — (a) "deduce unseen words" → ~0.17 is the ceiling
+for this approach and the productive next step is a reframing (e.g. a separately-trained candidate proposer,
+or explicitly adopting the fixed answer set), not more RL; (b) "best real-Wordle player" → the full-answer
+~0.62 model is correct and honest *for that task*.
+
+Everything below documents the *pre-correction* (contaminated-methodology) progression. Under the
+deployed-fixed-answer framing it is the real-game player; under strict held-out it is held-out-vocabulary
+leakage — read it accordingly.
+
+The pre-correction best (6-row greedy, free-generation, no inference rules) was **DPO commit-sharpening = 0.631 held-out**
 (`runs/dpo.pt`, `scripts/dpo_commit.py`), built on top of **ephemeral-CoT + aux-validity = 0.616**
-(`runs/cot_eph_aux.pt`) — both now **caveated** by the 2026-06-05 audit below (still the headline). The SFT
+(`runs/cot_eph_aux.pt`) — both now **superseded** by the 2026-06-06 clean re-run above (~0.17 strict-honest /
+~0.62 deployed). The SFT
 base stacks two **orthogonal honest levers** super-additively
 (no-CoT/no-aux 0.402 → +aux 0.436 → +CoT 0.430 → **+both 0.616**): the *ephemeral CoT scratchpad* (enumerate
 candidates, commit, discard the reasoning — filter never at inference) for **search/strategy**, and the
@@ -593,12 +712,15 @@ contamination — reproduced as SEEN 0.87 / honest held-out 0.257), and **contex
 always **greedy on the strict held-out split with zero rules** — no dictionary, filter, candidate list, or
 verifier.
 
-**Audit standing (2026-06-05).** The **library is audited-correct** (231 tests + tool receipts; no defect).
-The training/eval **pipeline had 4 held-out-leak channels** — FM-2 (CoT candidates over the full answer
-pool), FM-3 (teacher guesses over the full pools), the `trace` opener leak, and FM-1 (selection on
-`held[:96]`) — a **confirmed methodology violation, now fixed** (`a41b1b2`). Crucially, the **leaks measured
-inert** (FM-1 is within MPS eval noise; the 0.616 model emits held-out vocab *below* base-rate and inference
-never calls the filter) → **the win numbers are likely real, not inflated; the 0.631 headline is not
-retracted.** A **clean re-run is confirming** (`cot_ephemeral_aux_clean.py`, `runs/cleanrun.log`, expected
-≈ 0.60–0.62). New eval-discipline caveat: **MPS greedy eval is ±2-3pt non-deterministic on ~100-game
-slices** — many reported deltas sit near the noise band; prefer **full-463 / multi-seed** evals.
+**Audit standing (2026-06-05 → OVERTURNED 2026-06-06).** The **library is audited-correct** (231 tests +
+tool receipts; no defect — unchanged). The training/eval **pipeline had 4 held-out-leak channels** — FM-2
+(CoT candidates over the full answer pool), FM-3 (teacher guesses over the full pools), the `trace` opener
+leak, and FM-1 (selection on `held[:96]`) — a **confirmed methodology violation, now fixed** (`a41b1b2`). The
+2026-06-05 audit called the leaks **inert** ("numbers likely real ~0.60"); the **2026-06-06 clean re-run
+(`cot_ephemeral_aux_clean.py`, `runs/cleanrun.log`, commit `d00f89d`) OVERTURNED that** — the honest
+strict-held-out **collapsed from 0.616 to ~0.17**, verified by the TRAIN 0.858 vs TEST 0.175 generalization
+gap (converged, loss 0.43; held games emit held-out words only 4% vs train answers 66%). **FM-1 selection
+bias *was* within noise (the DA was right there); but the FM-2/FM-3 vocabulary leak was the dominant
+~45-point effect — not inert.** The 0.40 → 0.62 progression was largely held-out-vocabulary leakage. New
+eval-discipline caveat (still holds): **MPS greedy eval is ±2-3pt non-deterministic on ~100-game slices** —
+prefer **full-463 / multi-seed** evals; the clean 0.166 was confirmed by a 3-seed TEST mean (0.1662).
