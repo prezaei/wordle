@@ -88,6 +88,15 @@ def test_override_value_may_contain_equals() -> None:
     assert cfg.data.data_dir == "a=b"
 
 
+def test_from_dict_ignores_legacy_or_unknown_keys() -> None:
+    # A run.json written before a field was removed (e.g. the old `tokenizer` block) must still
+    # load — from_dict drops unknown keys instead of crashing RunConfig(**kwargs).
+    blob = to_dict(RunConfig())
+    blob["tokenizer"] = {"vocab_size": 34}  # legacy field, no longer on RunConfig
+    blob["some_future_key"] = 123
+    assert from_dict(blob) == RunConfig()
+
+
 def test_from_dict_reconstructs_all_subconfigs_as_dataclasses() -> None:
     # With _SUBCONFIGS derived from RunConfig, every sub-config round-trips as its dataclass
     # (a missed sub-config would come back as a dict and fail equality).

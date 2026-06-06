@@ -127,9 +127,18 @@ def _restore_field_types(sub_cls: type, data: dict[str, Any]) -> dict[str, Any]:
 
 
 def from_dict(d: dict[str, Any]) -> RunConfig:
-    """Reconstruct a RunConfig from ``to_dict`` output; a true inverse even through JSON."""
+    """Reconstruct a RunConfig from ``to_dict`` output; a true inverse even through JSON.
+
+    Legacy/unknown keys (e.g. a ``tokenizer`` block from a config written before that field was
+    removed) are dropped with an info log rather than crashing ``RunConfig(**kwargs)`` — so a
+    persisted ``run.json`` stays loadable across field additions/removals.
+    """
+    known = {f.name for f in dataclasses.fields(RunConfig)}
     kwargs: dict[str, Any] = {}
     for key, value in d.items():
+        if key not in known:
+            logger.info("from_dict: ignoring unknown/legacy config key %r", key)
+            continue
         if key in _SUBCONFIGS:
             sub_cls = _SUBCONFIGS[key]
             kwargs[key] = sub_cls(**_restore_field_types(sub_cls, value))
