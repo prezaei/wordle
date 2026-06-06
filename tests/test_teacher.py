@@ -14,6 +14,21 @@ def _train(n: int) -> tuple[str, ...]:
     return train[:n]
 
 
+def test_train_only_pools_never_play_a_held_out_word() -> None:
+    # The honesty fix: train-only pools + held-out-free openers => NO teacher guess is a held-out
+    # answer (no leak). (Note: a held-out word in the openers — e.g. 'trace' — would itself leak.)
+    train, held = split(seed=0)
+    held_set = set(held)
+    safe_openers = tuple(o for o in DEFAULT_OPENERS if o not in held_set)
+    for wf in (1.0, 0.0):  # both the consistent (valid_pool) and infomax (answer_pool) teachers
+        ts = generate_transcripts(
+            train[:120], weak_frac=wf, seed=0, openers=safe_openers, valid_pool=train, answer_pool=train
+        )
+        guesses = {turn.guess for t in ts for turn in t.game.turns}
+        assert guesses.isdisjoint(held_set)  # zero held-out words played as teacher targets (no leak)
+        assert (guesses - set(safe_openers)) <= set(train)  # non-opener guesses are train answers
+
+
 def test_default_openers_are_valid_words() -> None:
     assert all(is_valid(o) for o in DEFAULT_OPENERS) and len(DEFAULT_OPENERS) >= 3
 

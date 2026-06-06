@@ -38,16 +38,23 @@ def generate_transcripts(
     weak_frac: float = 0.70,
     openers: tuple[str, ...] = DEFAULT_OPENERS,
     seed: int = 0,
+    valid_pool: tuple[str, ...] | None = None,
+    answer_pool: tuple[str, ...] | None = None,
 ) -> list[Transcript]:
     """Play each secret with a blended, varied-opener teacher → SFT transcripts (spec §5.4).
 
     `weak_frac` of games use the consistent guesser (over the valid list); the rest use the
     near-optimal info-max teacher (over the answer pool). Deterministic for a given `seed`.
+
+    ``valid_pool`` / ``answer_pool`` override the guesser pools — pass TRAIN-only pools to guarantee
+    the teacher never plays a held-out word (no held-out word becomes a guess/SFT target). Default
+    (None) uses the full lists (legacy behavior).
     """
     if not 0.0 <= weak_frac <= 1.0:
         raise ValueError(f"weak_frac must be in [0, 1], got {weak_frac}")
     rng = Random(seed)
-    valid, answers = load_valid_guesses(), load_answers()
+    valid = valid_pool if valid_pool is not None else load_valid_guesses()
+    answers = answer_pool if answer_pool is not None else load_answers()
     transcripts: list[Transcript] = []
     for index, secret in enumerate(secrets):
         opener = rng.choice(openers)
