@@ -132,6 +132,29 @@ makes our benchmark **stricter** than real Wordle. Hard mode (reuse hints) not e
 
 > **RL/technique verdict (2026-06-05):** The bottleneck is the **commit gap**, not knowledge — reachability is 99.5% and pass@12 = 0.95, yet greedy commits wrong. Methods that *reweight outcomes* barely move it: GRPO flat (9×), self-consistency voting +2pts. **Full-response DPO is the one that helped (0.616 → 0.631)** — but the commit gap is fragile: the decisive-board variant flattened (think-token dilution) and guess-tokens-only was a knife-edge (too-weak → no learning, or too-strong → collapse). The think tokens in full-response DPO turned out to **regularize** the update, which is why it alone worked. **Preference-method ceiling here ≈ 0.631.** Remaining honest levers: richer reasoning targets (generalize the commit) or scale.
 
+#### 2026-06-05 (evening) — reward update, constraint-aux, GRPO-with-reward, DAgger
+
+Shipped the **reward-model update** (committed: `repeat_penalty=0.4` + `drop_present_penalty=0.3` in
+`rl/reward.py` + `RewardConfig`, 2 new exact-value tests, suite green — see Shared machinery), then ran
+the failure-mode fixes the new reward implies: train-in the constraint (no-op), feed the fixed reward to
+GRPO (dead), isolate the commit (KL-explodes), and put the failure states into the data (DAgger).
+
+| Time | Experiment (script) | What it tested | Result | Takeaway |
+| --- | --- | --- | --- | --- |
+| (commit) | **reward-model update (`rl/reward.py`, `RewardConfig`)** | shape the two slip-through failures | `repeat_penalty=0.4` (re-emit a prior valid guess) + `drop_present_penalty=0.3` (omit a known-yellow letter); 2 new exact-value tests, full suite green | the "update the reward model" deliverable — greens were already penalized by the clue term; these add the SALAD-twice + yellow-drop cases |
+| 22:40 | **constraint-aux (`cot_constraint.py`)** | train-in green-keep + yellow-reuse + anti-repeat aux on `cot_eph_aux.pt` | **NO-OP — reverted.** base win 0.604; aux terms `g=0 y=0 r=0` every epoch (e0 0.562, e3 0.573, all reverted) | **OOD lesson:** teacher transcripts never break greens / repeat / play invalids → **zero gradient on clean data.** You can't train-in a fix for failures the training data doesn't contain |
+| 22:54 | **DAgger v1 (`dagger.py`)** | roll the model out greedily on train secrets, relabel its bad-guess boards with the InfoMax teacher's correct guess, SFT | **REVERTED** (base 0.615; e0 0.542, e2 0.552). **616** failure boards over 1400 secrets; corrections diluted **~1:6** by the teacher mix | the honest fix for the constraint-aux no-op — puts the OOD failure states INTO training (train-secret labels, held-out eval, no inference aid). v1 under-weighted the corrections |
+| 23:07 | **GRPO full-traj + new reward (`rl_grpo_reward.py`)** | stabilized token-GRPO but reward = full shaped `compute_reward().total` (incl. the new penalties), on `dpo.pt` | **greedy DECLINED** held6 0.615 → upd0 0.604 → upd8 0.583 (valid 0.629→0.610) while *sampled* rollout wins ROSE 33→51/64; KL sane (≤0.009) | proxy-hacking the shaped reward + the GRPO↔greedy mismatch. **The reward fix did NOT rescue GRPO** (best-ckpt held at base, no damage) |
+| 23:13 | **GRPO guess-only (`rl_grpo_guessonly.py`)** | same GRPO but action mask credits ONLY the 5 committed guess letters (not the think) | **KL EXPLODED** 0.010 → 0.052 → 0.24 → 1.54 → 2.64 → 12.7 by upd6; stopped | unstable — same knife-edge as guess-only DPO; the full-trajectory **think tokens were acting as a regularizer** |
+| 23:15 | **DAgger v2 (improved `dagger.py`)** | all **1852** train secrets for failure coverage; corrections upweighted **×4** to ~50% of the pool, matched teacher sample | **IN PROGRESS** — latest log: rolled 176/1852, failure-boards 83 (no full-463 line yet) | fixes v1's dilution (×4 + full coverage); pending |
+
+> **Evening verdict:** **GRPO is conclusively dead here (10th confirmation) — the reward fix didn't
+> help it** (full-trajectory proxy-hacks the shaped reward → greedy *declines*; guess-only KL-explodes).
+> The honest best remains **DPO commit-sharpening 0.631**. constraint-aux taught the OOD lesson (no
+> gradient where the teacher never fails); **DAgger** is the honest attempt to put those failure states
+> in the data (train-secret labels + held-out eval = not memorization) — v1 reverted on dilution, v2
+> (×4 corrections, full 1852-secret coverage) is in progress.
+
 ### Algorithm reference (exact)
 
 The exact per-run algorithm. Every driver is `scripts/<name>.py`; the canonical pieces they call
@@ -192,9 +215,14 @@ Inherited by every run unless its row says otherwise.
   secrets/update=8, lr=1e-5.
 - **Reward** (`rl/reward.py`, `RewardConfig`): per game, knowledge-state carried across turns —
   new-green `a=0.2` (once/pos), new-yellow `b=0.1` (only when it raises a known min-count), invalid
-  `−p_invalid=0.5`, clue-violation `−q=0.5` (drops a known green / reuses a known gray), step
-  `−c=0.02`, terminal **win** `+(win_base 3.0 + win_speed 0.5·(max_guesses − t))`, **loss**
-  `−loss_penalty 1.0`. Dominance held: `p_invalid>b`, `q>b`, max farmable < win_base. Several RL runs
+  `−p_invalid=0.5`, clue-violation `−q=0.5` (drops a known green / reuses a known gray),
+  **repeat `−repeat_penalty=0.4`** (re-emitting a prior *valid* guess — the SALAD-twice wasted-turn
+  case, which is clue-consistent so the clue term misses it), **drop-present
+  `−drop_present_penalty=0.3`** (omitting a known-present/yellow non-green letter; greens were already
+  covered by the clue term), step `−c=0.02`, terminal **win** `+(win_base 3.0 + win_speed
+  0.5·(max_guesses − t))`, **loss** `−loss_penalty 1.0`. Dominance held: `p_invalid>b`, `q>b`, max
+  farmable < win_base. The repeat/drop-present terms were **added 2026-06-05 evening** (committed; 2 new
+  exact-value tests, suite green) — the "update the reward model" deliverable. Several RL runs
   **replace** this with their own reward (noted per row).
 - **Rollout / decode** (`rl/rollout.py`): `play_game` generates each guess letter-by-letter and the
   engine validates it (no candidate list, no consistency filter). Eval = **greedy** argmax,
@@ -407,6 +435,51 @@ only, held-out greedy eval, no inference rules)
   0.000 — the letter distribution breaks). The think tokens in full-response DPO regularize the update;
   isolating the commit removes that. **Full-response DPO 0.631 stands.**
 
+**2026-06-05 (evening)** (reward-model update + 4 failure-mode runs; all on the 0.616/0.631 CoT policy,
+batched roller, honest = TRAIN-secret labels, held-out greedy eval, no inference rules)
+
+- **reward-model update — `src/wordle_slm/rl/reward.py` + `RewardConfig`** (committed). Adds two shaped
+  terms to the per-game reward (see Shared machinery): **`repeat_penalty=0.4`** (re-emitting a prior
+  *valid* guess — clue-consistent so the `_violates_clue` term misses it; the SALAD-twice wasted turn)
+  and **`drop_present_penalty=0.3`** (committing a guess that omits a known-present/yellow non-green
+  letter). Greens were already penalized by the existing clue-violation term `q`. 2 new exact-value
+  tests; full suite green. Δ vs the prior reward: +2 penalty fields (default-on, dominance preserved).
+- **constraint-aux — `scripts/cot_constraint.py`** (`cot_eph_constraint.pt`). Fine-tunes
+  `cot_eph_aux.pt` (0.616) with three extra differentiable aux terms gated to current-turn positions:
+  **green-keep** `−log P(known-green letter)` (λ_g=0.5), **yellow-reuse** `−log P(known-yellow appears
+  across the 5 slots)` (λ_y=0.3), **anti-repeat** `−log(1 − P(commit == any past guess))` (λ_r=0.3), on
+  top of the existing aux-validity (λ_v=0.5). 20 ep, cosine lr 1e-4→1e-5, batch 128, revert-on-regress.
+  Δ vs cot_ephemeral_aux: +3 constraint aux terms. **NO-OP — reverted:** the aux terms computed **g=0
+  y=0 r=0 every epoch** (teacher transcripts never break greens / reuse-fail / repeat → no gradient);
+  held win 0.604 base → 0.562 (e0) / 0.573 (e3), all reverted. The OOD lesson.
+- **DAgger v1 — `scripts/dagger.py`** (`dagger.pt`). Roll the model out greedily (temp 0.02) on **1400**
+  train secrets; collect every board where it does something bad (invalid word / repeats a past guess /
+  drops a known green); add a training example at each whose target is the **InfoMax teacher's** correct
+  valid guess; SFT on `corrections + 1 InfoMax teacher pass`. lr 6e-5. Δ vs constraint-aux: puts the OOD
+  failure *states* into the data (honest — model-visited states, teacher labels on TRAIN secrets), the
+  fix for the no-gradient no-op. **616 failure boards collected**; corrections diluted **~1:6** by the
+  teacher mix → **REVERTED** (base 0.615; e0 0.542, e2 0.552).
+- **GRPO full-traj + new reward — `scripts/rl_grpo_reward.py`** (`rl_grpo_reward.pt`). The stabilized
+  token-level GRPO of rl_grpo_polish (eval-mode forward, **ε=0.2, k3 KL β=0.05, lr 5e-6**, advantage
+  `r−mean(group)` no ÷std, zero-variance filter, G=8, 8 secrets/update, 40 updates) on `dpo.pt`, but
+  reward = **`compute_reward(g, RewardConfig()).total`** — the full shaped reward including the new
+  repeat + drop-present penalties (the prior GRPO used an ad-hoc win+speed−invalid reward). Δ vs
+  rl_grpo_polish: reward swapped to the full shaped `compute_reward`. **Greedy DECLINED** held6 0.615 →
+  0.604 (upd0) → **0.583 (upd8)**, valid 0.629→0.610, while *sampled* in-group wins rose **33→51/64** and
+  KL stayed sane (≤0.009) = proxy-hacking the shaped reward + the GRPO↔greedy mismatch; best-ckpt held at
+  base (no damage). The reward fix did NOT rescue GRPO.
+- **GRPO guess-only — `scripts/rl_grpo_guessonly.py`** (`rl_grpo_guessonly.pt`). Identical to
+  rl_grpo_reward (same shaped reward, ε=0.2, β=0.05, lr 5e-6, G=8) **except** the action mask credits
+  **only the 5 committed guess-letter positions** (after the last `<GUESS>`), not the `<think>`. Δ vs
+  rl_grpo_reward: guess-only credit (mirrors the dpo_guessonly experiment). **KL EXPLODED:** 0.010 →
+  0.052 → 0.24 → 1.54 → 2.64 → **12.7 by upd6** → stopped. Same knife-edge as guess-only DPO — the
+  full-trajectory think tokens were acting as a regularizer.
+- **DAgger v2 — `scripts/dagger.py`** (improved; `N_SECRETS=1852`). Same DAgger loop but over **all 1852
+  train secrets** (full failure coverage, not 1400) with the corrections **upweighted ×4** to ~50% of the
+  pool (`dagger×4 + teacher_keep`, `len(teacher)=min(·, 4·len(dagger))`) — fixes v1's ~1:6 dilution. Δ vs
+  DAgger v1: full coverage + ×4 correction upweight. **IN PROGRESS** — runs/dagger2.log shows rolled
+  176/1852, failure-boards 83 (no full-463 line yet).
+
 ### Current standing
 
 The honest best (6-row greedy, free-generation, no inference rules) is **DPO commit-sharpening = 0.631 held-out**
@@ -419,11 +492,19 @@ already **exceeds** the inference-aided beam+dict mark (0.58–0.60), honestly.
 
 The remaining bottleneck is the **commit gap**: reachability is **99.5%** (sampling wins almost every train
 secret) and **pass@12 = 0.95**, yet greedy commits wrong — so the knowledge is there; the model just doesn't
-output it. Methods that *reweight sampled outcomes* can't move it: **GRPO is flat** (9 formulations now; the
-stabilized run barely moves), and **self-consistency voting adds only +2pts** (the winning line is a minority,
-not the mode). What helps is *sharpening the commit with clean training signal*: **expert-iteration** unlocked
-the extra rows (10-row 0.604→0.637), and **DPO** is the first method to lift honest 6-row greedy
-(0.616→0.631), currently limited by credit-assignment noise — which the **decisive-board DPO** run targets.
+output it. Methods that *reweight sampled outcomes* can't move it: **GRPO is now conclusively dead — 10
+formulations** (the stabilized run barely moves, and the 2026-06-05 evening run that fed it the *updated*
+shaped reward made greedy **decline** 0.615→0.583 by proxy-hacking the reward while its sampled rollout wins
+rose; the guess-only variant KL-exploded), and **self-consistency voting adds only +2pts** (the winning line
+is a minority, not the mode). What helps is *sharpening the commit with clean training signal*:
+**expert-iteration** unlocked the extra rows (10-row 0.604→0.637), and **DPO** is the only method to lift
+honest 6-row greedy (0.616→0.631), currently limited by credit-assignment noise. The **reward model was
+updated** (committed: repeat + drop-present penalties) but it neither rescued GRPO nor could be trained in
+directly: **constraint-aux was a no-op** (the teacher transcripts never break greens / repeat / play invalids,
+so there's no gradient for an in-weights fix — the OOD lesson). The honest answer to OOD failures is to put
+those states into the data — **DAgger** rolls the model out on train secrets and relabels its bad boards with
+the teacher (train-secret labels + held-out eval = not memorization); v1 reverted on ~1:6 dilution and **v2
+(×4 corrections, full 1852-secret coverage) is in progress**.
 
 Dead ends remain dead: **BPE/real-text only wins by memorizing the answer set** (oreo-ai's 0.89 was train/test
 contamination — reproduced as SEEN 0.87 / honest held-out 0.257), and **context management is a non-lever**
