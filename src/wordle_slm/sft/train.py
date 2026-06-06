@@ -52,7 +52,7 @@ def pad_and_mask(
     Shared by SFT (game transcripts) and the spell warm-up (single-word sequences). Returns
     (input_ids, target_letter_idx, loss_mask), each ``[B, L]``.
     """
-    letter_lo = tokenizer.token_to_id("a")
+    letter_lo = tokenizer.letter_lo
     max_len = max(len(s) for s in seqs)
     batch = len(seqs)
     input_ids = torch.full((batch, max_len), tokenizer.pad_id, dtype=torch.long)
@@ -90,7 +90,7 @@ def valid_continuation_mask(
     letters given the guess prefix so far. Built on CPU (one transfer) — drives the aux loss.
     """
     trie = _valid_trie()
-    letter_lo = tokenizer.token_to_id("a")
+    letter_lo = tokenizer.letter_lo
     max_len = max(len(s) for s in seqs)
     vmask = torch.zeros((len(seqs), max_len, 26))
     for i, seq in enumerate(seqs):
@@ -159,13 +159,15 @@ def train_sft(
         model.parameters(), lr=config.lr, weight_decay=config.weight_decay
     )
     rng = Random(seed)
+    # Encode every transcript once — games are immutable, so re-encoding each epoch is wasted work.
+    encoded = [encode_completed_game(g.turns, tokenizer) for g in games]
     model.train()
     start = time.perf_counter()
     step = 0
     last_loss = float("nan")
     for epoch in range(epochs):
         for indices in _batches(len(games), batch_size, rng):
-            seqs = [encode_completed_game(games[i].turns, tokenizer) for i in indices]
+            seqs = [encoded[i] for i in indices]
             ids, target_idx, mask = pad_and_mask(seqs, tokenizer, device)
             vmask = (
                 valid_continuation_mask(seqs, tokenizer, device)

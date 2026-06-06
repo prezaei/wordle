@@ -105,8 +105,9 @@ def compute_reward(game: Game, config: RewardConfig) -> RewardBreakdown:
                 for pos, ch in enumerate(turn.guess)
                 if ch == letter and turn.feedback[pos] is not Color.GRAY
             )
-            if obs > min_count.get(letter, 0):
-                letter_progress += config.b * (obs - min_count.get(letter, 0))
+            known = min_count.get(letter, 0)
+            if obs > known:
+                letter_progress += config.b * (obs - known)
                 min_count[letter] = obs
             if obs == 0:  # this letter showed only gray -> confirmed absent
                 gray_known.add(letter)

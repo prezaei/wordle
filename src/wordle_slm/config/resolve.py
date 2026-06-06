@@ -21,7 +21,6 @@ from wordle_slm.config import (
     RewardConfig,
     RunConfig,
     SFTConfig,
-    TokenizerConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,6 @@ PRESETS: dict[str, Callable[[], RunConfig]] = {
 # guards it against drift.
 _SUBCONFIGS: dict[str, type] = {
     "model": ModelConfig,
-    "tokenizer": TokenizerConfig,
     "reward": RewardConfig,
     "sft": SFTConfig,
     "grpo": GRPOConfig,

@@ -25,13 +25,12 @@ import torch
 from torch import nn
 
 from wordle_slm.config import GRPOConfig, RewardConfig
-from wordle_slm.model.serialization import encode_completed_game, guess_letter_target_positions
 from wordle_slm.model.tokenizer import Tokenizer
 from wordle_slm.model.transformer import WordleGenerator
 from wordle_slm.rl.curriculum import Curriculum
 from wordle_slm.rl.reward import compute_reward
 from wordle_slm.rl.rollout import letter_id_tensor, play_game
-from wordle_slm.rl.tracer import compute_group_advantages
+from wordle_slm.rl.tracer import compute_group_advantages, per_guess_logps
 from wordle_slm.telemetry.run_log import RunLog
 
 logger = logging.getLogger(__name__)
@@ -49,32 +48,6 @@ class UpdateStats:
     n_secrets: int
     stepped: bool
     hard_secrets: tuple[str, ...]  # secrets whose group didn't fully win → replay queue
-
-
-def _trajectory_logps(
-    model: WordleGenerator,
-    tokenizer: Tokenizer,
-    game,
-    letter_ids: torch.Tensor,
-    device: str,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Per-guess-letter log-probs ``[n_positions]`` + summed entropy. Caller sets the grad context.
-
-    Teacher-forced over the realized game (logit q-1 predicts letter q), log_softmax over the
-    26-letter action space (same mask as generation).
-    """
-    seq_list = encode_completed_game(game.turns, tokenizer)
-    seq = torch.tensor(seq_list, device=device).unsqueeze(0)
-    targets = guess_letter_target_positions(seq_list, tokenizer)
-    letter_lo = int(letter_ids.min().item())
-    logits = model.forward(seq)[0]
-    logps: list[torch.Tensor] = []
-    entropy = torch.zeros((), device=device)
-    for q in targets:
-        logp_all = torch.log_softmax(logits[q - 1][letter_ids], dim=0)
-        logps.append(logp_all[seq_list[q] - letter_lo])
-        entropy = entropy + -(logp_all.exp() * logp_all).sum()
-    return torch.stack(logps), entropy
 
 
 def grpo_update(
@@ -136,8 +109,8 @@ def grpo_update(
         frozen: list[tuple[object, float, torch.Tensor, torch.Tensor]] = []
         with torch.no_grad():
             for game, advantage in kept:
-                old_logps, _ = _trajectory_logps(model, tokenizer, game, letter_ids, device)
-                ref_logps, _ = _trajectory_logps(ref_model, tokenizer, game, letter_ids, device)
+                old_logps, _ = per_guess_logps(model, tokenizer, game, letter_ids, device)
+                ref_logps, _ = per_guess_logps(ref_model, tokenizer, game, letter_ids, device)
                 frozen.append((game, advantage, old_logps, ref_logps))
 
         grad_norm = torch.zeros((), device=device)
@@ -151,7 +124,7 @@ def grpo_update(
             total_entropy = torch.zeros((), device=device)
             total_positions = 0
             for game, advantage, old_logps, ref_logps in frozen:
-                cur_logps, entropy = _trajectory_logps(model, tokenizer, game, letter_ids, device)
+                cur_logps, entropy = per_guess_logps(model, tokenizer, game, letter_ids, device)
                 ratio = torch.exp(cur_logps - old_logps)  # 1 at epoch 0; ≠1 after a step
                 clipped = torch.clamp(ratio, 1.0 - grpo.clip_eps, 1.0 + grpo.clip_eps)
                 total_surrogate = (

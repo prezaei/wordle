@@ -15,6 +15,7 @@ import torch
 from torch import nn
 
 from wordle_slm.config import ModelConfig
+from wordle_slm.model.serialization import GUESS_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class WordleGenerator(nn.Module):
         sample: bool = False,
         generator: torch.Generator | None = None,
     ) -> torch.Tensor:
-        """Generate exactly 5 letter token ids after the prompt (length-masked to the 26 letters).
+        """Generate exactly GUESS_LEN letter token ids after the prompt (masked to the 26 letters).
 
         ``prompt_ids`` is a 1-D id tensor ending in `<GUESS>`. Logits are restricted to
         ``letter_ids`` (the policy's action space is the 26 letters — §5.3 / migration C2), so a
@@ -85,7 +86,7 @@ class WordleGenerator(nn.Module):
         try:
             seq = prompt_ids.clone()
             chosen: list[int] = []
-            for _ in range(5):
+            for _ in range(GUESS_LEN):
                 logits = self.forward(seq.unsqueeze(0))[0, -1]  # [vocab]
                 letter_logits = logits[letter_ids]  # [26] — the action space
                 if sample:

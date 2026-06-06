@@ -67,6 +67,15 @@ class Tokenizer:
     def gray_id(self) -> int:
         return self._tok_to_id["<gray>"]
 
+    @property
+    def letter_lo(self) -> int:
+        """Token id of ``'a'`` — the base of the contiguous a-z block (specials come first).
+
+        Subtracting it from a letter's token id yields its 0-25 index in the 26-letter action
+        space. The single source of truth for that offset (used by SFT and the GRPO recompute).
+        """
+        return self._tok_to_id["a"]
+
     def token_to_id(self, token: str) -> int:
         try:
             return self._tok_to_id[token]

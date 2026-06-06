@@ -71,6 +71,34 @@ def compute_group_advantages(
     return advantages
 
 
+def per_guess_logps(
+    model: WordleGenerator,
+    tokenizer: Tokenizer,
+    game,
+    letter_ids: torch.Tensor,
+    device: str,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Per-guess-letter log-probs ``[n_positions]`` + summed entropy. Caller sets the grad context.
+
+    The single teacher-forced recompute shared by the tracer and the GRPO trainer (so the importance
+    ratio is computed identically in both): encode the realized game, take the guess-letter target
+    positions (logit ``q-1`` predicts letter ``q``), ``log_softmax`` over the 26-letter action space
+    (same mask as generation — spec §5.3 / migration C2), and index the realized letter.
+    """
+    seq_list = encode_completed_game(game.turns, tokenizer)
+    seq = torch.tensor(seq_list, device=device).unsqueeze(0)  # [1, L]
+    targets = guess_letter_target_positions(seq_list, tokenizer)  # the generated letter positions
+    letter_lo = tokenizer.letter_lo  # letters are contiguous (vocab: specials then a-z)
+    logits = model.forward(seq)[0]  # [L, vocab]
+    logps: list[torch.Tensor] = []
+    entropy = torch.zeros((), device=device)
+    for q in targets:
+        logp_all = torch.log_softmax(logits[q - 1][letter_ids], dim=0)  # over the action space
+        logps.append(logp_all[seq_list[q] - letter_lo])  # the realized letter's log-prob
+        entropy = entropy + -(logp_all.exp() * logp_all).sum()
+    return torch.stack(logps), entropy
+
+
 def trajectory_terms(
     model: WordleGenerator,
     ref_model: WordleGenerator,
@@ -87,31 +115,20 @@ def trajectory_terms(
     Recomputes the generation log-probs WITH gradients over the realized sequence. ``advantage`` is
     the (constant) group-relative advantage broadcast to every guess-letter token of the trajectory.
     """
-    seq_list = encode_completed_game(game.turns, tokenizer)
-    seq = torch.tensor(seq_list, device=device).unsqueeze(0)  # [1, L]
-    targets = guess_letter_target_positions(seq_list, tokenizer)  # the generated letter positions
-    letter_lo = int(letter_ids.min().item())  # letters are contiguous (vocab: specials then a-z)
-    logits = model.forward(seq)[0]  # [L, vocab], with gradient
+    logps, entropy = per_guess_logps(model, tokenizer, game, letter_ids, device)
     with torch.no_grad():
-        ref_logits = ref_model.forward(seq)[0]
+        ref_logps, _ = per_guess_logps(ref_model, tokenizer, game, letter_ids, device)
 
     surrogate = torch.zeros((), device=device)
     kl = torch.zeros((), device=device)
-    entropy = torch.zeros((), device=device)
-    for q in targets:
-        predict = q - 1  # the logit at q-1 predicts the letter at q
-        realized = seq_list[q] - letter_lo  # index into the 26-letter action space
-        logp_all = torch.log_softmax(logits[predict][letter_ids], dim=0)
-        logp = logp_all[realized]
+    for logp, ref_logp in zip(logps, ref_logps, strict=True):
         # Importance ratio at θ_old = θ: value 1, gradient ∇logπ_θ.
         ratio = torch.exp(logp - logp.detach())
         clipped = torch.clamp(ratio, 1.0 - clip_eps, 1.0 + clip_eps)
         surrogate = surrogate + torch.min(ratio * advantage, clipped * advantage)
-        ref_logp = torch.log_softmax(ref_logits[predict][letter_ids], dim=0)[realized]
         log_ratio = ref_logp - logp  # k3 KL(π_θ ‖ π_ref): exp(Δ) − Δ − 1 ≥ 0
         kl = kl + (torch.exp(log_ratio) - log_ratio - 1.0)
-        entropy = entropy + -(logp_all.exp() * logp_all).sum()
-    return surrogate, kl, entropy, len(targets)
+    return surrogate, kl, entropy, len(logps)
 
 
 def grpo_tracer_step(

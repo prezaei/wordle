@@ -58,14 +58,6 @@ class ModelConfig:
 
 
 @dataclass
-class TokenizerConfig:
-    """Char-level vocab: 26 letters + 8 specials (~34 tokens). I."""
-
-    # 26 a-z + <BOS> <EOS> <PAD> <SEP> <GUESS> <green> <yellow> <gray>
-    vocab_size: int = 34
-
-
-@dataclass
 class RewardConfig:
     """Shaped per-guess reward for free generation (spec §6.4; tune in Phase 3).
 
@@ -174,7 +166,6 @@ class RunConfig:
     device: str = "mps"  # CPU fallback for unsupported ops
     run_dir: str = "runs"
     model: ModelConfig = field(default_factory=ModelConfig)
-    tokenizer: TokenizerConfig = field(default_factory=TokenizerConfig)
     reward: RewardConfig = field(default_factory=RewardConfig)
     sft: SFTConfig = field(default_factory=SFTConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
@@ -186,7 +177,6 @@ class RunConfig:
 __all__ = [
     "MODEL_PRESETS",
     "ModelConfig",
-    "TokenizerConfig",
     "RewardConfig",
     "SFTConfig",
     "GRPOConfig",
