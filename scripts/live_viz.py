@@ -38,7 +38,7 @@ LETTER_SET = set(LETTER_IDS)
 ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
 _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"}
 _NAME = {Color.GREEN: "green", Color.YELLOW: "yellow", Color.GRAY: "gray"}
-ROWS = 10
+ROWS = 6  # standard Wordle (the headline metric); the models are 6-row-trained
 _, HELD = split(seed=0)
 VIZ_SECRETS = list(HELD[:10])  # fixed 10 held-out games — watch them get solved as training improves
 
@@ -121,10 +121,21 @@ def newest(patterns):
     return max(files, key=os.path.getmtime) if files else None
 
 
+BEST_PRIORITY = ["runs/dpo.pt", "runs/cot_eph_aux.pt", "runs/rl_expert.pt", "runs/cot_eph.pt"]
+
+
+def best_ckpt():
+    """Prefer a known-good checkpoint over the newest .pt (which may be an experiment leftover)."""
+    for p in BEST_PRIORITY:
+        if os.path.exists(p) and os.path.getsize(p) > 0:
+            return p
+    return newest(["runs/*.pt"])
+
+
 def worker(fixed_ckpt, fixed_log):
     model, loaded = None, None
     while True:
-        ckpt = fixed_ckpt or newest(["runs/*.pt"])
+        ckpt = fixed_ckpt or best_ckpt()
         log = fixed_log or newest(["runs/*.log"])
         curve, metric = parse_curve(log)
         try:
