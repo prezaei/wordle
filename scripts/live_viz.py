@@ -30,6 +30,8 @@ from wordle_slm.engine.scoring import score
 from wordle_slm.model import Tokenizer, WordleGenerator
 from wordle_slm.sft.train import load_checkpoint
 
+from viz_progress import read_progress  # scripts/ helper: per-epoch / per-update boards + grades
+
 DEV = "mps"
 tok = Tokenizer()
 THINK = tok.vocab_size
@@ -43,7 +45,7 @@ _NAME = {Color.GREEN: "green", Color.YELLOW: "yellow", Color.GRAY: "gray"}
 ROWS = 6
 _, HELD = split(seed=0)
 VIZ_SECRETS = list(HELD[:10])
-REFS = [("base 0.616", 0.616), ("DPO 0.631", 0.631)]
+REFS = [("clean-SFT 0.166", 0.166)]  # honest held-out floor (overnight clean run); fair run should beat it
 
 STATE: dict = {"games": [], "curve": [], "ckpt": "—", "log": "—", "metric": "win", "ts": 0,
                "status": "starting…", "refs": REFS}
@@ -139,10 +141,40 @@ def best_ckpt():
     return newest(glob.glob("runs/*.pt"))
 
 
+def progress_state(prog):
+    """Build the dashboard STATE from a per-epoch/-update progress file (the actual logged
+    inferences + grades) — no model reload, no re-play, so it never contends with training."""
+    recs = read_progress(prog)
+    if not recs:
+        return None
+    latest = recs[-1]
+    metric = "win" if latest.get("win") is not None else "reward_mean"  # SFT: win · RL: reward_mean
+    curve = [{"i": r["epoch"], "v": r[metric]} for r in recs if r.get(metric) is not None]
+    refs = REFS if metric == "win" else []  # the 0.166 ref is a win rate — hide it on a reward curve
+    won = sum(g.get("status") == "win" for g in latest["games"])
+    val = latest.get(metric)
+    xlabel = "update" if latest.get("kind") == "rl" else "epoch"
+    extra = f" · eval_win={latest['eval_win']:.3f}" if latest.get("eval_win") is not None else ""
+    status = (f"{latest.get('kind', 'sft')} {xlabel} {latest['epoch']} · "
+              f"{metric}={val:.3f}{extra} · {won}/{len(latest['games'])} shown won"
+              if val is not None else f"{xlabel} {latest['epoch']}")
+    return {"games": latest["games"], "curve": curve, "metric": metric, "refs": refs,
+            "ckpt": os.path.basename(prog), "log": os.path.basename(prog), "status": status}
+
+
 def worker(fixed_ckpt, fixed_log):
     model, sig, off = None, None, 0
     pool = list(HELD)  # rotate through the full held-out set so the page shows fresh games each cycle
     while True:
+        # Prefer the active run's progress file (real per-epoch/-update boards + grades) when unpinned.
+        if not fixed_ckpt:
+            prog = newest_fresh(glob.glob("runs/*_progress.jsonl"))
+            ps = progress_state(prog) if prog else None
+            if ps:
+                with LOCK:
+                    STATE.update(**ps, ts=time.time())
+                time.sleep(3)
+                continue
         ckpt = fixed_ckpt or newest_fresh(glob.glob("runs/*.pt")) or best_ckpt()
         log = fixed_log or newest_fresh(_logs()) or newest(_logs())
         curve, metric = parse_curve(log)
@@ -220,7 +252,14 @@ function board(g){
   }
   const cls=g.status==='win'?'win':(g.status==='lose'?'lose':'ongoing');
   const tag=g.status==='win'?`✓ ${g.used}`:(g.status==='lose'?'✗':'…');
-  return `<div class="${cls}"><div class=gh>${g.secret} ${tag}</div>${rows}</div>`;
+  let grade='';  // RL rollouts carry a grade: reward (the score) + advantage (group-relative)
+  if(g.reward!==undefined&&g.reward!==null){
+    const c=g.reward>=0?'#6aaa64':'#d16b66';
+    grade=` <span style="color:${c};font-weight:700" title="reward (grade)">r=${g.reward.toFixed(2)}</span>`;
+    if(g.adv!==undefined&&g.adv!==null){const ac=g.adv>=0?'#7a9':'#a77';
+      grade+=` <span style="color:${ac};font-size:11px" title="group-relative advantage">A=${g.adv.toFixed(2)}</span>`;}
+  }
+  return `<div class="${cls}"><div class=gh>${g.secret} ${tag}${grade}</div>${rows}</div>`;
 }
 const CV=document.getElementById('chart'),CTX=CV.getContext('2d'),DPR=window.devicePixelRatio||1,CW=540,CH=350;
 CV.style.width=CW+'px';CV.style.height=CH+'px';CV.width=CW*DPR;CV.height=CH*DPR;CTX.scale(DPR,DPR);
