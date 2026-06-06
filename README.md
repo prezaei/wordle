@@ -29,10 +29,68 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-04 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
+
+A 4-agent adversarial investigation (Lead, Code-Analyst, Telemetry-Analyst, Devil's-Advocate) asked
+**"is the model built correctly?"** Two-part verdict, stated precisely:
+
+1. **The library is CORRECT** — confirmed by 231 passing tests + per-claim tool receipts (Code-Analyst
+   + Devil's-Advocate). Causal attention (perturbation-tested), weight-tied head, pos-embed bounds;
+   `generate` emits exactly 5 letters length-masked to the 26 letter-ids and samples on CPU; SFT loss
+   gradient is exactly on the guess-letter positions (zero on board/feedback); aux-validity trie aligned
+   + gated to supervised positions; reward no-double-count + dominance; GRPO (Dr.-advantage, k3 KL,
+   zero-variance filter, eval-mode forward) and DPO math; two-pass duplicate scoring; disjoint immutable
+   split. No correctness defect found.
+2. **The headline TRAINING/eval pipeline contaminates the held-out discipline (CONFIRMED methodology
+   violation)** — held-out words become **loss-True training targets** via 4 channels. **But the
+   measured win-impact is REFUTED (inert): the numbers are most likely real — do NOT retract them.**
+
+**The 4 leak channels (held-out words as loss-True training targets — confirmed):**
+
+| # | Channel | Mechanism | Blast radius | Receipts |
+| --- | --- | --- | --- | --- |
+| **FM-2** | CoT candidates | `pick_cands`→`consistent_candidates(history, ANSWERS)` over the **full** answer pool (incl. all 463 held-out) → held-out words are loss-True `<think>` targets | whole CoT family (cot_eph_aux **0.616**, cot_eph 0.430, cot_50m, dagger, expert-iter) → **both headline numbers** | `scripts/cot_ephemeral_aux.py:44,66,79-83` |
+| **FM-3** | Teacher guesses | `generate_transcripts` used the full valid/answer pools → InfoMax/Consistent teacher **plays held-out words as guesses** on train games (loss-True commit targets) | **every SFT**, incl. the pre-CoT char-50M+aux **0.436** | `src/wordle_slm/teacher/transcripts.py:50,59` |
+| **Opener** | Opener leak | `trace` ∈ `DEFAULT_OPENERS` **and** is a held-out answer → teacher opens with it → free win on held-out secret `trace` | any run using default openers | `teacher/transcripts.py` openers |
+| **FM-1** | Selection | best-checkpoint selected on `held[:96]`, headline reported on full `held` (a **superset**) | universal (SFT/RL/DPO/CoT) | all drivers |
+
+**Win-inflation = NOT supported (the Devil's-Advocate ran the measurements):**
+
+| Probe | Measurement | Reading |
+| --- | --- | --- |
+| FM-1 (selection bias) | SAME eval, SAME checkpoint, two runs **disagreed**: Code-Analyst held[:96]=**0.635** vs held[96:]=**0.600** (+3.6pt) — DA held[:96]=**0.604** vs held[96:]=**0.619** (**−1.4pt**) | the divergence is **MPS greedy non-determinism ~±2-3pt on ~100-game slices** → FM-1's effect is **within noise**, not a reliable inflation |
+| FM-2/FM-3 (vocab lean) | at inference the trained **0.616** model emits held-out words as candidates **9.4%** / commits **9.2%** — **below** the 20% answer base-rate | the leak is **INERT** (the model does not lean on held-out vocab); inference is board-only free-gen and **never calls the consistency filter / ANSWERS** |
+
+**Conclusion: 0.616 / 0.631 are most likely REAL numbers produced by a contaminated-but-inert training
+pipeline — NOT inflated.** The remediation is to clean the channels and re-run to confirm a ≤small delta,
+**not** to retract.
+
+**Legitimate carve-outs (NOT leaks, DA-confirmed):** the pretrain **spell warm-up** and the **aux-validity
+trie** over the full **valid-guess** list teach **spellability only** (context-free) — held-out words are
+valid *guesses*, excluded only as training *secrets*; a principled distinction. `rl/curriculum.py:36-44`
+**already** excludes held-out (the correct pattern the candidate/teacher code bypassed).
+
+**Fixes (committed `a41b1b2`) + clean re-run (pending):** `generate_transcripts` gains optional
+`valid_pool`/`answer_pool` (pass **train** → the teacher never plays held-out) plus a leak test;
+`scripts/cot_ephemeral_aux_clean.py` re-runs the **0.616** recipe with train-only candidate + teacher
+pools, held-out-free openers, and **disjoint VAL(`held[:96]`)/TEST(`held[96:]`)** selection-vs-report.
+The **clean re-run is in progress** (`runs/cleanrun.log`) to confirm the honest number + true leak
+magnitude (**expected ≈ 0.60–0.62**).
+
+**New methodology caveat (important going forward):** **MPS greedy eval is non-deterministic ±2-3pt on
+~100-game slices.** Many reported deltas — 0.616 vs 0.631, the +1.5 DPO gain, the +2.8 CoT gain — sit
+near or within this noise band. **Prefer full-463 and/or multi-seed evals for any claimed delta.**
+
 ### Results leaderboard
 
 Honest held-out only (greedy, free-gen, no rules), best-first. Yardsticks and the inference-aided
 high-water mark are listed separately at the bottom — they are **not** comparable honest-greedy numbers.
+
+> ⚠️ **Audit caveat (2026-06-05):** these held-out numbers were produced with a now-fixed
+> **training-target** leak (FM-2 CoT candidates / FM-3 teacher guesses over the full answer pool) plus
+> selection-on-`held[:96]` (FM-1). The leak **measured inert** (model emits held-out vocab *below*
+> base-rate; inference never calls the filter), so the numbers are **not relabeled fake** — a clean
+> re-run (`cot_ephemeral_aux_clean.py`, fixes `a41b1b2`) is confirming. See the audit subsection above.
 
 | Approach | Size | Held-out win | Valid-rate | Avg guesses | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -154,6 +212,27 @@ GRPO (dead), isolate the commit (KL-explodes), and put the failure states into t
 > gradient where the teacher never fails); **DAgger** is the honest attempt to put those failure states
 > in the data (train-secret labels + held-out eval = not memorization) — v1 reverted on dilution, v2
 > (×4 corrections, full 1852-secret coverage) is in progress.
+
+#### 2026-06-05 — adversarial audit: held-out contamination (methodology violation, win-impact refuted)
+
+A 4-agent adversarial investigation audited the build. **Library = correct** (231 tests + tool receipts;
+no defect). **Pipeline = contaminated** (CONFIRMED methodology violation): held-out words become loss-True
+training targets via **4 channels** — **FM-2** CoT candidates (`consistent_candidates(history, ANSWERS)`
+over the full pool, `cot_ephemeral_aux.py:44,66,79-83`), **FM-3** teacher guesses (`generate_transcripts`
+full pools, `teacher/transcripts.py:50,59`), the **opener leak** (`trace` ∈ `DEFAULT_OPENERS` is a held-out
+answer), and **FM-1** selection-on-`held[:96]` reported on full `held`. **But win-inflation was REFUTED:**
+FM-1 vanishes into MPS greedy non-determinism (**±2-3pt** on ~100-game slices: held[:96] vs held[96:] flipped
+sign across two runs of the same checkpoint, +3.6pt vs −1.4pt), and FM-2/FM-3 are **inert** (the 0.616 model
+emits held-out vocab at 9.4%/9.2%, *below* the 20% base-rate; inference is board-only free-gen, never calls
+the filter). **0.616 / 0.631 are most likely real — not retracted.** The spell-warmup + aux-validity trie
+over the valid-guess list are **legitimate** (spellability only). **Fixed `a41b1b2`** (`generate_transcripts`
+gains `valid_pool`/`answer_pool` + leak test; `cot_ephemeral_aux_clean.py` re-runs with train-only pools,
+held-out-free openers, disjoint VAL/TEST); **clean re-run in progress** (`runs/cleanrun.log`, expected
+≈ 0.60–0.62 to confirm a ≤small delta).
+
+> **Audit verdict:** the **methodology was contaminated and is now fixed**; the **win numbers are likely
+> real** (the leak measured inert), with confirmation pending the clean re-run. New standing caveat: **MPS
+> greedy eval is ±2-3pt noisy on ~100-game slices** — prefer full-463 / multi-seed for any claimed delta.
 
 ### Algorithm reference (exact)
 
@@ -484,7 +563,8 @@ batched roller, honest = TRAIN-secret labels, held-out greedy eval, no inference
 
 The honest best (6-row greedy, free-generation, no inference rules) is **DPO commit-sharpening = 0.631 held-out**
 (`runs/dpo.pt`, `scripts/dpo_commit.py`), built on top of **ephemeral-CoT + aux-validity = 0.616**
-(`runs/cot_eph_aux.pt`). The SFT base stacks two **orthogonal honest levers** super-additively
+(`runs/cot_eph_aux.pt`) — both now **caveated** by the 2026-06-05 audit below (still the headline). The SFT
+base stacks two **orthogonal honest levers** super-additively
 (no-CoT/no-aux 0.402 → +aux 0.436 → +CoT 0.430 → **+both 0.616**): the *ephemeral CoT scratchpad* (enumerate
 candidates, commit, discard the reasoning — filter never at inference) for **search/strategy**, and the
 *aux-validity trie loss* (dictionary baked into the weights; no trie at inference) for **spelling**. That
@@ -512,3 +592,13 @@ contamination — reproduced as SEEN 0.87 / honest held-out 0.257), and **contex
 *training* (teacher, engine-labeled wins, aux trie, DPO preference labels — all on TRAIN secrets); inference is
 always **greedy on the strict held-out split with zero rules** — no dictionary, filter, candidate list, or
 verifier.
+
+**Audit standing (2026-06-05).** The **library is audited-correct** (231 tests + tool receipts; no defect).
+The training/eval **pipeline had 4 held-out-leak channels** — FM-2 (CoT candidates over the full answer
+pool), FM-3 (teacher guesses over the full pools), the `trace` opener leak, and FM-1 (selection on
+`held[:96]`) — a **confirmed methodology violation, now fixed** (`a41b1b2`). Crucially, the **leaks measured
+inert** (FM-1 is within MPS eval noise; the 0.616 model emits held-out vocab *below* base-rate and inference
+never calls the filter) → **the win numbers are likely real, not inflated; the 0.631 headline is not
+retracted.** A **clean re-run is confirming** (`cot_ephemeral_aux_clean.py`, `runs/cleanrun.log`, expected
+≈ 0.60–0.62). New eval-discipline caveat: **MPS greedy eval is ±2-3pt non-deterministic on ~100-game
+slices** — many reported deltas sit near the noise band; prefer **full-463 / multi-seed** evals.
