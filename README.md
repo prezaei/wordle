@@ -20,6 +20,35 @@ uv run wordle-slm --help
 
 S0 (scaffold) in place. See the build plan for the wave-by-wave roadmap.
 
+## How this was built — recursive self-improvement, with human steering
+
+This model wasn't built from a fixed recipe but through a tight **iterate → analyze → self-critique**
+loop over one week (2026-06-02 → 06-06). An AI agent proposed an approach, ran it locally on the M5
+Max, measured the honest held-out result, formed a hypothesis about what was capping it, and ran the
+next experiment — dozens of times. The loop was deliberately **self-correcting**: at key moments the
+agent turned a structured **adversarial-investigation team** on its *own* prior conclusions — a Lead, a
+Code-Analyst, an Explorer, and a Devil's Advocate, each required to back every claim with a `file:line`
+or tool-output receipt. That self-audit repeatedly caught the agent's *own* mistakes: it found four
+held-out-contamination channels leaking the answer set into training, **overturned its earlier
+"the leaks are inert" verdict** once a clean re-run collapsed the headline from 0.62 to 0.17, and later
+proved a risky refactor was bit-identical *while* catching a real config regression the optimistic
+checks had missed. This is effectively **recursive self-improvement** — the AI reasoning over its own
+code, its own results, and even its own earlier reasoning.
+
+The human's role wasn't to write code or tune hyperparameters; it was to supply the **values and the
+hard questions** the AI couldn't set for itself. *"Never train on the answer set." "Ranking a
+pre-filtered candidate list is cheating — make the model genuinely generate words." "How do you expect
+it to learn the words if you hold them all out?"* — that last correction reframed the entire honesty
+regime (the model may *know* the dictionary; only *answer-hood* is held out) and unlocked the jump from
+an over-hobbled 0.17 to a fair-honest **0.28**. Each human nudge redirected the AI's search: toward
+chain-of-thought, an auxiliary spelling loss, a diagnostic that *proved* the model already knows the
+words and only mis-spells them under pressure (constrained decode: **0.436 win / 1.0 valid**), and the
+on-policy distillation + RL now closing that last gap. The full chronological record — every experiment,
+every number, every adversarial audit and the times it overturned a prior conclusion — is below in the
+**[Experiment Log](#experiment-log)**, with deep-dives in the
+**[validity push report](./VALIDITY_REPORT.md)** and the
+**[overnight clean-run analysis](./OVERNIGHT_ANALYSIS.md)**.
+
 ## Experiment Log
 
 The honest headline metric is the **held-out win rate** on the immutable 463-word split
