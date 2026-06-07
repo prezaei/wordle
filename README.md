@@ -56,6 +56,14 @@ hard-to-spell), which is also *why* win is higher; it's a validity-for-honest-pl
 to ≈1.0 ("only valid words") is not reachable on 50M — the last ~30% needs dictionary-constrained
 decoding (spelling-only; weaker than the rejected candidate-ranking).
 
+**🔑 Constrained-decoding diagnostic (`constrained_decode_eval.py`):** same stage-1 weights, committed
+guess masked to dictionary-valid continuations (spelling-only — the model still does its own deduction):
+**free-gen TEST 0.281/0.662 → constrained 0.436/1.000 (win +0.155, +55%).** Decisive: **the model KNOWS
+the words + does the deduction; free-gen *spelling drift* was the bottleneck.** So 0.436 is a legitimate
+"deduce + spell-checker" number, and chasing validity is high-value. Next: `distill_constrained.py` —
+on-policy self-distillation (SFT the free-gen model on its own *constrained* rollouts) to pull free-gen
+toward 0.436 with no inference crutch (running); `rl_validity.py` = GRPO-validity comparison.
+
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
 
 A 4-agent adversarial investigation (Lead, Code-Analyst, Telemetry-Analyst, Devil's-Advocate) asked

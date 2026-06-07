@@ -92,3 +92,31 @@ the gap **constrained decoding** closes.
   not the cheating you rejected.
 - **v2 (oversampled DAgger)** will tell us the true conditional-correction ceiling; if it lifts
   validity meaningfully without tanking win, it's the best pure-free-gen point. Pending.
+
+## UPDATE — constrained-decoding diagnostic: the model KNOWS the words (`constrained_decode_eval.py`)
+
+Eval-only, **same stage-1 weights**, committed guess masked to dictionary-valid continuations
+(spelling-only — the model still does its *own* deduction; it is NOT told which words are clue-consistent):
+
+| decoder | TEST win | TEST valid |
+|---|---|---|
+| free-gen | 0.281 | 0.662 |
+| **dictionary-constrained** | **0.436** | **1.000** |
+| delta | **+0.155 (+55%)** | +0.338 |
+
+**This is decisive: spelling drift, not deduction, was the bottleneck.** Forced to emit real words, the
+same model wins **43.6% held-out** — so the weights already encode the vocabulary + the deduction; the
+~34% invalid free-gen guesses were throwing away ~15 points of win. Two consequences:
+1. **0.436 is a legitimate honest number** — "the model deduces, with a spell-checker" (the trie is a
+   training-time-style aid, *not* the candidate-ranking that was rejected, which hands over deduction).
+2. **Chasing validity is now clearly worth it** (it was not, when we thought the wall was deduction).
+
+## Stage 3 — constrained-decode self-distillation (`distill_constrained.py`, running)
+
+The clean way to lift *free-gen* toward 0.436 **with no inference crutch**: roll the model out with
+constrained decoding (valid guesses that reflect its own deduction) and **SFT the free-gen model to
+imitate its own constrained guesses** + the trie-aux. The constrained rollout is a strictly-better
+self (same deduction, valid spelling), so imitating it pulls free-gen toward valid-word emission —
+on-policy self-distillation. Unlike random-corrective DAgger (which failed), the targets are the
+model's *own best valid guesses*. Iterate; eval is free-gen held-out. *(Result pending; GRPO-validity
+`rl_validity.py` kept as the RL comparison.)*
