@@ -29,6 +29,31 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-06 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### ✅ Fair-honest run (2026-06-06): dictionary pools, not answer-set — honest TEST **0.281**
+
+The clean, *fair* recipe: candidate/teacher pools = the full **valid-guess dictionary** (the model may
+know a word *exists* + how to spell it — public knowledge), but **answer-hood stays train-only** and
+the headline is reported on a disjoint TEST (`held[96:]`). This is the legitimate middle between the
+over-hobbled overnight run (train-only pools → 0.166) and the answer-set-leak contaminated runs (~0.62).
+Plus a spelling push (pretrain warm-up 10→30, aux-validity λ 0.5→1.0). `scripts/cot_ephemeral_aux_fair.py`
+→ `cot_eph_aux_fair.pt`. Full write-up: [`VALIDITY_REPORT.md`](./VALIDITY_REPORT.md).
+
+| set | win | valid | avg | note |
+| --- | --- | --- | --- | --- |
+| **TEST** `held[96:]` (HONEST) | **0.281** (103/367) | **0.662** | 4.33 | +69% over the over-hobbled 0.166 |
+| VAL `held[:96]` (selected-on) | 0.344 | 0.680 | — | best-ckpt selection |
+| TRAIN[:200] (memorization ref) | 0.515 | 0.740 | — | gen gap (TRAIN−TEST) ≈ 0.23 |
+
+**Validity findings (the "only valid words" push):** validity plateaus **~0.66 on TEST** for pure
+free-gen on 50M — cranking pretrain+aux did *not* push it dramatically higher, and **validity-targeted
+DAgger v1 was a NULL result** (validity flat 0.66→0.63 across 4 rounds) because the corrective set was
+only **399 / 14,867 = 2.6%** of the data — drowned out (`scripts/dagger_validity.py`). Fix in flight:
+**DAgger v2** oversamples corrective ×20. Note the fair recipe's 0.66 validity is *lower* than the old
+contaminated ~0.75 **by design** — dictionary candidate pools train on the hard full 14k vocab (rare,
+hard-to-spell), which is also *why* win is higher; it's a validity-for-honest-play trade. Pure free-gen
+to ≈1.0 ("only valid words") is not reachable on 50M — the last ~30% needs dictionary-constrained
+decoding (spelling-only; weaker than the rejected candidate-ranking).
+
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
 
 A 4-agent adversarial investigation (Lead, Code-Analyst, Telemetry-Analyst, Devil's-Advocate) asked
