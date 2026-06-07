@@ -88,6 +88,7 @@ N = {
   "scale_tiny": ("scale", "scale — tiny", "1.2M", "fair recipe, smallest net", "0.163 (underfits)", "clean"),
   "scale_base": ("scale", "scale — base", "12M", "fair recipe, mid net", "0.251 (gap grows)", "clean"),
   "scale_xl": ("scale", "scale — xl", "99M", "fair recipe, largest net", "0.270 · valid 0.591 — turns over (< 50M)", "clean"),
+  "rft_stage2": ("scale", "stage-2 RFT (on-policy distill)", "≈50M", "distill the model's OWN best-of-N winning games back into greedy (RAFT/reward-weighted MLE); teacher-anchored", "running (pilot)", "run"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
   "bestof16": ("inf2", "best-of-16 (valid vote)", "≈50M", "sample 16, keep real words, majority vote", "0.632 · valid 0.925", "aided"),
@@ -128,6 +129,7 @@ EDGES = [
   ("overnight_clean_sft","fair_stage1","know dict, hide answers"),
   ("fair_stage1","distill_constrained","push validity"),("fair_stage1","infogain_xit_c","info-gain XIT"),("fair_stage1","infogain_xit_f","free / STaR"),("fair_stage1","dpo_fair","retry DPO clean"),("distill_constrained","grpo_full_fair","long GRPO"),
   ("fair_stage1","scale_tiny","shrink"),("fair_stage1","scale_base","mid"),("fair_stage1","scale_xl","grow"),
+  ("fair_stage1","rft_stage2","on-policy self-distill"),
   ("fair_stage1","constrained_decode","mask spelling (diagnostic)"),("fair_stage1","bestof16","test-time compute"),("fair_stage1","bestof16_nodict","no-dict ablation"),("bestof16","bestof64","N=64"),("bestof64","bestof128","N=128"),("fair_stage1","beam_trie","beam"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
