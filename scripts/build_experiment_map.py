@@ -149,9 +149,10 @@ def node_dot(nid, title, recipe, result, era):
 
 def main():
     out = ['digraph experiments {', '  rankdir=TB; bgcolor="white";',
-           '  graph [fontname="Helvetica", ranksep=0.5, nodesep=0.3, fontsize=12];',
+           '  graph [fontname="Helvetica", ranksep=1.2, nodesep=0.65, fontsize=13, '
+           'concentrate=true, splines=spline, pad=0.4];',
            '  node [shape=plaintext, fontname="Helvetica"];',
-           '  edge [fontname="Helvetica", fontsize=8, color="#777777", penwidth=1.1];']
+           '  edge [fontname="Helvetica", fontsize=8, color="#888888", penwidth=1.1, arrowsize=0.7];']
     for lane, lname in LANES.items():
         out.append(f'  subgraph cluster_{lane} {{ label=<<B>{esc(lname)}</B>>; fontsize=13; '
                    f'color="#cccccc"; style="rounded"; bgcolor="#fbfbfb";')

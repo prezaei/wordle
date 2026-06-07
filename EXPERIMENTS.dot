@@ -1,8 +1,8 @@
 digraph experiments {
   rankdir=TB; bgcolor="white";
-  graph [fontname="Helvetica", ranksep=0.5, nodesep=0.3, fontsize=12];
+  graph [fontname="Helvetica", ranksep=1.2, nodesep=0.65, fontsize=13, concentrate=true, splines=spline, pad=0.4];
   node [shape=plaintext, fontname="Helvetica"];
-  edge [fontname="Helvetica", fontsize=8, color="#777777", penwidth=1.1];
+  edge [fontname="Helvetica", fontsize=8, color="#888888", penwidth=1.1, arrowsize=0.7];
   subgraph cluster_found { label=<<B>FOUNDATIONS — SFT scale ladder (contaminated lineage)</B>>; fontsize=13; color="#cccccc"; style="rounded"; bgcolor="#fbfbfb";
     sft_3m [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#cfcfcf"><B>char model, plain SFT</B></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">50M-class net, writes a guess letter-by-letter; spell warm-up then imitates a near-optimal solver</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>0.205 · valid 0.54</B></FONT></TD></TR></TABLE>>];
     sft_5m [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#d9c89a"><B>deeper SFT + cosine</B></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">bigger/deeper net, deeper warm-up, more teacher data</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>0.300 · valid 0.61</B></FONT></TD></TR></TABLE>>];
