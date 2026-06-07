@@ -65,16 +65,24 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
 |---|---|---|---|
 | free-gen greedy (**pure headline**) | **0.281** | 0.662 | none |
 | best-of-16 vote, no dict | 0.243 | 0.635 | compute only — *worse* |
-| constrained-decode greedy | 0.436 | 1.000 | spelling |
-| **best-of-16 vote, valid-filter** (**best honest**) | **0.632** | 0.925 | spelling + compute |
+| constrained-decode greedy (≈ best-of-1 valid) | 0.436 | 1.000 | spelling |
+| best-of-16 vote, valid-filter | 0.632 | 0.925 | spelling + compute |
+| **best-of-64 vote, valid-filter** (**best honest**) | **0.703** | 0.963 | spelling + more compute |
+
+## Test-time-compute scaling (best-of-N, valid-filter, TEST win)
+**0.436 (N=1) → 0.632 (N=16) → 0.703 (N=64)** — a clean inference-scaling curve: more samples + vote
+keeps lifting win, *on top of* the spelling aid. Note best-of-N beats greedy-constrained (0.436) on win
+despite slightly < 1.0 validity (occasionally all N samples are non-words → fallback) — because
+sample-and-vote finds *better* words than greedy's argmax, not just valid ones. (N=128 pending.)
 
 ## Final verdict + best model
 - **Pure free-gen (strictest): 0.281 — UNMOVED.** Six training methods (DAgger, distillation, GRPO,
   info-gain XIT ×2, DPO) all null. The free-gen deduction wall is fully robust; training cannot inject
   the missing produce-and-deduce-unseen-words capability.
-- **Best honest result: 0.632 / 0.925** = stage-1 (`cot_eph_aux_fair.pt`) + **best-of-16 valid-filter
-  decoding** — spelling-aided + test-time compute, fully honest (no contamination, no clue-consistency).
-  This cleanly *replaces* the project's old contaminated 0.62 with an honest 0.63.
+- **Best honest result: 0.703 / 0.963** = stage-1 (`cot_eph_aux_fair.pt`) + **best-of-64 valid-filter
+  decoding** — spelling-aided + test-time compute, fully honest (no contamination, no clue-consistency),
+  and it *scales* with N (0.436→0.632→0.703). This **beats** the project's old *contaminated* 0.62 — but
+  honestly. (best-of-16 = 0.632 is the cheaper operating point.)
 - **Honesty win of the night:** DPO's earlier 0.616→0.631 was contamination-dependent (null on the clean
   base) — caught and corrected.
 - **Recommendation:** the headline pure-free-gen number is 0.281 and is at its ceiling for this approach;
