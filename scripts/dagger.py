@@ -46,7 +46,7 @@ ANSWERS = load_answers()
 TEACHER = InfoMaxGuesser()
 K_CANDS = 3
 LAM_V = 0.5
-N_SECRETS, SAMPLE_S = 1400, 16
+N_SECRETS, SAMPLE_S = 1852, 16  # all train secrets -> full failure coverage
 SQ = {Color.GREEN: "🟩", Color.YELLOW: "🟨", Color.GRAY: "⬜"}
 
 
@@ -241,10 +241,12 @@ dagger_ex = [example(h, t, rng) for h, t in fails]
 print("[teacher-mix] 1 InfoMax pass …", flush=True)
 tgames = [tr.game for tr in generate_transcripts(tuple(train), weak_frac=0.2, openers=OPENERS, seed=0)]
 teach_ex = [e for g in tgames for e in teacher_examples(g, rng)]
-# pool: all DAgger corrections, repeated 2x for emphasis, + teacher mix (breadth)
-pool = dagger_ex * 2 + teach_ex
+# upweight the DAgger failure-fixes to ~50% (the first run diluted them 1:6 -> reverted); keep a
+# matched teacher sample for breadth so we don't overfit the failure boards.
+teacher_keep = rng.sample(teach_ex, min(len(teach_ex), len(dagger_ex) * 4))
+pool = dagger_ex * 4 + teacher_keep
 rng.shuffle(pool)
-print(f"[data] {len(dagger_ex)} dagger + {len(teach_ex)} teacher = {len(pool)} examples", flush=True)
+print(f"[data] {len(dagger_ex)} dagger x4 + {len(teacher_keep)} teacher = {len(pool)} examples", flush=True)
 
 EPOCHS, BATCH = 10, 128
 opt = torch.optim.AdamW(model.parameters(), lr=6e-5, weight_decay=0.01)

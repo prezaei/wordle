@@ -60,9 +60,23 @@ decoding (spelling-only; weaker than the rejected candidate-ranking).
 guess masked to dictionary-valid continuations (spelling-only — the model still does its own deduction):
 **free-gen TEST 0.281/0.662 → constrained 0.436/1.000 (win +0.155, +55%).** Decisive: **the model KNOWS
 the words + does the deduction; free-gen *spelling drift* was the bottleneck.** So 0.436 is a legitimate
-"deduce + spell-checker" number, and chasing validity is high-value. Next: `distill_constrained.py` —
-on-policy self-distillation (SFT the free-gen model on its own *constrained* rollouts) to pull free-gen
-toward 0.436 with no inference crutch (running); `rl_validity.py` = GRPO-validity comparison.
+"deduce + spell-checker" number, and chasing validity is high-value.
+
+**Stage 3 — on-policy self-distillation (`distill_constrained.py`):** SFT the free-gen model on its own
+*constrained* rollouts (valid guesses reflecting its own deduction) — no inference crutch. **This lifts
+free-gen validity** where DAgger couldn't: VAL valid **0.62 → 0.80** by round 3, with win ~flat (0.302
+vs 0.344, within MPS noise). The on-policy validity lever works. (Selection fixed to best-by win+valid
+so the validity gain is actually banked — pure best-by-win was discarding it.)
+
+**Stage 4 — long GRPO on the full reward (`rl_grpo_full.py`, queued):** the full shaped reward already
+encodes both (−invalid penalty **and** +win bonus), so GRPO optimizes win **and** validity together
+on-policy — and the *continuous* reward dodges the zero-variance-filter trap a pure-validity reward
+hits. Run **from the distilled (~0.80-valid) base**, 150 updates, stabilized settings, best-by-win,
+frequent held-out eval. The dashboard shows the **exact sampled rollouts** GRPO trains on — but only
+**at each eval point (every 8 updates), not every update** — (16 = 2 full same-secret groups) with their
+**grade** (reward `r=` + advantage `A=`) and a validity line.
+GRPO previously underdelivered here, but those were *vocabulary-injection* failures — validity is an
+*expression* problem (the model knows the words), which RL suits.
 
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
 

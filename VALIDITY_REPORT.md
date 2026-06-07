@@ -118,5 +118,18 @@ constrained decoding (valid guesses that reflect its own deduction) and **SFT th
 imitate its own constrained guesses** + the trie-aux. The constrained rollout is a strictly-better
 self (same deduction, valid spelling), so imitating it pulls free-gen toward valid-word emission —
 on-policy self-distillation. Unlike random-corrective DAgger (which failed), the targets are the
-model's *own best valid guesses*. Iterate; eval is free-gen held-out. *(Result pending; GRPO-validity
-`rl_validity.py` kept as the RL comparison.)*
+model's *own best valid guesses*. Iterate; eval is free-gen held-out.
+
+**Result: it works.** VAL free-gen validity **0.62 → 0.80** by round 3, win ~flat (0.302 vs 0.344,
+within MPS noise) — the on-policy validity lever that DAgger couldn't move. Selection fixed to
+best-by-(win+valid) so the gain is banked (pure best-by-win was discarding the validity-improved
+checkpoints). → `cot_eph_aux_distill.pt`.
+
+## Stage 4 — long GRPO on the full reward (`rl_grpo_full.py`, queued)
+
+The full shaped reward already encodes both (−invalid **and** +win), so GRPO optimizes validity **and**
+win together on-policy; the continuous reward dodges the zero-variance trap a pure-validity reward hits.
+Run **from the distilled ~0.80-valid base**, 150 updates, stabilized (eval-mode forward, k3-KL anchor,
+lr 5e-6, clip 0.2), best-by-win, frequent held-out eval. Dashboard shows the exact sampled rollouts +
+grades. GRPO underdelivered before, but those were *vocabulary-injection* failures; validity is
+*expression* (the model knows the words — see the diagnostic), which RL suits. *(Result pending.)*

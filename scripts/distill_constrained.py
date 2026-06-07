@@ -268,9 +268,11 @@ def main():
 
     opt = torch.optim.AdamW(model.parameters(), lr=2e-4, weight_decay=0.01)
     distilled: list = []
-    best = evaluate(model, val)["win"]
+    # select on win + validity (not win alone) so the validity gains actually get banked.
+    bm = evaluate(model, val)
+    best = bm["win"] + bm["valid"]
     save_checkpoint(CKPT_OUT, model, opt, 0, SFTConfig())
-    print(f"[distill] stage-1 VAL free-gen win baseline = {best:.3f} (saved {CKPT_OUT})", flush=True)
+    print(f"[distill] baseline VAL win={bm['win']:.3f} valid={bm['valid']:.3f} score={best:.3f} (saved {CKPT_OUT})", flush=True)
 
     for rnd in range(1, ROUNDS + 1):
         try:
@@ -283,8 +285,8 @@ def main():
             append_epoch(PROG, rnd, vm, vg, sample=12, kind="distill")
             valw = evaluate(model, val)
             flag = ""
-            if valw["win"] > best:
-                best = valw["win"]
+            if valw["win"] + valw["valid"] > best:  # combined: bank win+validity gains
+                best = valw["win"] + valw["valid"]
                 save_checkpoint(CKPT_OUT, model, opt, rnd, SFTConfig())
                 flag = "  <- best, saved"
             print(
