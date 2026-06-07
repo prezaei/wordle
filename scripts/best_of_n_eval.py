@@ -26,7 +26,10 @@ torch.manual_seed(0)
 tok = Tokenizer()
 THINK = tok.vocab_size
 VOCAB = tok.vocab_size + 1
-CFG = ModelConfig(d_model=512, n_layers=16, n_heads=8, d_ff=2048, context_len=256, dropout=0.1)
+_SIZES = {"tiny": (128, 6, 4, 512, 0.10), "base": (320, 10, 8, 1280, 0.10),
+          "large": (512, 16, 8, 2048, 0.10), "xl": (640, 20, 10, 2560, 0.15)}
+_d, _l, _h, _ff, _dr = _SIZES[os.environ.get("SIZE", "large")]  # must match the checkpoint's architecture
+CFG = ModelConfig(d_model=_d, n_layers=_l, n_heads=_h, d_ff=_ff, context_len=256, dropout=_dr)
 LETTER_IDS = [tok.token_to_id(c) for c in "abcdefghijklmnopqrstuvwxyz"]
 LETTER_SET = set(LETTER_IDS)
 ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
