@@ -20,6 +20,33 @@ uv run wordle-slm --help
 
 S0 (scaffold) in place. See the build plan for the wave-by-wave roadmap.
 
+## Why a transformer + RL for Wordle (a deliberately sub-optimal tool)
+
+**The game.** Wordle: guess a hidden five-letter word in six tries. Each guess scores every letter —
+🟩 green (right letter, right spot), 🟨 yellow (right letter, wrong spot), ⬜ gray (not in the word) —
+and you deduce the answer from the accumulating clues.
+
+**What we did.** We trained a small (~50M-parameter) decoder-only **transformer from scratch** — no
+pretrained weights — to play it: a "learn to spell" warm-up, supervised fine-tuning on teacher games,
+then **reinforcement learning (GRPO)**, all running locally on an Apple M5 Max (MPS).
+
+**Why this tool, when it's the wrong one.** Wordle does not need a language model. The optimal solver is
+a few lines of information theory — at each turn, pick the guess that most evenly splits the
+still-possible answers (max-entropy / minimax) — and it wins essentially every game in ~3.6 guesses. A
+from-scratch transformer is wildly overkill *and worse at the task.* We chose it **on purpose.** The
+goal was never to *solve* Wordle; it was to **learn the machinery hands-on** — tokenization, training a
+transformer from scratch, the SFT→RL pipeline, GRPO, reward shaping, the discipline of honest held-out
+evaluation — i.e. **the same stack the frontier labs (including Microsoft AI / MAI) use to build real
+models** — and to **see how far an AI agent could drive that research loop itself** (propose
+experiments, analyze results, adversarially audit its own conclusions).
+
+**Why Wordle is the right sandbox for the wrong tool.** Precisely *because* Wordle has a known-optimal
+classical solution, every failure of the LLM approach is **legible**: you can watch the model fail to
+spell, drift mid-word, memorize the training answers instead of generalizing, and watch RL go flat — and
+understand exactly *why*. Small vocabulary, an exact and cheap-to-compute reward, fully reproducible
+locally: a clean, fully-verifiable lab for exercising (and stress-testing) these techniques, where the
+answer key is always there to check our honesty against.
+
 ## How this was built — recursive self-improvement, with human steering
 
 This model wasn't built from a fixed recipe but through a tight **iterate → analyze → self-critique**
