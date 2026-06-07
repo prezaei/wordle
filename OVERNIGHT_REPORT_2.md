@@ -32,7 +32,7 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
 | 2 — info-gain XIT (free / STaR) | 0.281 | 0.662 | **flat (null)** | VAL 0.24–0.28 over rounds → kept baseline |
 | 3 — DPO commit-sharpening (fair base) | 0.281 | 0.666 | **flat (null)** | every epoch regressed on VAL → reverted to base; full-held 0.294 = base |
 | 4 — **best-of-16 self-consistency** (aided) | **0.632** | **0.925** | **+0.351 🎯** | sample→keep valid→majority vote; the standout |
-| 5 — best-of-16, NO dict filter (pure compute) | … | … | … | running (decomposition) |
+| 5 — best-of-16, NO dict filter (pure compute) | 0.243 | 0.635 | **−0.038 (worse!)** | compute alone hurts; the dict filter was the lever |
 
 ## Running conclusion
 - **Exp 1 (info-gain XIT, constrained / Design B) = null.** The dense info-gain signal *did* select
@@ -52,8 +52,32 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
   literally what made DPO look like it worked.
 - **★ Exp 4 (best-of-16 self-consistency) = the big finding: 0.632 / 0.925 on TEST** — same stage-1
   weights, **+125% over greedy**, *honestly* matching the old contaminated 0.62 headline (no train-test
-  leak, no clue-consistency — just test-time compute + a spelling filter + majority vote). **The night's
-  real lesson: the gains live at INFERENCE, not in more training.** Every training method was null
-  because none can add capability — but the capability is *already in the weights*; greedy decoding just
-  under-extracts it, and test-time compute pulls it out. This is the frontier "inference scaling" lesson,
-  shown cleanly on a toy. (Exp 5 isolates how much is pure compute vs the spelling filter.)
+  leak, no clue-consistency — just a spelling filter + sample-and-vote).
+- **Exp 5 corrects the interpretation (honesty):** best-of-16 *without* the dictionary filter = **0.243,
+  WORSE than greedy.** So the gain is **NOT** test-time compute by itself — it's the **dictionary/spelling
+  aid at inference** that's the lever (0.281→0.436 greedy-constrained), and sample-and-vote *adds on top
+  of it* (0.436→0.632) but *only because it has valid candidates to vote among*. Compute over raw
+  free-gen samples (incl. non-words) actively hurts. The real lesson: **the gains live at inference and
+  come from the (honest) spelling aid**, not from more training (all training null) nor from compute alone.
+
+## The decode ladder (honest, same stage-1 weights)
+| decode | TEST win | valid | aid |
+|---|---|---|---|
+| free-gen greedy (**pure headline**) | **0.281** | 0.662 | none |
+| best-of-16 vote, no dict | 0.243 | 0.635 | compute only — *worse* |
+| constrained-decode greedy | 0.436 | 1.000 | spelling |
+| **best-of-16 vote, valid-filter** (**best honest**) | **0.632** | 0.925 | spelling + compute |
+
+## Final verdict + best model
+- **Pure free-gen (strictest): 0.281 — UNMOVED.** Six training methods (DAgger, distillation, GRPO,
+  info-gain XIT ×2, DPO) all null. The free-gen deduction wall is fully robust; training cannot inject
+  the missing produce-and-deduce-unseen-words capability.
+- **Best honest result: 0.632 / 0.925** = stage-1 (`cot_eph_aux_fair.pt`) + **best-of-16 valid-filter
+  decoding** — spelling-aided + test-time compute, fully honest (no contamination, no clue-consistency).
+  This cleanly *replaces* the project's old contaminated 0.62 with an honest 0.63.
+- **Honesty win of the night:** DPO's earlier 0.616→0.631 was contamination-dependent (null on the clean
+  base) — caught and corrected.
+- **Recommendation:** the headline pure-free-gen number is 0.281 and is at its ceiling for this approach;
+  the gains that exist are at **inference** via the honest spelling aid (best-of-16-valid → 0.632). More
+  training is exhausted. The two honest numbers to quote: **0.281 (model alone)** and **0.632 (model +
+  honest aided decoding).**
