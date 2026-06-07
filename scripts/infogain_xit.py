@@ -61,6 +61,7 @@ ROUNDS = int(os.environ.get("IG_ROUNDS", "5"))
 CHUNK = int(os.environ.get("IG_CHUNK", "300"))
 EPOCHS = int(os.environ.get("IG_EPOCHS", "2"))
 SEEDS = int(os.environ.get("IG_SEEDS", "2"))
+ROLLOUT = os.environ.get("IG_ROLLOUT", "constrained")  # "constrained" (Design B wheel) | "free" (pure STaR)
 BATCH = 128
 
 
@@ -200,9 +201,10 @@ def infogain_examples(model, secrets, rng, pool):
     """Constrained rollouts -> keep turns that shrank the train-answer set a lot (or won). Dense
     info-gain selection. Returns (examples, kept, total_turns, mean_infogain)."""
     model.eval()
+    roll = play_constrained if ROLLOUT == "constrained" else play  # Design B wheel vs pure free-gen
     exs, kept, total, ig_sum = [], 0, 0, 0.0
     for s in secrets:
-        g = play_constrained(model, s)
+        g = roll(model, s)
         cands = [w for w in pool]  # possible secrets given no clues yet (honest: train answers)
         for k, turn in enumerate(g.turns):
             total += 1
