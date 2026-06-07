@@ -29,8 +29,8 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
 |---|---|---|---|---|
 | stage-1 baseline | 0.281 | 0.662 | — | the bar |
 | 1 — info-gain XIT (constrained) | 0.281 | 0.662 | **flat (null)** | VAL dropped to 0.27–0.29 over rounds → best-by-quality kept baseline |
-| 2 — info-gain XIT (free) | … | … | … | running |
-| 3 — info-gain DPO | … | … | … | queued |
+| 2 — info-gain XIT (free / STaR) | 0.281 | 0.662 | **flat (null)** | VAL 0.24–0.28 over rounds → kept baseline |
+| 3 — DPO commit-sharpening (fair base) | … | … | … | running |
 
 ## Running conclusion
 - **Exp 1 (info-gain XIT, constrained / Design B) = null.** The dense info-gain signal *did* select
@@ -38,3 +38,8 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
   model's choices **did not transfer** to pure free-gen held-out (VAL even dipped). Same lesson as
   distillation: a training-wheel signal doesn't cross the train→inference gap for free-gen. The
   deduction wall holds against imitation of constrained play.
+- **Exp 2 (info-gain XIT, free-gen / pure STaR) = null** too (0.281). Self-improvement without the
+  training wheel also doesn't move it. Two independent expert-iteration variants now agree with GRPO
+  (flat), DAgger (null), and distillation (trade): **every method that only re-weights or imitates
+  existing behavior is stuck at ~0.28** — the wall is the model's inability to reliably produce+deduce
+  unseen words in free-gen, which these methods cannot inject.
