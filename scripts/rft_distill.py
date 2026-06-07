@@ -254,9 +254,12 @@ def main():
             secrets, weak_frac=0.5, openers=safe_openers, seed=100 + s, valid_pool=VALID, answer_pool=secrets)]
     print(f"[rft] anchor teacher games={len(anchor)} (passes={TEACHER_PASSES})", flush=True)
 
-    exs = [e for g in (win_games + anchor) for e in game_examples(g, rng)]
+    upweight = int(os.environ.get("RFT_UPWEIGHT", "1"))  # replicate on-policy examples so they dominate
+    rft_exs = [e for g in win_games for e in game_examples(g, rng)] * upweight
+    teach_exs = [e for g in anchor for e in game_examples(g, rng)]
+    exs = rft_exs + teach_exs
     rng.shuffle(exs)
-    print(f"[rft] total examples={len(exs)} (rft_games={len(win_games)} + teacher_games={len(anchor)})", flush=True)
+    print(f"[rft] total examples={len(exs)} (rft_ex={len(rft_exs)} [x{upweight}] + teacher_ex={len(teach_exs)})", flush=True)
 
     # 3) fine-tune from stage-1 on the on-policy + anchor mix.
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)

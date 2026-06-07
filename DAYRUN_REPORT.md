@@ -72,8 +72,17 @@ them; the model's sampled wins are *on-policy* (words it already ranks high) →
 Honest: rollouts use only the model's samples + public spelling + majority vote (never the secret);
 "won" is judged on TRAIN secrets; eval = free-gen greedy on disjoint TEST. Driver: `scripts/rft_distill.py`.
 
-| stage-2 step | status |
+| stage-2 step | result |
 |---|---|
-| pilot (500 secrets, N=12, 12 ep) — quick signal | running |
-| full run + STaR-iterate if pilot lifts VAL | queued |
-| fallback if null: regularization retrain (dropout↑) ; on-policy think-distill v2 ; word-level validity | queued |
+| pilot (600 secrets, N=12, 14 ep, LR 1e-4) | **NULL** — warm-start VAL 0.344 → fine-tune peaked 0.281 (never recovered); validity 0.680→0.697 |
+| best-shot (gentle LR 3e-5, on-policy upweight ×3, 18 ep) | running — rules out the LR/dilution confound |
+| STaR-iterate | only if best-shot lifts VAL (unlikely) |
+
+**Pilot read.** The rollout is healthy — best-of-12 wins **0.797** of 600 train secrets (789 winning games
+kept) — so the data is there. But distilling those on-policy wins back into greedy did **not** beat
+stage-1; the LR-1e-4 fine-tune visibly *damaged* the converged minimum (0.344 → 0.24 → slowly back to
+0.281). This is the **8th** independent null on the honest base (RL ×11, DPO ×3, DAgger ×2, info-gain,
+distill, RFT). The on-policy hypothesis — "the model's own winning samples are greedy-reproducible, so
+distilling them sharpens the argmax" — is **not** supported: reward-weighted MLE on its own wins doesn't
+move held-out greedy. The best-shot (gentle LR + on-policy-dominant mix) is the rigorous confound check;
+if it too fails to exceed 0.344 VAL, the training ceiling is conclusively ~0.281.
