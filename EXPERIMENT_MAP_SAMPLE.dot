@@ -1,0 +1,72 @@
+// Experiment map — Graphviz SAMPLE (foundations -> audit arc, ~6 of ~35 nodes)
+// Render:  dot -Tsvg EXPERIMENT_MAP_SAMPLE.dot -o EXPERIMENT_MAP_SAMPLE.svg
+digraph experiments {
+  rankdir=TB;
+  bgcolor="white";
+  graph [fontname="Helvetica", ranksep=0.6, nodesep=0.45];
+  node  [shape=plaintext, fontname="Helvetica"];
+  edge  [fontname="Helvetica", fontsize=10, color="#555555", penwidth=1.4];
+
+  subgraph cluster_found {
+    label=<<B>FOUNDATIONS  (later found contaminated)</B>>;
+    fontname="Helvetica"; fontsize=13; color="#bbbbbb"; style="rounded"; bgcolor="#fbf8f1";
+
+    SFT [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#d9c89a"><B>char model, plain SFT</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">50M letter-by-letter model · spell warm-up ·<BR/>imitates a near-optimal solver · no scratchpad/helper</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#f1ead9"><FONT POINT-SIZE="10"><I>why:</I> head-start before RL</FONT></TD></TR>
+        <TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white"><B>0.402</B>  valid 0.664   [!] contaminated</FONT></TD></TR>
+      </TABLE>>];
+
+    COT [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#d9c89a"><B>+ reasoning scratchpad</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">jots candidate words, then commits ·<BR/>re-thought each turn, discarded at play time</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#f1ead9"><FONT POINT-SIZE="10"><I>why:</I> deliberate before committing</FONT></TD></TR>
+        <TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white"><B>0.430</B>   [!] contaminated</FONT></TD></TR>
+      </TABLE>>];
+
+    AUX [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#d9c89a"><B>+ spelling helper</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">extra loss: stay on real-word spellings ·<BR/>(dictionary used in training only)</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#f1ead9"><FONT POINT-SIZE="10"><I>why:</I> make it spell real words itself</FONT></TD></TR>
+        <TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white"><B>0.616</B>  valid 0.788   [!] contaminated</FONT></TD></TR>
+      </TABLE>>];
+  }
+
+  subgraph cluster_audit {
+    label=<<B>AUDIT  -&gt;  FAIR RE-RUN</B>>;
+    fontname="Helvetica"; fontsize=13; color="#bbbbbb"; style="rounded"; bgcolor="#fbf5ec";
+
+    AUDIT [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#e8c98a"><B>self-audit (4 agents)</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">answer words were leaking into training as<BR/>targets (via teacher + scratchpad word lists)</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#f6ead2"><FONT POINT-SIZE="10"><I>why:</I> "is this built correctly?"</FONT></TD></TR>
+      </TABLE>>];
+
+    CLEAN [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#a9d3d9"><B>clean re-run</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">held-out answers removed from all training ·<BR/>scored on a truly unseen split</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#e4f1f3"><FONT POINT-SIZE="10"><I>why:</I> strip the leak, get the real number</FONT></TD></TR>
+        <TR><TD BGCOLOR="#2d6b73"><FONT COLOR="white"><B>0.166</B>  (leak did most of the work)</FONT></TD></TR>
+      </TABLE>>];
+
+    FAIR [label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+        <TR><TD BGCOLOR="#a9d3d9"><B>fair model (stage-1)</B></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">knows the word list, not which are answers ·<BR/>longer warm-up + stronger helper</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#e4f1f3"><FONT POINT-SIZE="10"><I>why:</I> can't learn words if you hide them all -&gt; know dict, deduce answer</FONT></TD></TR>
+        <TR><TD BGCOLOR="#1f5e66"><FONT COLOR="white"><B>0.281</B>  valid 0.662  avg 4.33   [BASE]</FONT></TD></TR>
+      </TABLE>>];
+  }
+
+  SFT   -> COT   [label="add reasoning"];
+  COT   -> AUX   [label="add spelling"];
+  AUX   -> AUDIT [label="audit"];
+  AUDIT -> CLEAN [label="strip leak"];
+  CLEAN -> FAIR  [label="know dict, hide answers"];
+}
