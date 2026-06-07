@@ -156,6 +156,16 @@ it has valid candidates to vote among (compute over raw free-gen samples *hurts*
 **contamination-dependent** (null on the clean base). Two numbers to quote: **0.281 (model alone)** and
 **~0.72 (model + honest aided, compute-scaled decoding).**
 
+**How best-of-N decoding works** (to read the ladder above): at each turn, **sample N independent
+free-gen guesses** (temperature 1.0 — not the one greedy answer), **discard the ones that aren't real
+words** (the `valid-filter`: the public dictionary, *not* clue-consistency), and **play the most common
+surviving word** (majority vote / self-consistency). In plain English: *ask the model N times, keep the
+real-word answers, go with the one it gave most often.* It costs **~N× the inference compute** and uses
+the dictionary at decode time, so it's **aided** (not the pure-model 0.281) — but it never uses the clues
+to pick candidates, so the model still does all the deduction. `scripts/best_of_n_eval.py` (`BON_N`,
+`BON_FILTER=valid|none`). Why it works: a single greedy guess often commits to a wrong/non-word, but the
+model's *distribution* usually contains the answer — sampling + valid-filtering + voting surfaces it.
+
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
 
 A 4-agent adversarial investigation (Lead, Code-Analyst, Telemetry-Analyst, Devil's-Advocate) asked
