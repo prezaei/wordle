@@ -87,7 +87,7 @@ N = {
   "grpo_full_fair": ("scale", "stage-4 long GRPO", "≈50M", "stabilized GRPO + full reward from the distilled base, 150 updates", "flat ~0.33 null", "clean"),
   "scale_tiny": ("scale", "scale — tiny", "1.2M", "fair recipe, smallest net", "0.163 (underfits)", "clean"),
   "scale_base": ("scale", "scale — base", "12M", "fair recipe, mid net", "0.251 (gap grows)", "clean"),
-  "scale_xl": ("scale", "scale — xl", "99M", "fair recipe, largest net", "running (VAL 0.31, ~plateau)", "run"),
+  "scale_xl": ("scale", "scale — xl", "99M", "fair recipe, largest net", "0.270 · valid 0.591 — turns over (< 50M)", "clean"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
   "bestof16": ("inf2", "best-of-16 (valid vote)", "≈50M", "sample 16, keep real words, majority vote", "0.632 · valid 0.925", "aided"),

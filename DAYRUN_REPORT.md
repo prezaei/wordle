@@ -25,7 +25,8 @@ from its own baseline, so nothing regresses.
 | — | stage-1 (large, 50M) baseline | 0.281 | 0.719 (N=128) | 0.662 | the bar |
 | scale | tiny (1.2M) SFT | **0.163** | … | 0.567 | TRAIN 0.230 — underfits |
 | scale | base (12M) SFT | **0.251** | … | 0.636 | TRAIN 0.485 — gap growing with size |
-| scale | xl (99M) SFT | … | … | … | running |
+| scale | large (50M) = stage-1 | **0.281** | 0.719 | 0.662 | the peak |
+| scale | xl (99M) SFT | **0.270** | … | 0.591 | TRAIN[:200] 0.550 — **turns over**: held-out drops vs 50M, validity drops, gen-gap widest |
 | data | full-dict-secrets SFT | — | — | — | **deprioritized**: InfoMax teacher is O(n²) over the candidate pool → full-dict secrets are compute-bottlenecked; cheap consistent-teacher version = non-strategic (uncertain benefit) |
 | search | beam over trie | … | — | … | queued |
 | search | best-of-N on xl | — | … | … | queued |
@@ -33,3 +34,10 @@ from its own baseline, so nothing regresses.
 
 ## Running conclusion
 *(updated through the day; final synthesis + best model at the end.)*
+
+**Scale axis — DONE, and the answer is "no".** The honest held-out sweep is non-monotonic:
+**tiny 0.163 → base 0.251 → large(50M) 0.281 → xl(99M) 0.270.** Held-out win **peaks at ~50M and
+turns over at 99M**: the bigger net memorizes the train secrets harder (TRAIN[:200] 0.55 vs TEST 0.27,
+the widest gap in the sweep) *and* spells worse (valid 0.662 → 0.591). So the deduction/vocabulary wall
+is **not** a capacity problem — adding parameters past 50M buys memorization, not generalization. This
+matches the audit story: the lever is data honesty + test-time compute, not weight count.

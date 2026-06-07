@@ -85,6 +85,16 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-06 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 📈 Day run (2026-06-07): scale sweep — held-out **turns over** past 50M ([full report](./DAYRUN_REPORT.md))
+
+"Would a bigger model fix it?" — answered, and the answer is **no**. The fair recipe trained at four
+sizes gives a **non-monotonic** honest held-out curve: **tiny 1.2M → 0.163 · base 12M → 0.251 ·
+large 50M → 0.281 · xl 99M → 0.270.** Held-out win **peaks at ~50M and regresses at 99M**: the larger
+net memorizes train secrets harder (TRAIN[:200] 0.55 vs TEST 0.27 — the widest generalization gap in
+the sweep) *and* spells worse (valid 0.662 → 0.591). The deduction/vocabulary wall is **not** a
+capacity problem; more parameters past 50M buy memorization, not generalization. The levers remain
+data honesty + test-time compute, not weight count. (Visual lineage: `EXPERIMENTS.svg`.)
+
 ### ✅ Fair-honest run (2026-06-06): dictionary pools, not answer-set — honest TEST **0.281**
 
 The clean, *fair* recipe: candidate/teacher pools = the full **valid-guess dictionary** (the model may
