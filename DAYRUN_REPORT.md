@@ -23,8 +23,8 @@ from its own baseline, so nothing regresses.
 | axis | experiment | free-gen win | best-of-N | valid | note |
 |---|---|---|---|---|---|
 | — | stage-1 (large, 50M) baseline | 0.281 | 0.719 (N=128) | 0.662 | the bar |
-| scale | tiny (1.2M) SFT | … | … | … | running |
-| scale | base (12M) SFT | … | … | … | queued |
+| scale | tiny (1.2M) SFT | **0.163** | … | 0.567 | TRAIN 0.230 — underfits |
+| scale | base (12M) SFT | … | … | … | running |
 | scale | xl (99M) SFT | … | … | … | queued |
 | data | full-dict-secrets SFT | … | … | … | queued |
 | search | beam over trie | … | — | … | queued |
