@@ -79,10 +79,24 @@ Honest: rollouts use only the model's samples + public spelling + majority vote 
 | STaR-iterate | only if best-shot lifts VAL (unlikely) |
 
 **Pilot read.** The rollout is healthy — best-of-12 wins **0.797** of 600 train secrets (789 winning games
-kept) — so the data is there. But distilling those on-policy wins back into greedy did **not** beat
-stage-1; the LR-1e-4 fine-tune visibly *damaged* the converged minimum (0.344 → 0.24 → slowly back to
-0.281). This is the **8th** independent null on the honest base (RL ×11, DPO ×3, DAgger ×2, info-gain,
-distill, RFT). The on-policy hypothesis — "the model's own winning samples are greedy-reproducible, so
-distilling them sharpens the argmax" — is **not** supported: reward-weighted MLE on its own wins doesn't
-move held-out greedy. The best-shot (gentle LR + on-policy-dominant mix) is the rigorous confound check;
-if it too fails to exceed 0.344 VAL, the training ceiling is conclusively ~0.281.
+kept) — so the data is there. But the LR-1e-4 fine-tune visibly *damaged* the converged minimum (0.344 →
+0.24 → 0.281) and never recovered. **The best-shot (gentle LR 3e-5 + on-policy upweight ×3) tells a
+different story:** it *did* clear stage-1 — VAL 0.281→0.302→**0.365** by epoch 2 (> warm-start 0.344).
+So the pilot's null was partly an LR/optimization artifact, not purely a data verdict. Whether the lift is
+real (vs noise on 96 VAL secrets) and whether it survives on disjoint TEST is pending the final eval —
+**not claiming a win yet.**
+
+## The composition lever (the actually-named lever, now actually pulled)
+
+Caught a gap: I kept calling "valid-word composition into the weights" *the* honest lever, but nothing
+running was pulling it (RFT targets win, not composition). The 3 spot-checked losses (mango/dried/hocky)
+all show the same thing — **deduction works, spelling-composition fails**: the model has the answer's
+letters in the right slots but emits near-words (manim, bried, hocky). Perfect spelling is worth +15pts
+(constrained-mask at inference = 0.436 vs greedy 0.281). The closest prior (`distill_constrained`) raised
+in-weights free-gen validity 0.62→**0.80** but win stayed flat — it *stopped at 0.80*. The untried
+question: **does pushing in-weights validity past 0.80 toward ~0.95 make free-gen win climb toward 0.436,
+or stay flat (proving deduction-generalization, not spelling, is the wall)?**
+
+`scripts/validity_max.py`: warm-start stage-1, fine-tune on teacher games (hold deduction) + the model's
+own *constrained-decode* (always-valid) games + a **cranked aux (λ=3 vs 1.0)**; track free-gen win AND
+validity every epoch. Queued behind the best-shot. Decisive either way.
