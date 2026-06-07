@@ -24,8 +24,8 @@ from its own baseline, so nothing regresses.
 |---|---|---|---|---|---|
 | — | stage-1 (large, 50M) baseline | 0.281 | 0.719 (N=128) | 0.662 | the bar |
 | scale | tiny (1.2M) SFT | **0.163** | … | 0.567 | TRAIN 0.230 — underfits |
-| scale | base (12M) SFT | … | … | … | running |
-| scale | xl (99M) SFT | … | … | … | queued |
+| scale | base (12M) SFT | **0.251** | … | 0.636 | TRAIN 0.485 — gap growing with size |
+| scale | xl (99M) SFT | … | … | … | running |
 | data | full-dict-secrets SFT | — | — | — | **deprioritized**: InfoMax teacher is O(n²) over the candidate pool → full-dict secrets are compute-bottlenecked; cheap consistent-teacher version = non-strategic (uncertain benefit) |
 | search | beam over trie | … | — | … | queued |
 | search | best-of-N on xl | — | … | … | queued |
