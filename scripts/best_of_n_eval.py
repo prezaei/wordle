@@ -35,7 +35,7 @@ LETTER_SET = set(LETTER_IDS)
 ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
 _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"}
 N = int(os.environ.get("BON_N", "16"))
-TEMP = 1.0
+TEMP = float(os.environ.get("BON_TEMP", "1.0"))  # sampling temperature for the N samples
 CKPT = os.environ.get("BON_CKPT", "runs/cot_eph_aux_fair.pt")
 FILTER = os.environ.get("BON_FILTER", "valid")  # "valid" (spelling-aided) | "none" (pure free-gen vote)
 
