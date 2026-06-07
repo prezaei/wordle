@@ -94,7 +94,7 @@ N = {
   "bestof16_nodict": ("inf2", "best-of-16 NO dict", "≈50M", "same, but keep non-words too", "0.243 — compute alone HURTS", "aided"),
   "bestof64": ("inf2", "best-of-64", "≈50M", "N=64", "0.703", "aided"),
   "bestof128": ("inf2", "best-of-128 — BEST", "≈50M", "N=128", "0.719 · valid 0.979 (plateau)", "best"),
-  "beam_trie": ("inf2", "beam over real-word trie", "≈50M", "sequence-level argmax over valid words", "queued", "run"),
+  "beam_trie": ("inf2", "beam over real-word trie", "≈50M", "sequence-level argmax over valid words (best deterministic)", "0.550 · valid 1.0", "aided"),
   # ---- deployed ----
   "deployed": ("dep", "deployed real-Wordle player", "≈50M", "trained on all 2,315 known answers (fixed set = the real game)", "~0.62 (legit deployed, framing)", "cont"),
 }

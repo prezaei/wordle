@@ -36,8 +36,8 @@
 </g>
 <g id="clust6" class="cluster">
 <title>cluster_scale</title>
-<path fill="#fbfbfb" stroke="#cccccc" d="M1725,-204.75C1725,-204.75 3474,-204.75 3474,-204.75 3480,-204.75 3486,-210.75 3486,-216.75 3486,-216.75 3486,-727 3486,-727 3486,-733 3480,-739 3474,-739 3474,-739 1725,-739 1725,-739 1719,-739 1713,-733 1713,-727 1713,-727 1713,-216.75 1713,-216.75 1713,-210.75 1719,-204.75 1725,-204.75"/>
-<text xml:space="preserve" text-anchor="start" x="2470.88" y="-723.65" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">FAIR RE&#45;BUILD + SCALE SWEEP (clean)</text>
+<path fill="#fbfbfb" stroke="#cccccc" d="M1804,-204.75C1804,-204.75 3553,-204.75 3553,-204.75 3559,-204.75 3565,-210.75 3565,-216.75 3565,-216.75 3565,-727 3565,-727 3565,-733 3559,-739 3553,-739 3553,-739 1804,-739 1804,-739 1798,-739 1792,-733 1792,-727 1792,-727 1792,-216.75 1792,-216.75 1792,-210.75 1798,-204.75 1804,-204.75"/>
+<text xml:space="preserve" text-anchor="start" x="2549.88" y="-723.65" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">FAIR RE&#45;BUILD + SCALE SWEEP (clean)</text>
 </g>
 <g id="clust7" class="cluster">
 <title>cluster_inf</title>
@@ -46,8 +46,8 @@
 </g>
 <g id="clust8" class="cluster">
 <title>cluster_inf2</title>
-<path fill="#fbfbfb" stroke="#cccccc" d="M706,-8C706,-8 1669,-8 1669,-8 1675,-8 1681,-14 1681,-20 1681,-20 1681,-530.25 1681,-530.25 1681,-536.25 1675,-542.25 1669,-542.25 1669,-542.25 706,-542.25 706,-542.25 700,-542.25 694,-536.25 694,-530.25 694,-530.25 694,-20 694,-20 694,-14 700,-8 706,-8"/>
-<text xml:space="preserve" text-anchor="start" x="1038.25" y="-526.9" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">INFERENCE on the CLEAN fair weights (aided)</text>
+<path fill="#fbfbfb" stroke="#cccccc" d="M706,-8C706,-8 1748,-8 1748,-8 1754,-8 1760,-14 1760,-20 1760,-20 1760,-530.25 1760,-530.25 1760,-536.25 1754,-542.25 1748,-542.25 1748,-542.25 706,-542.25 706,-542.25 700,-542.25 694,-536.25 694,-530.25 694,-530.25 694,-20 694,-20 694,-14 700,-8 706,-8"/>
+<text xml:space="preserve" text-anchor="start" x="1077.75" y="-526.9" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">INFERENCE on the CLEAN fair weights (aided)</text>
 </g>
 <g id="clust9" class="cluster">
 <title>cluster_dep</title>
@@ -1211,24 +1211,24 @@
 <!-- fair_stage1 -->
 <g id="node48" class="node">
 <title>fair_stage1</title>
-<polygon fill="#7ec8d0" stroke="none" points="1777.25,-678.5 1777.25,-705.5 2192.75,-705.5 2192.75,-678.5 1777.25,-678.5"/>
-<polygon fill="none" stroke="black" points="1777.25,-678.5 1777.25,-705.5 2192.75,-705.5 2192.75,-678.5 1777.25,-678.5"/>
-<text xml:space="preserve" text-anchor="start" x="1911.88" y="-687.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">FAIR model · STAGE&#45;1</text>
-<polygon fill="#efefef" stroke="none" points="1777.25,-656.75 1777.25,-678.5 2192.75,-678.5 2192.75,-656.75 1777.25,-656.75"/>
-<polygon fill="none" stroke="black" points="1777.25,-656.75 1777.25,-678.5 2192.75,-678.5 2192.75,-656.75 1777.25,-656.75"/>
-<text xml:space="preserve" text-anchor="start" x="1955.75" y="-664.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1777.25,-635 1777.25,-656.75 2192.75,-656.75 2192.75,-635 1777.25,-635"/>
-<text xml:space="preserve" text-anchor="start" x="1783.25" y="-643.25" font-family="Helvetica,sans-Serif" font-size="9.00">candidate/teacher pools = full dictionary (knows spelling, not answer&#45;hood); pretrain 30 + aux λ=1.0</text>
-<polygon fill="#1f5e66" stroke="none" points="1777.25,-611.75 1777.25,-635 2192.75,-635 2192.75,-611.75 1777.25,-611.75"/>
-<polygon fill="none" stroke="black" points="1777.25,-611.75 1777.25,-635 2192.75,-635 2192.75,-611.75 1777.25,-611.75"/>
-<text xml:space="preserve" text-anchor="start" x="1920.12" y="-620.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 · valid 0.662 · avg 4.33</text>
+<polygon fill="#7ec8d0" stroke="none" points="1856.25,-678.5 1856.25,-705.5 2271.75,-705.5 2271.75,-678.5 1856.25,-678.5"/>
+<polygon fill="none" stroke="black" points="1856.25,-678.5 1856.25,-705.5 2271.75,-705.5 2271.75,-678.5 1856.25,-678.5"/>
+<text xml:space="preserve" text-anchor="start" x="1990.88" y="-687.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">FAIR model · STAGE&#45;1</text>
+<polygon fill="#efefef" stroke="none" points="1856.25,-656.75 1856.25,-678.5 2271.75,-678.5 2271.75,-656.75 1856.25,-656.75"/>
+<polygon fill="none" stroke="black" points="1856.25,-656.75 1856.25,-678.5 2271.75,-678.5 2271.75,-656.75 1856.25,-656.75"/>
+<text xml:space="preserve" text-anchor="start" x="2034.75" y="-664.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1856.25,-635 1856.25,-656.75 2271.75,-656.75 2271.75,-635 1856.25,-635"/>
+<text xml:space="preserve" text-anchor="start" x="1862.25" y="-643.25" font-family="Helvetica,sans-Serif" font-size="9.00">candidate/teacher pools = full dictionary (knows spelling, not answer&#45;hood); pretrain 30 + aux λ=1.0</text>
+<polygon fill="#1f5e66" stroke="none" points="1856.25,-611.75 1856.25,-635 2271.75,-635 2271.75,-611.75 1856.25,-611.75"/>
+<polygon fill="none" stroke="black" points="1856.25,-611.75 1856.25,-635 2271.75,-635 2271.75,-611.75 1856.25,-611.75"/>
+<text xml:space="preserve" text-anchor="start" x="1999.12" y="-620.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 · valid 0.662 · avg 4.33</text>
 </g>
 <!-- overnight_clean_sft&#45;&gt;fair_stage1 -->
 <g id="edge54" class="edge">
 <title>overnight_clean_sft&#45;&gt;fair_stage1</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M431.75,-837.52C508.1,-825.13 613.76,-808.66 707,-796.5 1075.56,-748.43 1505.55,-704.97 1761,-680.47"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1760.87,-682.94 1767.6,-679.84 1760.4,-678.07 1760.87,-682.94"/>
-<text xml:space="preserve" text-anchor="middle" x="1099.8" y="-753.9" font-family="Helvetica,sans-Serif" font-size="8.00">know dict, hide answers</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M431.72,-837.34C508.07,-824.87 613.72,-808.37 707,-796.5 1104.98,-745.84 1570.58,-702.28 1839.96,-678.62"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1839.85,-681.09 1846.61,-678.03 1839.42,-676.2 1839.85,-681.09"/>
+<text xml:space="preserve" text-anchor="middle" x="1121.41" y="-753.9" font-family="Helvetica,sans-Serif" font-size="8.00">know dict, hide answers</text>
 </g>
 <!-- overnight_clean_dagger2 -->
 <g id="node47" class="node">
@@ -1255,200 +1255,200 @@
 <!-- distill_constrained -->
 <g id="node49" class="node">
 <title>distill_constrained</title>
-<polygon fill="#a9d3d9" stroke="none" points="2595,-481.75 2595,-508.75 2877,-508.75 2877,-481.75 2595,-481.75"/>
-<polygon fill="none" stroke="black" points="2595,-481.75 2595,-508.75 2877,-508.75 2877,-481.75 2595,-481.75"/>
-<text xml:space="preserve" text-anchor="start" x="2648.25" y="-490.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">constrained self&#45;distillation</text>
-<polygon fill="#efefef" stroke="none" points="2595,-460 2595,-481.75 2877,-481.75 2877,-460 2595,-460"/>
-<polygon fill="none" stroke="black" points="2595,-460 2595,-481.75 2877,-481.75 2877,-460 2595,-460"/>
-<text xml:space="preserve" text-anchor="start" x="2706.75" y="-468.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="2595,-438.25 2595,-460 2877,-460 2877,-438.25 2595,-438.25"/>
-<text xml:space="preserve" text-anchor="start" x="2601" y="-446.5" font-family="Helvetica,sans-Serif" font-size="9.00">imitate its own dictionary&#45;constrained rollouts (+aux), eval free&#45;gen</text>
-<polygon fill="#4a4a4a" stroke="none" points="2595,-413.5 2595,-438.25 2877,-438.25 2877,-413.5 2595,-413.5"/>
-<polygon fill="none" stroke="black" points="2595,-413.5 2595,-438.25 2877,-438.25 2877,-413.5 2595,-413.5"/>
-<text xml:space="preserve" text-anchor="start" x="2660.62" y="-423.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">valid 0.62→0.80, win flat (traded)</text>
+<polygon fill="#a9d3d9" stroke="none" points="2674,-481.75 2674,-508.75 2956,-508.75 2956,-481.75 2674,-481.75"/>
+<polygon fill="none" stroke="black" points="2674,-481.75 2674,-508.75 2956,-508.75 2956,-481.75 2674,-481.75"/>
+<text xml:space="preserve" text-anchor="start" x="2727.25" y="-490.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">constrained self&#45;distillation</text>
+<polygon fill="#efefef" stroke="none" points="2674,-460 2674,-481.75 2956,-481.75 2956,-460 2674,-460"/>
+<polygon fill="none" stroke="black" points="2674,-460 2674,-481.75 2956,-481.75 2956,-460 2674,-460"/>
+<text xml:space="preserve" text-anchor="start" x="2785.75" y="-468.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="2674,-438.25 2674,-460 2956,-460 2956,-438.25 2674,-438.25"/>
+<text xml:space="preserve" text-anchor="start" x="2680" y="-446.5" font-family="Helvetica,sans-Serif" font-size="9.00">imitate its own dictionary&#45;constrained rollouts (+aux), eval free&#45;gen</text>
+<polygon fill="#4a4a4a" stroke="none" points="2674,-413.5 2674,-438.25 2956,-438.25 2956,-413.5 2674,-413.5"/>
+<polygon fill="none" stroke="black" points="2674,-413.5 2674,-438.25 2956,-438.25 2956,-413.5 2674,-413.5"/>
+<text xml:space="preserve" text-anchor="start" x="2739.62" y="-423.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">valid 0.62→0.80, win flat (traded)</text>
 </g>
 <!-- fair_stage1&#45;&gt;distill_constrained -->
 <g id="edge55" class="edge">
 <title>fair_stage1&#45;&gt;distill_constrained</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2200.57,-627.28C2310.9,-608.6 2446.38,-580.75 2564,-542.25 2585.89,-535.09 2608.65,-525.86 2630.18,-516.23"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2631.16,-518.47 2636.53,-513.35 2629.14,-514.01 2631.16,-518.47"/>
-<text xml:space="preserve" text-anchor="middle" x="2539.71" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">push validity</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2279.57,-627.28C2389.9,-608.6 2525.38,-580.75 2643,-542.25 2664.89,-535.09 2687.65,-525.86 2709.18,-516.23"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2710.16,-518.47 2715.53,-513.35 2708.14,-514.01 2710.16,-518.47"/>
+<text xml:space="preserve" text-anchor="middle" x="2618.71" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">push validity</text>
 </g>
 <!-- infogain_xit_c -->
 <g id="node50" class="node">
 <title>infogain_xit_c</title>
-<polygon fill="#a9d3d9" stroke="none" points="2940.25,-481 2940.25,-508 3229.75,-508 3229.75,-481 2940.25,-481"/>
-<polygon fill="none" stroke="black" points="2940.25,-481 2940.25,-508 3229.75,-508 3229.75,-481 2940.25,-481"/>
-<text xml:space="preserve" text-anchor="start" x="2999.5" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">info&#45;gain XIT (constrained)</text>
-<polygon fill="#efefef" stroke="none" points="2940.25,-459.25 2940.25,-481 3229.75,-481 3229.75,-459.25 2940.25,-459.25"/>
-<polygon fill="none" stroke="black" points="2940.25,-459.25 2940.25,-481 3229.75,-481 3229.75,-459.25 2940.25,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="3055.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="2940.25,-437.5 2940.25,-459.25 3229.75,-459.25 3229.75,-437.5 2940.25,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="2946.25" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">constrained rollouts (wheel), keep high&#45;info&#45;gain turns, SFT free&#45;gen</text>
-<polygon fill="#4a4a4a" stroke="none" points="2940.25,-414.25 2940.25,-437.5 3229.75,-437.5 3229.75,-414.25 2940.25,-414.25"/>
-<polygon fill="none" stroke="black" points="2940.25,-414.25 2940.25,-437.5 3229.75,-437.5 3229.75,-414.25 2940.25,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="3062.5" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null</text>
+<polygon fill="#a9d3d9" stroke="none" points="3019.25,-481 3019.25,-508 3308.75,-508 3308.75,-481 3019.25,-481"/>
+<polygon fill="none" stroke="black" points="3019.25,-481 3019.25,-508 3308.75,-508 3308.75,-481 3019.25,-481"/>
+<text xml:space="preserve" text-anchor="start" x="3078.5" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">info&#45;gain XIT (constrained)</text>
+<polygon fill="#efefef" stroke="none" points="3019.25,-459.25 3019.25,-481 3308.75,-481 3308.75,-459.25 3019.25,-459.25"/>
+<polygon fill="none" stroke="black" points="3019.25,-459.25 3019.25,-481 3308.75,-481 3308.75,-459.25 3019.25,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="3134.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="3019.25,-437.5 3019.25,-459.25 3308.75,-459.25 3308.75,-437.5 3019.25,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="3025.25" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">constrained rollouts (wheel), keep high&#45;info&#45;gain turns, SFT free&#45;gen</text>
+<polygon fill="#4a4a4a" stroke="none" points="3019.25,-414.25 3019.25,-437.5 3308.75,-437.5 3308.75,-414.25 3019.25,-414.25"/>
+<polygon fill="none" stroke="black" points="3019.25,-414.25 3019.25,-437.5 3308.75,-437.5 3308.75,-414.25 3019.25,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="3141.5" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null</text>
 </g>
 <!-- fair_stage1&#45;&gt;infogain_xit_c -->
 <g id="edge56" class="edge">
 <title>fair_stage1&#45;&gt;infogain_xit_c</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2200.58,-649.15C2390.22,-637.37 2672.17,-609.26 2909,-542.25 2933.24,-535.39 2958.38,-525.67 2981.82,-515.36"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2982.79,-517.61 2988.18,-512.52 2980.79,-513.14 2982.79,-517.61"/>
-<text xml:space="preserve" text-anchor="middle" x="2858.96" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">info&#45;gain XIT</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2279.58,-649.15C2469.22,-637.37 2751.17,-609.26 2988,-542.25 3012.24,-535.39 3037.38,-525.67 3060.82,-515.36"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="3061.79,-517.61 3067.18,-512.52 3059.79,-513.14 3061.79,-517.61"/>
+<text xml:space="preserve" text-anchor="middle" x="2937.96" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">info&#45;gain XIT</text>
 </g>
 <!-- infogain_xit_f -->
 <g id="node51" class="node">
 <title>infogain_xit_f</title>
-<polygon fill="#a9d3d9" stroke="none" points="3292.5,-481 3292.5,-508 3469.5,-508 3469.5,-481 3292.5,-481"/>
-<polygon fill="none" stroke="black" points="3292.5,-481 3292.5,-508 3469.5,-508 3469.5,-481 3292.5,-481"/>
-<text xml:space="preserve" text-anchor="start" x="3298.5" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">info&#45;gain XIT (free / STaR)</text>
-<polygon fill="#efefef" stroke="none" points="3292.5,-459.25 3292.5,-481 3469.5,-481 3469.5,-459.25 3292.5,-459.25"/>
-<polygon fill="none" stroke="black" points="3292.5,-459.25 3292.5,-481 3469.5,-481 3469.5,-459.25 3292.5,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="3351.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="3292.5,-437.5 3292.5,-459.25 3469.5,-459.25 3469.5,-437.5 3292.5,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="3298.5" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">same, free&#45;gen rollouts (no wheel)</text>
-<polygon fill="#4a4a4a" stroke="none" points="3292.5,-414.25 3292.5,-437.5 3469.5,-437.5 3469.5,-414.25 3292.5,-414.25"/>
-<polygon fill="none" stroke="black" points="3292.5,-414.25 3292.5,-437.5 3469.5,-437.5 3469.5,-414.25 3292.5,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="3358.5" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null</text>
+<polygon fill="#a9d3d9" stroke="none" points="3371.5,-481 3371.5,-508 3548.5,-508 3548.5,-481 3371.5,-481"/>
+<polygon fill="none" stroke="black" points="3371.5,-481 3371.5,-508 3548.5,-508 3548.5,-481 3371.5,-481"/>
+<text xml:space="preserve" text-anchor="start" x="3377.5" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">info&#45;gain XIT (free / STaR)</text>
+<polygon fill="#efefef" stroke="none" points="3371.5,-459.25 3371.5,-481 3548.5,-481 3548.5,-459.25 3371.5,-459.25"/>
+<polygon fill="none" stroke="black" points="3371.5,-459.25 3371.5,-481 3548.5,-481 3548.5,-459.25 3371.5,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="3430.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="3371.5,-437.5 3371.5,-459.25 3548.5,-459.25 3548.5,-437.5 3371.5,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="3377.5" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">same, free&#45;gen rollouts (no wheel)</text>
+<polygon fill="#4a4a4a" stroke="none" points="3371.5,-414.25 3371.5,-437.5 3548.5,-437.5 3548.5,-414.25 3371.5,-414.25"/>
+<polygon fill="none" stroke="black" points="3371.5,-414.25 3371.5,-437.5 3548.5,-437.5 3548.5,-414.25 3371.5,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="3437.5" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null</text>
 </g>
 <!-- fair_stage1&#45;&gt;infogain_xit_f -->
 <g id="edge57" class="edge">
 <title>fair_stage1&#45;&gt;infogain_xit_f</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2200.51,-650.98C2511.92,-639.2 3071.19,-609.28 3261,-542.25 3278.51,-536.07 3295.95,-526.74 3311.88,-516.62"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="3313.17,-518.7 3317.7,-512.83 3310.49,-514.6 3313.17,-518.7"/>
-<text xml:space="preserve" text-anchor="middle" x="3225.32" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">free / STaR</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2279.51,-650.98C2590.92,-639.2 3150.19,-609.28 3340,-542.25 3357.51,-536.07 3374.95,-526.74 3390.88,-516.62"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="3392.17,-518.7 3396.7,-512.83 3389.49,-514.6 3392.17,-518.7"/>
+<text xml:space="preserve" text-anchor="middle" x="3304.32" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">free / STaR</text>
 </g>
 <!-- dpo_fair -->
 <g id="node52" class="node">
 <title>dpo_fair</title>
-<polygon fill="#a9d3d9" stroke="none" points="1728.62,-481 1728.62,-508 1945.38,-508 1945.38,-481 1728.62,-481"/>
-<polygon fill="none" stroke="black" points="1728.62,-481 1728.62,-508 1945.38,-508 1945.38,-481 1728.62,-481"/>
-<text xml:space="preserve" text-anchor="start" x="1782.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">DPO on fair base</text>
-<polygon fill="#efefef" stroke="none" points="1728.62,-459.25 1728.62,-481 1945.38,-481 1945.38,-459.25 1728.62,-459.25"/>
-<polygon fill="none" stroke="black" points="1728.62,-459.25 1728.62,-481 1945.38,-481 1945.38,-459.25 1728.62,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="1807.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1728.62,-437.5 1728.62,-459.25 1945.38,-459.25 1945.38,-437.5 1728.62,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="1734.62" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">the contaminated&#45;winning DPO recipe, clean base</text>
-<polygon fill="#4a4a4a" stroke="none" points="1728.62,-414.25 1728.62,-437.5 1945.38,-437.5 1945.38,-414.25 1728.62,-414.25"/>
-<polygon fill="none" stroke="black" points="1728.62,-414.25 1728.62,-437.5 1945.38,-437.5 1945.38,-414.25 1728.62,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="1761.62" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null (every epoch reverted)</text>
+<polygon fill="#a9d3d9" stroke="none" points="1807.62,-481 1807.62,-508 2024.38,-508 2024.38,-481 1807.62,-481"/>
+<polygon fill="none" stroke="black" points="1807.62,-481 1807.62,-508 2024.38,-508 2024.38,-481 1807.62,-481"/>
+<text xml:space="preserve" text-anchor="start" x="1861.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">DPO on fair base</text>
+<polygon fill="#efefef" stroke="none" points="1807.62,-459.25 1807.62,-481 2024.38,-481 2024.38,-459.25 1807.62,-459.25"/>
+<polygon fill="none" stroke="black" points="1807.62,-459.25 1807.62,-481 2024.38,-481 2024.38,-459.25 1807.62,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="1886.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1807.62,-437.5 1807.62,-459.25 2024.38,-459.25 2024.38,-437.5 1807.62,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="1813.62" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">the contaminated&#45;winning DPO recipe, clean base</text>
+<polygon fill="#4a4a4a" stroke="none" points="1807.62,-414.25 1807.62,-437.5 2024.38,-437.5 2024.38,-414.25 1807.62,-414.25"/>
+<polygon fill="none" stroke="black" points="1807.62,-414.25 1807.62,-437.5 2024.38,-437.5 2024.38,-414.25 1807.62,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="1840.62" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 null (every epoch reverted)</text>
 </g>
 <!-- fair_stage1&#45;&gt;dpo_fair -->
 <g id="edge58" class="edge">
 <title>fair_stage1&#45;&gt;dpo_fair</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1947.27,-607.79C1926.66,-580.56 1901.05,-546.74 1879.71,-518.54"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1881.84,-517.3 1875.67,-513.2 1877.94,-520.26 1881.84,-517.3"/>
-<text xml:space="preserve" text-anchor="middle" x="1939.5" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">retry DPO clean</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2026.27,-607.79C2005.66,-580.56 1980.05,-546.74 1958.71,-518.54"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1960.84,-517.3 1954.67,-513.2 1956.94,-520.26 1960.84,-517.3"/>
+<text xml:space="preserve" text-anchor="middle" x="2018.5" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">retry DPO clean</text>
 </g>
 <!-- scale_tiny -->
 <g id="node54" class="node">
 <title>scale_tiny</title>
-<polygon fill="#a9d3d9" stroke="none" points="2008.12,-481 2008.12,-508 2113.88,-508 2113.88,-481 2008.12,-481"/>
-<polygon fill="none" stroke="black" points="2008.12,-481 2008.12,-508 2113.88,-508 2113.88,-481 2008.12,-481"/>
-<text xml:space="preserve" text-anchor="start" x="2021.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — tiny</text>
-<polygon fill="#efefef" stroke="none" points="2008.12,-459.25 2008.12,-481 2113.88,-481 2113.88,-459.25 2008.12,-459.25"/>
-<polygon fill="none" stroke="black" points="2008.12,-459.25 2008.12,-481 2113.88,-481 2113.88,-459.25 2008.12,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="2033.25" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">1.2M params</text>
-<polygon fill="none" stroke="black" points="2008.12,-437.5 2008.12,-459.25 2113.88,-459.25 2113.88,-437.5 2008.12,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="2014.12" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, smallest net</text>
-<polygon fill="#4a4a4a" stroke="none" points="2008.12,-414.25 2008.12,-437.5 2113.88,-437.5 2113.88,-414.25 2008.12,-414.25"/>
-<polygon fill="none" stroke="black" points="2008.12,-414.25 2008.12,-437.5 2113.88,-437.5 2113.88,-414.25 2008.12,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="2023.88" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.163 (underfits)</text>
+<polygon fill="#a9d3d9" stroke="none" points="2087.12,-481 2087.12,-508 2192.88,-508 2192.88,-481 2087.12,-481"/>
+<polygon fill="none" stroke="black" points="2087.12,-481 2087.12,-508 2192.88,-508 2192.88,-481 2087.12,-481"/>
+<text xml:space="preserve" text-anchor="start" x="2100.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — tiny</text>
+<polygon fill="#efefef" stroke="none" points="2087.12,-459.25 2087.12,-481 2192.88,-481 2192.88,-459.25 2087.12,-459.25"/>
+<polygon fill="none" stroke="black" points="2087.12,-459.25 2087.12,-481 2192.88,-481 2192.88,-459.25 2087.12,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="2112.25" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">1.2M params</text>
+<polygon fill="none" stroke="black" points="2087.12,-437.5 2087.12,-459.25 2192.88,-459.25 2192.88,-437.5 2087.12,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="2093.12" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, smallest net</text>
+<polygon fill="#4a4a4a" stroke="none" points="2087.12,-414.25 2087.12,-437.5 2192.88,-437.5 2192.88,-414.25 2087.12,-414.25"/>
+<polygon fill="none" stroke="black" points="2087.12,-414.25 2087.12,-437.5 2192.88,-437.5 2192.88,-414.25 2087.12,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="2102.88" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.163 (underfits)</text>
 </g>
 <!-- fair_stage1&#45;&gt;scale_tiny -->
 <g id="edge60" class="edge">
 <title>fair_stage1&#45;&gt;scale_tiny</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2004.37,-607.79C2014.83,-580.9 2027.78,-547.59 2038.65,-519.61"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2040.8,-520.84 2041.06,-513.42 2036.24,-519.06 2040.8,-520.84"/>
-<text xml:space="preserve" text-anchor="middle" x="2033.5" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">shrink</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2083.37,-607.79C2093.83,-580.9 2106.78,-547.59 2117.65,-519.61"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2119.8,-520.84 2120.06,-513.42 2115.24,-519.06 2119.8,-520.84"/>
+<text xml:space="preserve" text-anchor="middle" x="2112.5" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">shrink</text>
 </g>
 <!-- scale_base -->
 <g id="node55" class="node">
 <title>scale_base</title>
-<polygon fill="#a9d3d9" stroke="none" points="2176.88,-481 2176.88,-508 2275.12,-508 2275.12,-481 2176.88,-481"/>
-<polygon fill="none" stroke="black" points="2176.88,-481 2176.88,-508 2275.12,-508 2275.12,-481 2176.88,-481"/>
-<text xml:space="preserve" text-anchor="start" x="2182.88" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — base</text>
-<polygon fill="#efefef" stroke="none" points="2176.88,-459.25 2176.88,-481 2275.12,-481 2275.12,-459.25 2176.88,-459.25"/>
-<polygon fill="none" stroke="black" points="2176.88,-459.25 2176.88,-481 2275.12,-481 2275.12,-459.25 2176.88,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="2199.38" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">12M params</text>
-<polygon fill="none" stroke="black" points="2176.88,-437.5 2176.88,-459.25 2275.12,-459.25 2275.12,-437.5 2176.88,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="2182.88" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, mid net</text>
-<polygon fill="#4a4a4a" stroke="none" points="2176.88,-414.25 2176.88,-437.5 2275.12,-437.5 2275.12,-414.25 2176.88,-414.25"/>
-<polygon fill="none" stroke="black" points="2176.88,-414.25 2176.88,-437.5 2275.12,-437.5 2275.12,-414.25 2176.88,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="2185.12" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.251 (gap grows)</text>
+<polygon fill="#a9d3d9" stroke="none" points="2255.88,-481 2255.88,-508 2354.12,-508 2354.12,-481 2255.88,-481"/>
+<polygon fill="none" stroke="black" points="2255.88,-481 2255.88,-508 2354.12,-508 2354.12,-481 2255.88,-481"/>
+<text xml:space="preserve" text-anchor="start" x="2261.88" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — base</text>
+<polygon fill="#efefef" stroke="none" points="2255.88,-459.25 2255.88,-481 2354.12,-481 2354.12,-459.25 2255.88,-459.25"/>
+<polygon fill="none" stroke="black" points="2255.88,-459.25 2255.88,-481 2354.12,-481 2354.12,-459.25 2255.88,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="2278.38" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">12M params</text>
+<polygon fill="none" stroke="black" points="2255.88,-437.5 2255.88,-459.25 2354.12,-459.25 2354.12,-437.5 2255.88,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="2261.88" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, mid net</text>
+<polygon fill="#4a4a4a" stroke="none" points="2255.88,-414.25 2255.88,-437.5 2354.12,-437.5 2354.12,-414.25 2255.88,-414.25"/>
+<polygon fill="none" stroke="black" points="2255.88,-414.25 2255.88,-437.5 2354.12,-437.5 2354.12,-414.25 2255.88,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="2264.12" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.251 (gap grows)</text>
 </g>
 <!-- fair_stage1&#45;&gt;scale_base -->
 <g id="edge61" class="edge">
 <title>fair_stage1&#45;&gt;scale_base</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2058.88,-607.95C2086.61,-588.39 2117.94,-565.15 2145,-542.25 2154.08,-534.57 2163.36,-526.07 2172.25,-517.57"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2173.8,-519.48 2177.14,-512.85 2170.4,-515.95 2173.8,-519.48"/>
-<text xml:space="preserve" text-anchor="middle" x="2134.87" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">mid</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2137.88,-607.95C2165.61,-588.39 2196.94,-565.15 2224,-542.25 2233.08,-534.57 2242.36,-526.07 2251.25,-517.57"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2252.8,-519.48 2256.14,-512.85 2249.4,-515.95 2252.8,-519.48"/>
+<text xml:space="preserve" text-anchor="middle" x="2213.87" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">mid</text>
 </g>
 <!-- scale_xl -->
 <g id="node56" class="node">
 <title>scale_xl</title>
-<polygon fill="#a9d3d9" stroke="none" points="2337.88,-481 2337.88,-508 2532.12,-508 2532.12,-481 2337.88,-481"/>
-<polygon fill="none" stroke="black" points="2337.88,-481 2337.88,-508 2532.12,-508 2532.12,-481 2337.88,-481"/>
-<text xml:space="preserve" text-anchor="start" x="2401.62" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — xl</text>
-<polygon fill="#efefef" stroke="none" points="2337.88,-459.25 2337.88,-481 2532.12,-481 2532.12,-459.25 2337.88,-459.25"/>
-<polygon fill="none" stroke="black" points="2337.88,-459.25 2337.88,-481 2532.12,-481 2532.12,-459.25 2337.88,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="2408.38" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">99M params</text>
-<polygon fill="none" stroke="black" points="2337.88,-437.5 2337.88,-459.25 2532.12,-459.25 2532.12,-437.5 2337.88,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="2343.88" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, largest net</text>
-<polygon fill="#4a4a4a" stroke="none" points="2337.88,-414.25 2337.88,-437.5 2532.12,-437.5 2532.12,-414.25 2337.88,-414.25"/>
-<polygon fill="none" stroke="black" points="2337.88,-414.25 2337.88,-437.5 2532.12,-437.5 2532.12,-414.25 2337.88,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="2343.88" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.270 · valid 0.591 — turns over (&lt; 50M)</text>
+<polygon fill="#a9d3d9" stroke="none" points="2416.88,-481 2416.88,-508 2611.12,-508 2611.12,-481 2416.88,-481"/>
+<polygon fill="none" stroke="black" points="2416.88,-481 2416.88,-508 2611.12,-508 2611.12,-481 2416.88,-481"/>
+<text xml:space="preserve" text-anchor="start" x="2480.62" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">scale — xl</text>
+<polygon fill="#efefef" stroke="none" points="2416.88,-459.25 2416.88,-481 2611.12,-481 2611.12,-459.25 2416.88,-459.25"/>
+<polygon fill="none" stroke="black" points="2416.88,-459.25 2416.88,-481 2611.12,-481 2611.12,-459.25 2416.88,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="2487.38" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">99M params</text>
+<polygon fill="none" stroke="black" points="2416.88,-437.5 2416.88,-459.25 2611.12,-459.25 2611.12,-437.5 2416.88,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="2422.88" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">fair recipe, largest net</text>
+<polygon fill="#4a4a4a" stroke="none" points="2416.88,-414.25 2416.88,-437.5 2611.12,-437.5 2611.12,-414.25 2416.88,-414.25"/>
+<polygon fill="none" stroke="black" points="2416.88,-414.25 2416.88,-437.5 2611.12,-437.5 2611.12,-414.25 2416.88,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="2422.88" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.270 · valid 0.591 — turns over (&lt; 50M)</text>
 </g>
 <!-- fair_stage1&#45;&gt;scale_xl -->
 <g id="edge62" class="edge">
 <title>fair_stage1&#45;&gt;scale_xl</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2145.42,-607.77C2197.91,-589.46 2255.84,-567.07 2307,-542.25 2322.75,-534.61 2338.99,-525.5 2354.4,-516.22"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2355.29,-518.54 2359.99,-512.81 2352.74,-514.36 2355.29,-518.54"/>
-<text xml:space="preserve" text-anchor="middle" x="2282.36" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">grow</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2224.42,-607.77C2276.91,-589.46 2334.84,-567.07 2386,-542.25 2401.75,-534.61 2417.99,-525.5 2433.4,-516.22"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2434.29,-518.54 2438.99,-512.81 2431.74,-514.36 2434.29,-518.54"/>
+<text xml:space="preserve" text-anchor="middle" x="2361.36" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">grow</text>
 </g>
 <!-- constrained_decode -->
 <g id="node62" class="node">
 <title>constrained_decode</title>
-<polygon fill="#aac4dd" stroke="none" points="1172.88,-481.75 1172.88,-508.75 1421.12,-508.75 1421.12,-481.75 1172.88,-481.75"/>
-<polygon fill="none" stroke="black" points="1172.88,-481.75 1172.88,-508.75 1421.12,-508.75 1421.12,-481.75 1172.88,-481.75"/>
-<text xml:space="preserve" text-anchor="start" x="1197.25" y="-490.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">constrained&#45;decode diagnostic</text>
-<polygon fill="#efefef" stroke="none" points="1172.88,-460 1172.88,-481.75 1421.12,-481.75 1421.12,-460 1172.88,-460"/>
-<polygon fill="none" stroke="black" points="1172.88,-460 1172.88,-481.75 1421.12,-481.75 1421.12,-460 1172.88,-460"/>
-<text xml:space="preserve" text-anchor="start" x="1267.75" y="-468.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1172.88,-438.25 1172.88,-460 1421.12,-460 1421.12,-438.25 1172.88,-438.25"/>
-<text xml:space="preserve" text-anchor="start" x="1178.88" y="-446.5" font-family="Helvetica,sans-Serif" font-size="9.00">greedy masked to real&#45;word spellings; model still deduces</text>
-<polygon fill="#4a4a4a" stroke="none" points="1172.88,-413.5 1172.88,-438.25 1421.12,-438.25 1421.12,-413.5 1172.88,-413.5"/>
-<polygon fill="none" stroke="black" points="1172.88,-413.5 1172.88,-438.25 1421.12,-438.25 1421.12,-413.5 1172.88,-413.5"/>
-<text xml:space="preserve" text-anchor="start" x="1189.38" y="-423.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 → 0.436 · valid 1.0 — KNOWS the words</text>
+<polygon fill="#aac4dd" stroke="none" points="1251.88,-481.75 1251.88,-508.75 1500.12,-508.75 1500.12,-481.75 1251.88,-481.75"/>
+<polygon fill="none" stroke="black" points="1251.88,-481.75 1251.88,-508.75 1500.12,-508.75 1500.12,-481.75 1251.88,-481.75"/>
+<text xml:space="preserve" text-anchor="start" x="1276.25" y="-490.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">constrained&#45;decode diagnostic</text>
+<polygon fill="#efefef" stroke="none" points="1251.88,-460 1251.88,-481.75 1500.12,-481.75 1500.12,-460 1251.88,-460"/>
+<polygon fill="none" stroke="black" points="1251.88,-460 1251.88,-481.75 1500.12,-481.75 1500.12,-460 1251.88,-460"/>
+<text xml:space="preserve" text-anchor="start" x="1346.75" y="-468.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1251.88,-438.25 1251.88,-460 1500.12,-460 1500.12,-438.25 1251.88,-438.25"/>
+<text xml:space="preserve" text-anchor="start" x="1257.88" y="-446.5" font-family="Helvetica,sans-Serif" font-size="9.00">greedy masked to real&#45;word spellings; model still deduces</text>
+<polygon fill="#4a4a4a" stroke="none" points="1251.88,-413.5 1251.88,-438.25 1500.12,-438.25 1500.12,-413.5 1251.88,-413.5"/>
+<polygon fill="none" stroke="black" points="1251.88,-413.5 1251.88,-438.25 1500.12,-438.25 1500.12,-413.5 1251.88,-413.5"/>
+<text xml:space="preserve" text-anchor="start" x="1268.38" y="-423.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.281 → 0.436 · valid 1.0 — KNOWS the words</text>
 </g>
 <!-- fair_stage1&#45;&gt;constrained_decode -->
 <g id="edge63" class="edge">
 <title>fair_stage1&#45;&gt;constrained_decode</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1769.48,-624.11C1671.27,-605.5 1554.54,-578.63 1453,-542.25 1433.14,-535.13 1412.6,-526 1393.2,-516.46"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1394.39,-514.31 1387.03,-513.38 1392.2,-518.7 1394.39,-514.31"/>
-<text xml:space="preserve" text-anchor="middle" x="1554.31" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">mask spelling (diagnostic)</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1848.48,-624.11C1750.27,-605.5 1633.54,-578.63 1532,-542.25 1512.14,-535.13 1491.6,-526 1472.2,-516.46"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1473.39,-514.31 1466.03,-513.38 1471.2,-518.7 1473.39,-514.31"/>
+<text xml:space="preserve" text-anchor="middle" x="1633.31" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">mask spelling (diagnostic)</text>
 </g>
 <!-- bestof16 -->
 <g id="node63" class="node">
 <title>bestof16</title>
-<polygon fill="#aac4dd" stroke="none" points="1484.62,-481 1484.62,-508 1665.38,-508 1665.38,-481 1484.62,-481"/>
-<polygon fill="none" stroke="black" points="1484.62,-481 1484.62,-508 1665.38,-508 1665.38,-481 1484.62,-481"/>
-<text xml:space="preserve" text-anchor="start" x="1505.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;16 (valid vote)</text>
-<polygon fill="#efefef" stroke="none" points="1484.62,-459.25 1484.62,-481 1665.38,-481 1665.38,-459.25 1484.62,-459.25"/>
-<polygon fill="none" stroke="black" points="1484.62,-459.25 1484.62,-481 1665.38,-481 1665.38,-459.25 1484.62,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="1545.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1484.62,-437.5 1484.62,-459.25 1665.38,-459.25 1665.38,-437.5 1484.62,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="1490.62" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">sample 16, keep real words, majority vote</text>
-<polygon fill="#4a4a4a" stroke="none" points="1484.62,-414.25 1484.62,-437.5 1665.38,-437.5 1665.38,-414.25 1484.62,-414.25"/>
-<polygon fill="none" stroke="black" points="1484.62,-414.25 1484.62,-437.5 1665.38,-437.5 1665.38,-414.25 1484.62,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="1533.75" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.632 · valid 0.925</text>
+<polygon fill="#aac4dd" stroke="none" points="1563.62,-481 1563.62,-508 1744.38,-508 1744.38,-481 1563.62,-481"/>
+<polygon fill="none" stroke="black" points="1563.62,-481 1563.62,-508 1744.38,-508 1744.38,-481 1563.62,-481"/>
+<text xml:space="preserve" text-anchor="start" x="1584.25" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;16 (valid vote)</text>
+<polygon fill="#efefef" stroke="none" points="1563.62,-459.25 1563.62,-481 1744.38,-481 1744.38,-459.25 1563.62,-459.25"/>
+<polygon fill="none" stroke="black" points="1563.62,-459.25 1563.62,-481 1744.38,-481 1744.38,-459.25 1563.62,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="1624.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1563.62,-437.5 1563.62,-459.25 1744.38,-459.25 1744.38,-437.5 1563.62,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="1569.62" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">sample 16, keep real words, majority vote</text>
+<polygon fill="#4a4a4a" stroke="none" points="1563.62,-414.25 1563.62,-437.5 1744.38,-437.5 1744.38,-414.25 1563.62,-414.25"/>
+<polygon fill="none" stroke="black" points="1563.62,-414.25 1563.62,-437.5 1744.38,-437.5 1744.38,-414.25 1563.62,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="1612.75" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.632 · valid 0.925</text>
 </g>
 <!-- fair_stage1&#45;&gt;bestof16 -->
 <g id="edge64" class="edge">
 <title>fair_stage1&#45;&gt;bestof16</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1848.94,-607.77C1801.62,-588.97 1748.71,-566.27 1702,-542.25 1686.86,-534.46 1671.18,-525.43 1656.21,-516.3"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1657.6,-514.28 1650.35,-512.69 1655.03,-518.45 1657.6,-514.28"/>
-<text xml:space="preserve" text-anchor="middle" x="1778.8" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">test&#45;time compute</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1927.94,-607.77C1880.62,-588.97 1827.71,-566.27 1781,-542.25 1765.86,-534.46 1750.18,-525.43 1735.21,-516.3"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1736.6,-514.28 1729.35,-512.69 1734.03,-518.45 1736.6,-514.28"/>
+<text xml:space="preserve" text-anchor="middle" x="1857.8" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">test&#45;time compute</text>
 </g>
 <!-- bestof16_nodict -->
 <g id="node64" class="node">
@@ -1468,53 +1468,53 @@
 <!-- fair_stage1&#45;&gt;bestof16_nodict -->
 <g id="edge65" class="edge">
 <title>fair_stage1&#45;&gt;bestof16_nodict</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1769.34,-647.79C1499.65,-633.22 1054.66,-601.08 901,-542.25 884.79,-536.04 868.79,-526.85 854.2,-516.89"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="855.66,-514.92 848.52,-512.9 852.85,-518.93 855.66,-514.92"/>
-<text xml:space="preserve" text-anchor="middle" x="993.66" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">no&#45;dict ablation</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1848.38,-649.63C1560.95,-636.68 1068.99,-605.88 901,-542.25 884.67,-536.06 868.57,-526.83 853.91,-516.8"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="855.33,-514.81 848.2,-512.79 852.52,-518.82 855.33,-514.81"/>
+<text xml:space="preserve" text-anchor="middle" x="998.48" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">no&#45;dict ablation</text>
 </g>
 <!-- beam_trie -->
 <g id="node67" class="node">
 <title>beam_trie</title>
-<polygon fill="#d0d0d0" stroke="none" points="932.5,-481 932.5,-508 1109.5,-508 1109.5,-481 932.5,-481"/>
-<polygon fill="none" stroke="black" points="932.5,-481 932.5,-508 1109.5,-508 1109.5,-481 932.5,-481"/>
-<text xml:space="preserve" text-anchor="start" x="941.88" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">beam over real&#45;word trie</text>
-<polygon fill="#efefef" stroke="none" points="932.5,-459.25 932.5,-481 1109.5,-481 1109.5,-459.25 932.5,-459.25"/>
-<polygon fill="none" stroke="black" points="932.5,-459.25 932.5,-481 1109.5,-481 1109.5,-459.25 932.5,-459.25"/>
-<text xml:space="preserve" text-anchor="start" x="991.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="932.5,-437.5 932.5,-459.25 1109.5,-459.25 1109.5,-437.5 932.5,-437.5"/>
-<text xml:space="preserve" text-anchor="start" x="938.5" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">sequence&#45;level argmax over valid words</text>
-<polygon fill="#4a4a4a" stroke="none" points="932.5,-414.25 932.5,-437.5 1109.5,-437.5 1109.5,-414.25 932.5,-414.25"/>
-<polygon fill="none" stroke="black" points="932.5,-414.25 932.5,-437.5 1109.5,-437.5 1109.5,-414.25 932.5,-414.25"/>
-<text xml:space="preserve" text-anchor="start" x="1003.75" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">queued</text>
+<polygon fill="#aac4dd" stroke="none" points="932.75,-481 932.75,-508 1189.25,-508 1189.25,-481 932.75,-481"/>
+<polygon fill="none" stroke="black" points="932.75,-481 932.75,-508 1189.25,-508 1189.25,-481 932.75,-481"/>
+<text xml:space="preserve" text-anchor="start" x="981.88" y="-489.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">beam over real&#45;word trie</text>
+<polygon fill="#efefef" stroke="none" points="932.75,-459.25 932.75,-481 1189.25,-481 1189.25,-459.25 932.75,-459.25"/>
+<polygon fill="none" stroke="black" points="932.75,-459.25 932.75,-481 1189.25,-481 1189.25,-459.25 932.75,-459.25"/>
+<text xml:space="preserve" text-anchor="start" x="1031.75" y="-467.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="932.75,-437.5 932.75,-459.25 1189.25,-459.25 1189.25,-437.5 932.75,-437.5"/>
+<text xml:space="preserve" text-anchor="start" x="938.75" y="-445.75" font-family="Helvetica,sans-Serif" font-size="9.00">sequence&#45;level argmax over valid words (best deterministic)</text>
+<polygon fill="#4a4a4a" stroke="none" points="932.75,-414.25 932.75,-437.5 1189.25,-437.5 1189.25,-414.25 932.75,-414.25"/>
+<polygon fill="none" stroke="black" points="932.75,-414.25 932.75,-437.5 1189.25,-437.5 1189.25,-414.25 932.75,-414.25"/>
+<text xml:space="preserve" text-anchor="start" x="1025" y="-423" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.550 · valid 1.0</text>
 </g>
 <!-- fair_stage1&#45;&gt;beam_trie -->
 <g id="edge68" class="edge">
 <title>fair_stage1&#45;&gt;beam_trie</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1769.5,-654.72C1594.93,-646.18 1345.32,-619.69 1141,-542.25 1123.94,-535.78 1106.87,-526.51 1091.18,-516.55"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1092.67,-514.6 1085.47,-512.84 1090,-518.71 1092.67,-514.6"/>
-<text xml:space="preserve" text-anchor="middle" x="1194.22" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">beam</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1848.62,-647.81C1675.5,-635.28 1427.78,-606.83 1220,-542.25 1198.05,-535.43 1175.43,-525.81 1154.39,-515.59"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1155.57,-513.44 1148.21,-512.54 1153.4,-517.83 1155.57,-513.44"/>
+<text xml:space="preserve" text-anchor="middle" x="1296.38" y="-557.15" font-family="Helvetica,sans-Serif" font-size="8.00">beam</text>
 </g>
 <!-- grpo_full_fair -->
 <g id="node53" class="node">
 <title>grpo_full_fair</title>
-<polygon fill="#a9d3d9" stroke="none" points="2596.5,-283.5 2596.5,-310.5 2875.5,-310.5 2875.5,-283.5 2596.5,-283.5"/>
-<polygon fill="none" stroke="black" points="2596.5,-283.5 2596.5,-310.5 2875.5,-310.5 2875.5,-283.5 2596.5,-283.5"/>
-<text xml:space="preserve" text-anchor="start" x="2673.75" y="-292.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">stage&#45;4 long GRPO</text>
-<polygon fill="#efefef" stroke="none" points="2596.5,-261.75 2596.5,-283.5 2875.5,-283.5 2875.5,-261.75 2596.5,-261.75"/>
-<polygon fill="none" stroke="black" points="2596.5,-261.75 2596.5,-283.5 2875.5,-283.5 2875.5,-261.75 2596.5,-261.75"/>
-<text xml:space="preserve" text-anchor="start" x="2706.75" y="-269.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="2596.5,-240 2596.5,-261.75 2875.5,-261.75 2875.5,-240 2596.5,-240"/>
-<text xml:space="preserve" text-anchor="start" x="2602.5" y="-248.25" font-family="Helvetica,sans-Serif" font-size="9.00">stabilized GRPO + full reward from the distilled base, 150 updates</text>
-<polygon fill="#4a4a4a" stroke="none" points="2596.5,-216.75 2596.5,-240 2875.5,-240 2875.5,-216.75 2596.5,-216.75"/>
-<polygon fill="none" stroke="black" points="2596.5,-216.75 2596.5,-240 2875.5,-240 2875.5,-216.75 2596.5,-216.75"/>
-<text xml:space="preserve" text-anchor="start" x="2704.5" y="-225.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">flat ~0.33 null</text>
+<polygon fill="#a9d3d9" stroke="none" points="2675.5,-283.5 2675.5,-310.5 2954.5,-310.5 2954.5,-283.5 2675.5,-283.5"/>
+<polygon fill="none" stroke="black" points="2675.5,-283.5 2675.5,-310.5 2954.5,-310.5 2954.5,-283.5 2675.5,-283.5"/>
+<text xml:space="preserve" text-anchor="start" x="2752.75" y="-292.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">stage&#45;4 long GRPO</text>
+<polygon fill="#efefef" stroke="none" points="2675.5,-261.75 2675.5,-283.5 2954.5,-283.5 2954.5,-261.75 2675.5,-261.75"/>
+<polygon fill="none" stroke="black" points="2675.5,-261.75 2675.5,-283.5 2954.5,-283.5 2954.5,-261.75 2675.5,-261.75"/>
+<text xml:space="preserve" text-anchor="start" x="2785.75" y="-269.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="2675.5,-240 2675.5,-261.75 2954.5,-261.75 2954.5,-240 2675.5,-240"/>
+<text xml:space="preserve" text-anchor="start" x="2681.5" y="-248.25" font-family="Helvetica,sans-Serif" font-size="9.00">stabilized GRPO + full reward from the distilled base, 150 updates</text>
+<polygon fill="#4a4a4a" stroke="none" points="2675.5,-216.75 2675.5,-240 2954.5,-240 2954.5,-216.75 2675.5,-216.75"/>
+<polygon fill="none" stroke="black" points="2675.5,-216.75 2675.5,-240 2954.5,-240 2954.5,-216.75 2675.5,-216.75"/>
+<text xml:space="preserve" text-anchor="start" x="2783.5" y="-225.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">flat ~0.33 null</text>
 </g>
 <!-- distill_constrained&#45;&gt;grpo_full_fair -->
 <g id="edge59" class="edge">
 <title>distill_constrained&#45;&gt;grpo_full_fair</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2736,-409.52C2736,-382.97 2736,-350.31 2736,-322.72"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2738.45,-323 2736,-316 2733.55,-323 2738.45,-323"/>
-<text xml:space="preserve" text-anchor="middle" x="2756.25" y="-358.9" font-family="Helvetica,sans-Serif" font-size="8.00">long GRPO</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2815,-409.52C2815,-382.97 2815,-350.31 2815,-322.72"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="2817.45,-323 2815,-316 2812.55,-323 2817.45,-323"/>
+<text xml:space="preserve" text-anchor="middle" x="2835.25" y="-358.9" font-family="Helvetica,sans-Serif" font-size="8.00">long GRPO</text>
 </g>
 <!-- passk&#45;&gt;cot_14m -->
 <g id="edge17" class="edge">
@@ -1526,46 +1526,46 @@
 <!-- bestof64 -->
 <g id="node65" class="node">
 <title>bestof64</title>
-<polygon fill="#aac4dd" stroke="none" points="1536.75,-283.5 1536.75,-310.5 1613.25,-310.5 1613.25,-283.5 1536.75,-283.5"/>
-<polygon fill="none" stroke="black" points="1536.75,-283.5 1536.75,-310.5 1613.25,-310.5 1613.25,-283.5 1536.75,-283.5"/>
-<text xml:space="preserve" text-anchor="start" x="1542.75" y="-292.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;64</text>
-<polygon fill="#efefef" stroke="none" points="1536.75,-261.75 1536.75,-283.5 1613.25,-283.5 1613.25,-261.75 1536.75,-261.75"/>
-<polygon fill="none" stroke="black" points="1536.75,-261.75 1536.75,-283.5 1613.25,-283.5 1613.25,-261.75 1536.75,-261.75"/>
-<text xml:space="preserve" text-anchor="start" x="1545.75" y="-269.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1536.75,-240 1536.75,-261.75 1613.25,-261.75 1613.25,-240 1536.75,-240"/>
-<text xml:space="preserve" text-anchor="start" x="1542.75" y="-248.25" font-family="Helvetica,sans-Serif" font-size="9.00">N=64</text>
-<polygon fill="#4a4a4a" stroke="none" points="1536.75,-216.75 1536.75,-240 1613.25,-240 1613.25,-216.75 1536.75,-216.75"/>
-<polygon fill="none" stroke="black" points="1536.75,-216.75 1536.75,-240 1613.25,-240 1613.25,-216.75 1536.75,-216.75"/>
-<text xml:space="preserve" text-anchor="start" x="1563" y="-225.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.703</text>
+<polygon fill="#aac4dd" stroke="none" points="1615.75,-283.5 1615.75,-310.5 1692.25,-310.5 1692.25,-283.5 1615.75,-283.5"/>
+<polygon fill="none" stroke="black" points="1615.75,-283.5 1615.75,-310.5 1692.25,-310.5 1692.25,-283.5 1615.75,-283.5"/>
+<text xml:space="preserve" text-anchor="start" x="1621.75" y="-292.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;64</text>
+<polygon fill="#efefef" stroke="none" points="1615.75,-261.75 1615.75,-283.5 1692.25,-283.5 1692.25,-261.75 1615.75,-261.75"/>
+<polygon fill="none" stroke="black" points="1615.75,-261.75 1615.75,-283.5 1692.25,-283.5 1692.25,-261.75 1615.75,-261.75"/>
+<text xml:space="preserve" text-anchor="start" x="1624.75" y="-269.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1615.75,-240 1615.75,-261.75 1692.25,-261.75 1692.25,-240 1615.75,-240"/>
+<text xml:space="preserve" text-anchor="start" x="1621.75" y="-248.25" font-family="Helvetica,sans-Serif" font-size="9.00">N=64</text>
+<polygon fill="#4a4a4a" stroke="none" points="1615.75,-216.75 1615.75,-240 1692.25,-240 1692.25,-216.75 1615.75,-216.75"/>
+<polygon fill="none" stroke="black" points="1615.75,-216.75 1615.75,-240 1692.25,-240 1692.25,-216.75 1615.75,-216.75"/>
+<text xml:space="preserve" text-anchor="start" x="1642" y="-225.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.703</text>
 </g>
 <!-- bestof16&#45;&gt;bestof64 -->
 <g id="edge66" class="edge">
 <title>bestof16&#45;&gt;bestof64</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1575,-410.29C1575,-383.63 1575,-350.66 1575,-322.83"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1577.45,-323.04 1575,-316.04 1572.55,-323.04 1577.45,-323.04"/>
-<text xml:space="preserve" text-anchor="middle" x="1584.75" y="-358.9" font-family="Helvetica,sans-Serif" font-size="8.00">N=64</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1654,-410.29C1654,-383.63 1654,-350.66 1654,-322.83"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1656.45,-323.04 1654,-316.04 1651.55,-323.04 1656.45,-323.04"/>
+<text xml:space="preserve" text-anchor="middle" x="1663.75" y="-358.9" font-family="Helvetica,sans-Serif" font-size="8.00">N=64</text>
 </g>
 <!-- bestof128 -->
 <g id="node66" class="node">
 <title>bestof128</title>
-<polygon fill="#7fa8cf" stroke="none" points="1504.12,-86.75 1504.12,-113.75 1645.88,-113.75 1645.88,-86.75 1504.12,-86.75"/>
-<polygon fill="none" stroke="black" points="1504.12,-86.75 1504.12,-113.75 1645.88,-113.75 1645.88,-86.75 1504.12,-86.75"/>
-<text xml:space="preserve" text-anchor="start" x="1510.12" y="-95.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;128 — BEST</text>
-<polygon fill="#efefef" stroke="none" points="1504.12,-65 1504.12,-86.75 1645.88,-86.75 1645.88,-65 1504.12,-65"/>
-<polygon fill="none" stroke="black" points="1504.12,-65 1504.12,-86.75 1645.88,-86.75 1645.88,-65 1504.12,-65"/>
-<text xml:space="preserve" text-anchor="start" x="1545.75" y="-73.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="1504.12,-43.25 1504.12,-65 1645.88,-65 1645.88,-43.25 1504.12,-43.25"/>
-<text xml:space="preserve" text-anchor="start" x="1510.12" y="-51.5" font-family="Helvetica,sans-Serif" font-size="9.00">N=128</text>
-<polygon fill="#1f5e66" stroke="none" points="1504.12,-20 1504.12,-43.25 1645.88,-43.25 1645.88,-20 1504.12,-20"/>
-<polygon fill="none" stroke="black" points="1504.12,-20 1504.12,-43.25 1645.88,-43.25 1645.88,-20 1504.12,-20"/>
-<text xml:space="preserve" text-anchor="start" x="1512.38" y="-28.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.719 · valid 0.979 (plateau)</text>
+<polygon fill="#7fa8cf" stroke="none" points="1583.12,-86.75 1583.12,-113.75 1724.88,-113.75 1724.88,-86.75 1583.12,-86.75"/>
+<polygon fill="none" stroke="black" points="1583.12,-86.75 1583.12,-113.75 1724.88,-113.75 1724.88,-86.75 1583.12,-86.75"/>
+<text xml:space="preserve" text-anchor="start" x="1589.12" y="-95.45" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">best&#45;of&#45;128 — BEST</text>
+<polygon fill="#efefef" stroke="none" points="1583.12,-65 1583.12,-86.75 1724.88,-86.75 1724.88,-65 1583.12,-65"/>
+<polygon fill="none" stroke="black" points="1583.12,-65 1583.12,-86.75 1724.88,-86.75 1724.88,-65 1583.12,-65"/>
+<text xml:space="preserve" text-anchor="start" x="1624.75" y="-73.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="1583.12,-43.25 1583.12,-65 1724.88,-65 1724.88,-43.25 1583.12,-43.25"/>
+<text xml:space="preserve" text-anchor="start" x="1589.12" y="-51.5" font-family="Helvetica,sans-Serif" font-size="9.00">N=128</text>
+<polygon fill="#1f5e66" stroke="none" points="1583.12,-20 1583.12,-43.25 1724.88,-43.25 1724.88,-20 1583.12,-20"/>
+<polygon fill="none" stroke="black" points="1583.12,-20 1583.12,-43.25 1724.88,-43.25 1724.88,-20 1583.12,-20"/>
+<text xml:space="preserve" text-anchor="start" x="1591.38" y="-28.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">0.719 · valid 0.979 (plateau)</text>
 </g>
 <!-- bestof64&#45;&gt;bestof128 -->
 <g id="edge67" class="edge">
 <title>bestof64&#45;&gt;bestof128</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M1575,-212.98C1575,-186.42 1575,-153.58 1575,-125.86"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1577.45,-126.1 1575,-119.1 1572.55,-126.1 1577.45,-126.1"/>
-<text xml:space="preserve" text-anchor="middle" x="1587" y="-162.15" font-family="Helvetica,sans-Serif" font-size="8.00">N=128</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M1654,-212.98C1654,-186.42 1654,-153.58 1654,-125.86"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="1656.45,-126.1 1654,-119.1 1651.55,-126.1 1656.45,-126.1"/>
+<text xml:space="preserve" text-anchor="middle" x="1666" y="-162.15" font-family="Helvetica,sans-Serif" font-size="8.00">N=128</text>
 </g>
 </g>
 </svg>

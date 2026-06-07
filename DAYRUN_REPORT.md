@@ -28,8 +28,8 @@ from its own baseline, so nothing regresses.
 | scale | large (50M) = stage-1 | **0.281** | 0.719 | 0.662 | the peak |
 | scale | xl (99M) SFT | **0.270** | … | 0.591 | TRAIN[:200] 0.550 — **turns over**: held-out drops vs 50M, validity drops, gen-gap widest |
 | data | full-dict-secrets SFT | — | — | — | **deprioritized**: InfoMax teacher is O(n²) over the candidate pool → full-dict secrets are compute-bottlenecked; cheap consistent-teacher version = non-strategic (uncertain benefit) |
-| search | beam over trie | … | — | … | queued |
-| search | best-of-N on xl | — | … | … | queued |
+| search | beam over trie (stage-1) | — | **0.550** | 1.000 | aided, **deterministic**: sequence-argmax over real words; +11pts over greedy-constrained 0.436, best non-sampling number |
+| search | best-of-64 on xl | — | … | … | running |
 | framing | deployed + best-of-N | … | … | … | queued |
 
 ## Running conclusion
