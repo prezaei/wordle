@@ -1,31 +1,40 @@
-# Experiment map — STYLE SAMPLE (2 example nodes + a fork)
+# Experiment map — STYLE SAMPLE v2 (recipes + decisions, grouped lanes)
 
-This is a small sample to confirm the format before I build the full map. Each **box** = one experiment
-(name · script · config · ─── · result · verdict). **Arrows** = forks (what was built *from* what).
-Color = outcome. (Renders on GitHub.)
+Revised per feedback: **no filenames**; each box shows the **actual recipe** + the **decision** that
+spawned it + result. Grouped into **theme lanes**. Sample below shows the foundations → honesty arc
+(~6 of the ~35 nodes). The full version will ship as **both** a Mermaid `.md` (this) and a Graphviz
+`.dot`/SVG (after `brew install graphviz`).
 
 ```mermaid
 graph TD
-  S1["<b>stage-1 · fair SFT</b> — cot_eph_aux_fair.pt<br/>50M · pretrain-30 + ephemeral-CoT + aux λ=1.0<br/>dictionary pools · answer-hood train-only · disjoint VAL/TEST<br/>━━━━━━━━━━<br/><b>TEST 0.281</b> win · 0.662 valid · avg 4.33<br/>📍 the honest base of everything"]:::base
+  subgraph FOUND["🧱 FOUNDATIONS (head-start SFT, contaminated lineage)"]
+    direction TB
+    SFT["<b>char SFT</b><br/><i>recipe:</i> 50M decoder-only char-transformer · spell-pretrain on word list · SFT = masked next-letter cross-entropy on the 5 guess letters, over InfoMax+consistent teacher games · no CoT · no aux<br/><i>decision:</i> imitation head-start before RL (spec §5.5)<br/>───<br/>held 0.402 · valid 0.664 ⚠️ contaminated-lineage"]:::cont
+    COT["<b>+ ephemeral CoT</b><br/><i>recipe:</i> add a throwaway per-turn reasoning scratchpad (&lt;think&gt; candidate words), regenerated each turn & discarded at inference; history stays board-only<br/><i>decision:</i> let it 'reason' before committing, without leaking think across turns<br/>───<br/>held 0.430 ⚠️ contaminated-lineage"]:::cont
+    AUX["<b>+ aux trie-validity</b><br/><i>recipe:</i> add auxiliary loss −log P(next letter continues a real word) on the guess letters (trie over the valid-guess list, training-only)<br/><i>decision:</i> bake spelling into the weights so free-gen emits real words<br/>───<br/>held <b>0.616</b> · valid 0.788 ⚠️ contaminated-lineage (the two levers stacked super-additively)"]:::cont
+  end
 
-  DPO["<b>DPO commit-sharpening</b> — dpo_fair.py<br/>from stage-1 · β=0.1 · 1,900 win/loss pairs · 4 epochs<br/>━━━━━━━━━━<br/>TEST 0.281 · valid 0.666<br/>❌ <b>NULL</b> — every epoch regressed → reverted to base"]:::null
+  subgraph HON["🔬 HONESTY AUDIT → FAIR RE-RUN"]
+    direction TB
+    AUDIT(["<b>adversarial investigation</b> (4 agents, receipts)<br/><i>decision:</i> user — '/adversarial: is the model built correctly?'<br/>───<br/>found 4 contamination channels: held-out words were loss-True targets via the teacher + CoT candidate pools"]):::audit
+    CLEAN["<b>clean re-run</b><br/><i>recipe:</i> identical, but candidate+teacher pools = TRAIN-only · disjoint VAL/TEST selection<br/><i>decision:</i> remove ALL leakage, measure the honest number<br/>───<br/><b>TEST 0.166</b> ⬇️ leaks were the dominant lever (0.616→0.166)"]:::honest
+    FAIR["<b>fair-honest SFT (stage-1)</b><br/><i>recipe:</i> candidate/teacher pools = full 14,855-word dictionary (spelling is public) but answer-hood TRAIN-only · cranked spell-pretrain 30ep + aux λ=1.0<br/><i>decision:</i> user — 'how can it learn the words if you hold them ALL out?' → know-the-dictionary, deduce-unseen-answers<br/>───<br/><b>TEST 0.281</b> · valid 0.662 · avg 4.33 📍 honest base"]:::honest
+  end
 
-  CD["<b>constrained-decode diagnostic</b> — constrained_decode_eval.py<br/>SAME stage-1 weights · greedy masked to the valid-word trie<br/>spelling-only (the model still does all the deduction)<br/>━━━━━━━━━━<br/><b>TEST 0.436</b> · valid 1.000<br/>🔍 <b>AIDED</b> — proves the model knows the words"]:::aided
+  SFT -->|"add reasoning"| COT -->|"add spelling loss"| AUX
+  AUX -->|"is this real? audit it"| AUDIT
+  AUDIT -->|"strip leakage"| CLEAN
+  CLEAN -->|"restore dictionary (public), keep answers held"| FAIR
 
-  S1 -->|"preference RL"| DPO
-  S1 -->|"inference-time aid"| CD
-
-  classDef base  fill:#26323d,stroke:#7ab6c0,color:#e6f3f6,stroke-width:2px
-  classDef null  fill:#3a2326,stroke:#b06b6b,color:#f6dada
-  classDef aided fill:#22303c,stroke:#6699bb,color:#dcebf6
+  classDef cont   fill:#2e2b26,stroke:#9a8a5a,color:#efe7d2,stroke-width:1px
+  classDef honest fill:#24323a,stroke:#7ab6c0,color:#e6f3f6,stroke-width:2px
+  classDef audit  fill:#3a2f1e,stroke:#cc9a4a,color:#f6e9cf
 ```
 
-**Legend (outcome colors):** 🟦 baseline/SFT · 🟥 null (no gain) · 🟦(blue) aided/diagnostic · (full map
-will add 🟩 genuine improvement). Emoji verdicts: ❌ null · 🔍 aided · 🎯 win · ⚠️ regressed/contaminated.
+**Legend** — ⚠️ contaminated-lineage (gray) · honest result (teal) · audit/process (amber) · (full map
+adds 🟥 null · 🟦 aided-inference · 🟩 genuine win). Edges labeled with the *decision*.
 
-## What the full map will contain
-~30–40 nodes across the whole thread, grouped into lanes: **foundations** (pretrain → char-SFT → CoT →
-aux → DPO) · **honesty audits** (contamination → clean re-run → fair recipe) · **RL** (GRPO variants) ·
-**validity push** (DAgger, distillation, info-gain XIT) · **scale sweep** (tiny/base/large/xl) ·
-**inference** (constrained-decode, best-of-N N=16/64/128, beam). Every fork edge labeled with the
-*decision* that spawned it (often a user steer, e.g. "make it genuinely generate words").
+## Full map plan (~35 nodes, lanes)
+🧱 Foundations · 🔬 Honesty audits · 🤖 RL (GRPO variants) · 🩹 Validity push (DAgger / distillation /
+info-gain XIT) · 📐 Scale sweep (tiny→xl) · ⚡ Inference (constrained-decode, best-of-N 16/64/128, beam) ·
+🚀 Deployed framing. Cross-lane fork arrows for decisions that jumped themes.
