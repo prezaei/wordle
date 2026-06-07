@@ -55,7 +55,8 @@ VALID = load_valid_guesses()
 K_CANDS = 3
 AUX_LAMBDA = 1.0
 SQ = {Color.GREEN: "🟩", Color.YELLOW: "🟨", Color.GRAY: "⬜"}
-STAGE1 = "runs/cot_eph_aux_fair.pt"
+STAGE1 = os.environ.get("RFT_BASE", "runs/cot_eph_aux_fair.pt")  # warm-start ckpt (STaR: point at prev iter)
+OUT = os.environ.get("RFT_OUT", "runs/rft_stage2.pt")  # output ckpt (distinct per STaR iter)
 
 N = int(os.environ.get("RFT_N", "16"))
 TEMP = float(os.environ.get("RFT_TEMP", "1.0"))
@@ -303,7 +304,7 @@ def main():
         flag = ""
         if m["win"] > best:
             best = m["win"]
-            save_checkpoint("runs/rft_stage2.pt", model, opt, epoch, SFTConfig())
+            save_checkpoint(OUT, model, opt, epoch, SFTConfig())
             saved = True
             flag = "  <- best, saved"
         print(f"  epoch {epoch:>2}  loss={float(loss.detach()):.3f}  viz_win={vmet['win']:.3f} "
@@ -317,7 +318,7 @@ def main():
         print("\n[RFT DONE]", flush=True)
         return
     b = WordleGenerator(CFG, VOCAB).to(DEV)
-    load_checkpoint("runs/rft_stage2.pt", b)
+    load_checkpoint(OUT, b)
     ft, fv, ftr = evaluate(b, TEST), evaluate(b, VAL), evaluate(b, tuple(train[:200]))
     print(f"  TEST  (HONEST headline) : win {ft['win']:.3f} ({int(round(ft['win'] * len(TEST)))}/{len(TEST)}) "
           f"valid {ft['valid']:.3f} avg {ft['avg']:.2f}", flush=True)
