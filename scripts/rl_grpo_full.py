@@ -253,20 +253,19 @@ for u in range(UPDATES):
               f"held6={e6['win']:.3f} held{ROWS}={e10['win']:.3f} valid={e10['valid']:.3f}  ({time.time() - t0:.0f}s){flag}", flush=True)
     else:
         print(f"[upd {u:>2}] win/grp {win_n}/{B_SECRETS * G} kept {kept_groups}  surr={surr:.3f} kl={kl:.4f}  ({time.time() - t0:.0f}s)", flush=True)
-    # live dashboard: log the EXACT sampled rollouts + grades ONLY at eval points (every 8 updates),
-    # not every update — so it doesn't churn the dashboard regularly. 16 = the first 2 full same-secret
-    # groups, so the grade spread within a group is visible; plus the rollout valid-rate (blue line).
-    if eval_win is not None:  # set only on eval updates (u % 8 == 0 or last)
-        n_g = sum(len(g.turns) for g in games)
-        rl_metrics = {
-            "reward_mean": sum(rewards) / len(rewards),
-            "kl": kl,
-            "win_train": win_n / (B_SECRETS * G),
-            "valid": sum(is_valid(t.guess) for g in games for t in g.turns) / max(1, n_g),
-            "eval_win": eval_win,
-        }
-        append_epoch(PROG, u, rl_metrics, games, sample=16, kind="rl",
-                     grades=[{"reward": rewards[i], "adv": game_adv[i]} for i in range(len(games))])
+    # live dashboard: log ALL the EXACT sampled rollouts GRPO trains on + their grade (reward `r=` +
+    # advantage `A=`) and the rollout valid-rate — EVERY update (real-time), so you see them ASAP.
+    n_g = sum(len(g.turns) for g in games)
+    rl_metrics = {
+        "reward_mean": sum(rewards) / len(rewards),
+        "kl": kl,
+        "win_train": win_n / (B_SECRETS * G),
+        "valid": sum(is_valid(t.guess) for g in games for t in g.turns) / max(1, n_g),
+    }
+    if eval_win is not None:
+        rl_metrics["eval_win"] = eval_win
+    append_epoch(PROG, u, rl_metrics, games, sample=len(games), kind="rl",
+                 grades=[{"reward": rewards[i], "adv": game_adv[i]} for i in range(len(games))])
 
 print(f"\n=== GRPO polish: full held-out ({len(held)}), best checkpoint ===", flush=True)
 b = WordleGenerator(CFG, VOCAB).to(DEV)

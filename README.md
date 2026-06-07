@@ -72,9 +72,8 @@ so the validity gain is actually banked — pure best-by-win was discarding it.)
 encodes both (−invalid penalty **and** +win bonus), so GRPO optimizes win **and** validity together
 on-policy — and the *continuous* reward dodges the zero-variance-filter trap a pure-validity reward
 hits. Run **from the distilled (~0.80-valid) base**, 150 updates, stabilized settings, best-by-win,
-frequent held-out eval. The dashboard shows the **exact sampled rollouts** GRPO trains on — but only
-**at each eval point (every 8 updates), not every update** — (16 = 2 full same-secret groups) with their
-**grade** (reward `r=` + advantage `A=`) and a validity line.
+frequent held-out eval. The dashboard shows **all the exact sampled rollouts** GRPO trains on, **every
+update** (real-time), each with its **grade** (reward `r=` + advantage `A=`) and a validity line.
 GRPO previously underdelivered here, but those were *vocabulary-injection* failures — validity is an
 *expression* problem (the model knows the words), which RL suits.
 
