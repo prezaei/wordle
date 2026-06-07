@@ -47,8 +47,10 @@ Plus a spelling push (pretrain warm-up 10→30, aux-validity λ 0.5→1.0). `scr
 **Validity findings (the "only valid words" push):** validity plateaus **~0.66 on TEST** for pure
 free-gen on 50M — cranking pretrain+aux did *not* push it dramatically higher, and **validity-targeted
 DAgger v1 was a NULL result** (validity flat 0.66→0.63 across 4 rounds) because the corrective set was
-only **399 / 14,867 = 2.6%** of the data — drowned out (`scripts/dagger_validity.py`). Fix in flight:
-**DAgger v2** oversamples corrective ×20. Note the fair recipe's 0.66 validity is *lower* than the old
+only **399 / 14,867 = 2.6%** of the data — drowned out (`scripts/dagger_validity.py`). **DAgger v2**
+oversampled corrective ×20 and was **also null** (validity flat ~0.66, and it *hurt* win) → the ~0.66
+ceiling is **structural** (no-lookahead autoregressive drift), not a data-weighting issue. Note the
+fair recipe's 0.66 validity is *lower* than the old
 contaminated ~0.75 **by design** — dictionary candidate pools train on the hard full 14k vocab (rare,
 hard-to-spell), which is also *why* win is higher; it's a validity-for-honest-play trade. Pure free-gen
 to ≈1.0 ("only valid words") is not reachable on 50M — the last ~30% needs dictionary-constrained

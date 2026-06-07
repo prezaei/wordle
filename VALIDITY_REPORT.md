@@ -50,8 +50,24 @@ Validity flat/down; best-by-VAL stayed the **stage-1 baseline** → final = stag
 **Why:** only **399 corrective examples accumulated vs 14,867 base (2.6%)** — the correction was
 negligible in the aggregated set. Fixable: oversample the corrective set (→ v2).
 
-### Stage 2b — DAgger v2 (corrective ×20) — *running*
-*(updated when it finishes — testing how far conditional correction pushes the free-gen ceiling.)*
+### Stage 2b — DAgger v2 (corrective ×20) — ALSO NULL (and degrades win)
+
+| round | invalid-rate | VAL win | VAL valid |
+|---|---|---|---|
+| 1 | 0.27 | 0.281 | 0.665 |
+| 2 | 0.31 | 0.219 | 0.604 |
+| 3 | 0.35 | 0.135 | 0.654 |
+| 4 | 0.30 | 0.240 | 0.675 |
+
+Oversampling the corrective set 20× did **not** lift validity (flat ~0.66) and **hurt win** (every
+round below the 0.344 baseline → best-by-VAL reverted to stage 1). Not a data-weighting issue.
+
+**Conclusion — the ~0.66 validity ceiling is structural.** In-the-weights levers are exhausted:
+stronger pretrain, stronger aux (λ=1.0), and DAgger (±oversample) all plateau pure free-gen validity
+at ~0.66, and DAgger *hurts* win. The remaining invalid words come from **no-lookahead autoregressive
+generation** drifting into letter-combinations that don't complete to a real word under tight clue
+constraints — imitation/correction can't guarantee against that without lookahead. This is exactly
+the gap **constrained decoding** closes.
 
 ## The honest assessment
 
