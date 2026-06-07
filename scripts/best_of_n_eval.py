@@ -34,6 +34,7 @@ _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"
 N = int(os.environ.get("BON_N", "16"))
 TEMP = 1.0
 CKPT = os.environ.get("BON_CKPT", "runs/cot_eph_aux_fair.pt")
+FILTER = os.environ.get("BON_FILTER", "valid")  # "valid" (spelling-aided) | "none" (pure free-gen vote)
 
 
 def _letters(w):
@@ -90,9 +91,9 @@ def play_bon(model, secret, n):
     g = Game(secret)
     while g.status is Status.ONGOING:
         words = sample_guesses(model, board_only(g.turns), n)
-        valid = [w for w in words if is_valid(w)]  # spelling-only filter (public dictionary)
-        if valid:
-            guess = Counter(valid).most_common(1)[0][0]  # majority vote among valid samples
+        pool = [w for w in words if is_valid(w)] if FILTER == "valid" else words  # spelling filter optional
+        if pool:
+            guess = Counter(pool).most_common(1)[0][0]  # majority vote (self-consistency)
         elif words:
             guess = Counter(words).most_common(1)[0][0]
         else:
