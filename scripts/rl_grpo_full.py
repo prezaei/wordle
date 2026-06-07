@@ -38,7 +38,7 @@ ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
 _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"}
 ROWS = 6
 TEMP = 1.0
-EPS, BETA_KL = 0.2, 0.05  # stronger KL anchor to the good ref (the unstable run used 0.01)
+EPS, BETA_KL = 0.2, 0.2  # 0.05 collapsed at upd 8 (KL->NaN); stronger anchor since ratio==1 so KL is the only stabilizer
 SQ = {Color.GREEN: "🟩", Color.YELLOW: "🟨", Color.GRAY: "⬜"}
 
 
@@ -177,13 +177,16 @@ def grpo_step(model, ref, opt, seqs_adv):
         mask = am[:, 1:]
         ratio = torch.exp(logp - logp.detach())  # =1 at K=1; gradient flows -> REINFORCE w/ baseline
         surr = torch.min(ratio * adv, torch.clamp(ratio, 1 - EPS, 1 + EPS) * adv)
-        d = rlogp - logp
+        d = torch.clamp(rlogp - logp, -10.0, 10.0)  # clamp prevents exp() overflow -> NaN KL
         kl = torch.exp(d) - d - 1.0  # k3, >= 0
         loss = (-(surr * mask).sum() + BETA_KL * (kl * mask).sum()) / total_tok
         loss.backward()
         surr_sum += float((surr * mask).sum().detach())
         kl_sum += float((kl * mask).sum().detach())
-    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    gn = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+    if not torch.isfinite(gn):  # non-finite grad -> skip the step (don't corrupt the weights)
+        opt.zero_grad()
+        return surr_sum / total_tok, float("nan")
     opt.step()
     return surr_sum / total_tok, kl_sum / total_tok
 
@@ -206,8 +209,8 @@ b6 = evaluate(model, curve, 6)
 b10 = evaluate(model, curve, ROWS)
 print(f"[base] held6={b6['win']:.3f}  held{ROWS}={b10['win']:.3f} valid={b10['valid']:.3f}", flush=True)
 
-UPDATES, B_SECRETS, G = 150, 8, 8
-opt = torch.optim.AdamW(model.parameters(), lr=5e-6, weight_decay=0.0)  # smaller steps for stability
+UPDATES, B_SECRETS, G = 80, 8, 8
+opt = torch.optim.AdamW(model.parameters(), lr=2e-6, weight_decay=0.0)  # 5e-6 collapsed; smaller steps
 rngS = Random(7)
 order = list(train)
 rngS.shuffle(order)
@@ -240,6 +243,9 @@ for u in range(UPDATES):
                 seqs_adv.append((seq, amask, a))
     model.train()
     surr, kl = grpo_step(model, ref, opt, seqs_adv) if seqs_adv else (0.0, 0.0)
+    if kl != kl or surr != surr:  # NaN => collapse; stop cleanly, the best-by-win ckpt is preserved
+        print(f"[upd {u:>2}] COLLAPSE (surr={surr} kl={kl}) — stopping; best-by-win checkpoint kept", flush=True)
+        break
     eval_win = None
     if u % 8 == 0 or u == UPDATES - 1:
         e6 = evaluate(model, curve, 6)
