@@ -30,7 +30,8 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
 | stage-1 baseline | 0.281 | 0.662 | — | the bar |
 | 1 — info-gain XIT (constrained) | 0.281 | 0.662 | **flat (null)** | VAL dropped to 0.27–0.29 over rounds → best-by-quality kept baseline |
 | 2 — info-gain XIT (free / STaR) | 0.281 | 0.662 | **flat (null)** | VAL 0.24–0.28 over rounds → kept baseline |
-| 3 — DPO commit-sharpening (fair base) | … | … | … | running |
+| 3 — DPO commit-sharpening (fair base) | 0.281 | 0.666 | **flat (null)** | every epoch regressed on VAL → reverted to base; full-held 0.294 = base |
+| 4 — best-of-N self-consistency (aided) | … | … | … | running |
 
 ## Running conclusion
 - **Exp 1 (info-gain XIT, constrained / Design B) = null.** The dense info-gain signal *did* select
@@ -43,3 +44,8 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
   (flat), DAgger (null), and distillation (trade): **every method that only re-weights or imitates
   existing behavior is stuck at ~0.28** — the wall is the model's inability to reliably produce+deduce
   unseen words in free-gen, which these methods cannot inject.
+- **Exp 3 (DPO commit-sharpening, fair base) = null.** Every epoch regressed on VAL and auto-reverted;
+  final = base. Notable: the *same* DPO recipe LIFTED the contaminated base (0.616→0.631) — because
+  there it had a real "finds the line, greedy-commits wrong" gap to sharpen. The honest base has little
+  such gap (it often can't find the line at all), so DPO has nothing to sharpen. The contamination is
+  literally what made DPO look like it worked.
