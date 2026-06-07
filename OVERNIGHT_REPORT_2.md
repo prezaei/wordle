@@ -28,9 +28,13 @@ it would eat the night for a marginal, off-thesis gain. Better spent on diverse 
 | experiment | TEST win | TEST valid | vs stage-1 | note |
 |---|---|---|---|---|
 | stage-1 baseline | 0.281 | 0.662 | — | the bar |
-| 1 — info-gain XIT (constrained) | … | … | … | running |
-| 2 — info-gain XIT (free) | … | … | … | queued |
+| 1 — info-gain XIT (constrained) | 0.281 | 0.662 | **flat (null)** | VAL dropped to 0.27–0.29 over rounds → best-by-quality kept baseline |
+| 2 — info-gain XIT (free) | … | … | … | running |
 | 3 — info-gain DPO | … | … | … | queued |
 
 ## Running conclusion
-*(updated overnight; final verdict + best honest model in the morning.)*
+- **Exp 1 (info-gain XIT, constrained / Design B) = null.** The dense info-gain signal *did* select
+  good-deduction turns (mean 1.6 nats/turn kept), but training the free-gen model on the constrained
+  model's choices **did not transfer** to pure free-gen held-out (VAL even dipped). Same lesson as
+  distillation: a training-wheel signal doesn't cross the train→inference gap for free-gen. The
+  deduction wall holds against imitation of constrained play.
