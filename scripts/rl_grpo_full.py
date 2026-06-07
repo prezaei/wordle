@@ -193,9 +193,10 @@ curve = tuple(held[:96])
 PROG = "runs/grpo_full_progress.jsonl"  # per-update rollouts+grades -> scripts/live_viz.py
 if os.path.exists(PROG):
     os.remove(PROG)  # start each run clean
-print("[load] runs/dpo.pt (Phase-1 result) …", flush=True)
+GRPO_IN = os.environ.get("GRPO_IN", "runs/cot_eph_aux_distill.pt")  # base to RL from
+print(f"[load] {GRPO_IN} …", flush=True)
 model = WordleGenerator(CFG, VOCAB).to(DEV)
-load_checkpoint(os.environ.get("GRPO_IN", "runs/cot_eph_aux_distill.pt"), model)  # default: build on the distilled base
+load_checkpoint(GRPO_IN, model)
 ref = copy.deepcopy(model).to(DEV)
 ref.eval()
 for p in ref.parameters():
