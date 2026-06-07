@@ -146,14 +146,15 @@ stays 0.281** — training cannot inject the missing produce-and-deduce-unseen-w
 | best-of-16 vote, no dict | 0.243 | 0.635 | compute only — *worse* |
 | constrained-decode greedy | 0.436 | 1.000 | spelling |
 | best-of-16 vote, valid-filter | 0.632 | 0.925 | spelling + compute |
-| **best-of-64 vote, valid-filter** (**best honest**) | **0.703** | 0.963 | spelling + more compute |
+| best-of-64 vote, valid-filter | 0.703 | 0.963 | spelling + more compute |
+| **best-of-128 vote, valid-filter** (**best honest**) | **0.719** | 0.979 | spelling + most compute |
 
 The **dictionary/spelling aid at inference is the lever** (0.281→0.436); sample-and-vote adds on top and
-**scales with compute (0.436→0.632→0.703 at N=1/16/64)** — but only because it has valid candidates to
-vote among (compute over raw free-gen samples *hurts*, 0.243). **The honest 0.703 beats the old
-contaminated 0.62 — cleanly.** Honesty win: DPO's earlier 0.616→0.631 was **contamination-dependent**
-(null on the clean base). Two numbers to quote: **0.281 (model alone)** and **0.703 (model + honest
-aided, compute-scaled decoding).**
+**scales with compute to a ~0.72 plateau (0.436→0.632→0.703→0.719 at N=1/16/64/128)** — but only because
+it has valid candidates to vote among (compute over raw free-gen samples *hurts*, 0.243). **The honest
+0.72 beats the old contaminated 0.62 — cleanly.** Honesty win: DPO's earlier 0.616→0.631 was
+**contamination-dependent** (null on the clean base). Two numbers to quote: **0.281 (model alone)** and
+**~0.72 (model + honest aided, compute-scaled decoding).**
 
 ### ⚠️ Adversarial audit (2026-06-05): held-out contamination — methodology violation, win-impact refuted
 
