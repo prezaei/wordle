@@ -41,3 +41,39 @@ turns over at 99M**: the bigger net memorizes the train secrets harder (TRAIN[:2
 the widest gap in the sweep) *and* spells worse (valid 0.662 → 0.591). So the deduction/vocabulary wall
 is **not** a capacity problem — adding parameters past 50M buys memorization, not generalization. This
 matches the audit story: the lever is data honesty + test-time compute, not weight count.
+
+---
+
+## Autonomous push #3 (2026-06-07, unattended): chase the REAL in-weights number
+
+**Mandate:** "do anything for the best real and honest results, rework stages, question everything, do
+not stop." So this push targets the **free-gen greedy held-out** number (0.281) — the only number with
+*no* inference aid — rather than the dictionary-aided ones.
+
+**The governing fact (questioned and re-derived):** on the *same* held-out TEST, **best-of-N reaches
+~0.70 where greedy gets 0.281.** The capability *generalizes*; greedy decoding fails to surface it. And
+honest inference *without* the dictionary can't close it (no-dict sample+vote = 0.243 < greedy) — so the
+dictionary is the only inference lever, and it's labeled aided. ⇒ **To raise the real number we must move
+capability into the weights.**
+
+**Why the obvious training levers are dead ends (so we don't re-run them):**
+- *Plain RL / RFT-on-train is redundant.* The near-optimal teacher already wins ~all TRAIN secrets, so
+  the model's own wins on the same secrets add no coverage. (This is the most likely reason info-gain-XIT
+  and the clean GRPO/DAgger family were all null.)
+- *More scale* memorizes harder (above).
+- *More diverse secrets* hurt before (0.188–0.220): obscure dictionary words as secrets don't match the
+  answer-like held-out distribution.
+
+**The one bet with theoretical grounding — on-policy self-distillation (RAFT/RFT), stage-2.** Distill the
+model's *own* per-turn best-of-N **valid-vote winning games** (reward-1 samples = reward-weighted MLE =
+a policy-improvement step) back into greedy, anchored by a teacher slice to avoid forgetting. Rationale:
+teacher trajectories are *off-policy* (teacher's argmax word ≠ the model's), so greedy can't reproduce
+them; the model's sampled wins are *on-policy* (words it already ranks high) → greedy-reproducible.
+Honest: rollouts use only the model's samples + public spelling + majority vote (never the secret);
+"won" is judged on TRAIN secrets; eval = free-gen greedy on disjoint TEST. Driver: `scripts/rft_distill.py`.
+
+| stage-2 step | status |
+|---|---|
+| pilot (500 secrets, N=12, 12 ep) — quick signal | running |
+| full run + STaR-iterate if pilot lifts VAL | queued |
+| fallback if null: regularization retrain (dropout↑) ; on-policy think-distill v2 ; word-level validity | queued |
