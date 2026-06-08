@@ -264,9 +264,10 @@ def main():
                 "avg": statistics.mean(x.guesses_used for x in vwins) if vwins else float("nan")}
         append_epoch(PROG, epoch, vmet, vgames, sample=12, kind="sft")
         m = evaluate(model, VAL)
+        sel = m["valid"] if os.environ.get("VM_SELECT", "win") == "valid" else m["win"]  # validity is robust
         flag = ""
-        if m["win"] > best:
-            best = m["win"]
+        if sel > best:
+            best = sel
             save_checkpoint(OUT, model, opt, epoch, SFTConfig())
             saved = True
             flag = "  <- best, saved"
