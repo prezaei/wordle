@@ -37,7 +37,8 @@ DEV = "mps"
 torch.manual_seed(0)
 tok = Tokenizer()
 THINK = tok.vocab_size
-VOCAB = tok.vocab_size + 1
+BLANK = tok.vocab_size + 1  # dedicated template blank token (not the overloaded <gray>=absent)
+VOCAB = tok.vocab_size + 2
 CFG = ModelConfig(d_model=512, n_layers=16, n_heads=8, d_ff=2048, context_len=256, dropout=0.1)
 OPENERS = ("salet", "crane", "slate", "trace", "stare", "raise", "crate")
 _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"}
@@ -47,10 +48,9 @@ LIDS = torch.tensor(LETTER_IDS, device=DEV)
 LETTER_LO = tok.token_to_id("a")
 ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
 WORD_STARTS = {THINK, tok.guess_id}
-BLANK = tok.gray_id  # reuse <gray> as the template blank placeholder (no new vocab)
 VALID = load_valid_guesses()
 K_CANDS = 3
-AUX_LAMBDA = float(os.environ.get("IF_AUX", "3.0"))
+AUX_LAMBDA = float(os.environ.get("IF_AUX", "6.0"))  # combine the proven validity lever (was 3)
 EPOCHS = int(os.environ.get("IF_EPOCHS", "18"))
 LR = float(os.environ.get("IF_LR", "1.5e-4"))
 CAP = int(os.environ.get("IF_SECRETS", "1200"))
@@ -201,8 +201,9 @@ def main():
     model = WordleGenerator(CFG, VOCAB).to(DEV)
     if BASE == "scratch":  # FULL retrain: spell warm-up, then learn the template format natively
         from wordle_slm.sft import pretrain_lm, pretrain_words
-        print("[infill] scratch: spell warm-up (pretrain_lm) ...", flush=True)
-        pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=30, batch_size=256, device=DEV, seed=0)
+        pre = int(os.environ.get("IF_PRETRAIN", "30"))
+        print(f"[infill] scratch: spell warm-up (pretrain_lm {pre} ep) ...", flush=True)
+        pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=pre, batch_size=256, device=DEV, seed=0)
     else:
         load_checkpoint(BASE, model)
         base = clean_metrics(model, VAL)
