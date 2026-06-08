@@ -78,7 +78,8 @@ Honest: rollouts use only the model's samples + public spelling + majority vote 
 | RFT pilot (LR 1e-4) | — | — | NULL (LR damaged the minimum) |
 | **RFT best-shot** (LR 3e-5, on-policy ×3) | **0.319** (117/367) | 0.681 | **first method to beat stage-1** (+0.038, ~1.6σ) |
 | **validity-max** (aux λ3 + constrained games) | **0.305** (112/367) | 0.712 | validity rose 0.662→0.712, win partly followed (+0.024) |
-| STaR iter-2 (RFT from the 0.319 ckpt) | running | | the confirmation: real signal climbs, noise falls back |
+| STaR iter-2 (RFT from the 0.319 ckpt) | null | 0.71 | **did NOT compound** — re-warmed from VAL 0.365 but settled VAL 0.31-0.33; the 0.319 was selection-over-noise |
+| teacher-only control (gentle LR, no on-policy/constrained) | running | | attribution: is the small gain the ingredients or just re-training? |
 
 **The turn.** Two warm-start fine-tunes **beat stage-1 on disjoint TEST** — the first to do so after 8
 nulls. RFT best-shot **0.319** and validity-max **0.305** (vs 0.281). The gentle LR (3e-5) was the
