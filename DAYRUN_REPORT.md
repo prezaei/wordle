@@ -59,9 +59,14 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
 1. v3 — validity push aux8 → **clean 0.264** (validity 0.767). Within noise of v2's 0.302 → **the aux
    validity lever has PLATEAUED** (validity caps ~0.78, clean win ~0.28–0.30; aux 6→8 = no real gain).
    Best honest model stays validity-max v2 (~0.30, robustly ~0.28). Aux-cranking is exhausted.
-2. **Infill no-CoT** (`IF_THINK=0`) — green/yellow template as INPUT, generate whole word free, template-
-   aware + clue-aware validity aux (training-only). The user's idea, honest version.
-3. **Infill with-CoT** (`IF_THINK=1`) — ablation: does candidate-listing CoT help in the clean regime?
+2. **Infill no-CoT** (`IF_THINK=0`) → **clean 0.049** · **Infill with-CoT** → **clean 0.000**. Both
+   FAILED (near-all non-words; clean-VAL stayed ~0 all of training). **Diagnosis = config mistake, not the
+   idea:** I used aux **λ=6** (copied from validity-max, which was a *warm-start fine-tune*); on a
+   **scratch** model λ6 lets the per-position validity aux dominate the imitation loss → the model
+   optimizes per-position valid-letter mass instead of composing coherent words → non-words. (stage-1's
+   scratch run used λ=1.) The with-CoT 0.000 also says think+template+commit is too hard to learn from
+   scratch. ⇒ **retry no-CoT with gentle aux λ=1** (diagnostic running). If it learns, scale; else the
+   template idea doesn't beat validity-max and we pivot.
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.
