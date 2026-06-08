@@ -72,11 +72,21 @@ them; the model's sampled wins are *on-policy* (words it already ranks high) →
 Honest: rollouts use only the model's samples + public spelling + majority vote (never the secret);
 "won" is judged on TRAIN secrets; eval = free-gen greedy on disjoint TEST. Driver: `scripts/rft_distill.py`.
 
-| stage-2 step | result |
-|---|---|
-| pilot (600 secrets, N=12, 14 ep, LR 1e-4) | **NULL** — warm-start VAL 0.344 → fine-tune peaked 0.281 (never recovered); validity 0.680→0.697 |
-| best-shot (gentle LR 3e-5, on-policy upweight ×3, 18 ep) | running — rules out the LR/dilution confound |
-| STaR-iterate | only if best-shot lifts VAL (unlikely) |
+| stage-2 step | free-gen TEST | valid | read |
+|---|---|---|---|
+| stage-1 baseline | 0.281 | 0.662 | the bar |
+| RFT pilot (LR 1e-4) | — | — | NULL (LR damaged the minimum) |
+| **RFT best-shot** (LR 3e-5, on-policy ×3) | **0.319** (117/367) | 0.681 | **first method to beat stage-1** (+0.038, ~1.6σ) |
+| **validity-max** (aux λ3 + constrained games) | **0.305** (112/367) | 0.712 | validity rose 0.662→0.712, win partly followed (+0.024) |
+| STaR iter-2 (RFT from the 0.319 ckpt) | running | | the confirmation: real signal climbs, noise falls back |
+
+**The turn.** Two warm-start fine-tunes **beat stage-1 on disjoint TEST** — the first to do so after 8
+nulls. RFT best-shot **0.319** and validity-max **0.305** (vs 0.281). The gentle LR (3e-5) was the
+unlock: the pilot's 1e-4 damaged the converged minimum; 3e-5 nudges it. **Honest caveat:** both select
+the best of ~16 epochs on a 96-secret VAL → selection-over-noise inflation; +0.038 is only ~1.6σ on 367
+TEST. So I'm **not** banking it yet — the STaR iteration (roll out from the improved model, distill again)
+is the arbiter: a real gain compounds, a noise blip regresses. Also queued: a teacher-only-fine-tune
+**control** to rule out "just more training," and stacking validity-max on top of the RFT checkpoint.
 
 **Pilot read.** The rollout is healthy — best-of-12 wins **0.797** of 600 train secrets (789 winning games
 kept) — so the data is there. But the LR-1e-4 fine-tune visibly *damaged* the converged minimum (0.344 →
