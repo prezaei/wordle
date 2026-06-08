@@ -51,6 +51,7 @@ WORD_STARTS = {THINK, tok.guess_id}
 VALID = load_valid_guesses()
 K_CANDS = 3
 AUX_LAMBDA = float(os.environ.get("IF_AUX", "6.0"))  # combine the proven validity lever (was 3)
+YELLOWS = os.environ.get("IF_YELLOWS", "1") == "1"  # also pass a yellow row (present-but-excluded-here)
 EPOCHS = int(os.environ.get("IF_EPOCHS", "18"))
 LR = float(os.environ.get("IF_LR", "1.5e-4"))
 CAP = int(os.environ.get("IF_SECRETS", "1200"))
@@ -86,9 +87,25 @@ def known_greens(turns):
     return g
 
 
-def template_tokens(greens):
-    """5 tokens: green letter where known, else BLANK placeholder."""
-    return [tok.token_to_id(greens[p]) if p in greens else BLANK for p in range(5)]
+def known_yellows(turns):
+    """position -> a letter seen YELLOW there (in the word, but NOT at this position)."""
+    y = {}
+    for t in turns:
+        if t.feedback is None:
+            continue
+        for i, c in enumerate(t.feedback):
+            if c is Color.YELLOW:
+                y[i] = t.guess[i]
+    return y
+
+
+def template_tokens(greens, yellows):
+    """Green row (pinned letter or BLANK) + (if IF_YELLOWS) yellow row (present-but-excluded-here letter)."""
+    grow = [tok.token_to_id(greens[p]) if p in greens else BLANK for p in range(5)]
+    if not YELLOWS:
+        return grow
+    yrow = [tok.token_to_id(yellows[p]) if p in yellows else BLANK for p in range(5)]
+    return grow + yrow
 
 
 def pick_cands(history, guess, rng):
@@ -108,10 +125,12 @@ def build_example(game, rng):
     exs = []
     for k, turn in enumerate(game.turns):
         greens = known_greens(game.turns[:k])
+        yellows = known_yellows(game.turns[:k])
         ids = board_only(game.turns[:k])
         mask = [False] * len(ids)
-        ids += template_tokens(greens)  # the green template (context, no loss)
-        mask += [False] * 5
+        tmpl = template_tokens(greens, yellows)  # green (+yellow) template (context, no loss)
+        ids += tmpl
+        mask += [False] * len(tmpl)
         for c in pick_cands(game.turns[:k], turn.guess, rng):  # think candidates (loss)
             ids.append(THINK)
             mask.append(True)
@@ -151,7 +170,8 @@ def play_infill(model, secret):
     visible = []
     for attempt in range(1, 7):
         greens = known_greens(visible)
-        seq = board_only(visible) + template_tokens(greens)
+        yellows = known_yellows(visible)
+        seq = board_only(visible) + template_tokens(greens, yellows)
         # think phase: free-gen until <GUESS>
         for _ in range(60):
             nxt = int(ALLOWED_GEN[int(torch.argmax(model.forward(torch.tensor([seq], device=DEV))[0, -1][ALLOWED_GEN]))])
