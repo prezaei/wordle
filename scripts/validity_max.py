@@ -203,7 +203,7 @@ def main():
     _SEED = int(os.environ.get("VM_SEED", "0"))
     rng = Random(_SEED)
     games = []
-    for s in range(3):  # teacher games preserve deduction
+    for s in range(int(os.environ.get("VM_TEACHER", "3"))):  # teacher passes = path diversity
         games += [tr.game for tr in generate_transcripts(
             secrets, weak_frac=0.5, openers=safe_openers, seed=100 + s + 1000 * _SEED, valid_pool=VALID, answer_pool=secrets)]
     n_teacher = len(games)

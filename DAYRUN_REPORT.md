@@ -82,8 +82,16 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
    aren't diverse enough (all validity-recipe variants) for voting to surface more real words.
 6. **v4 verification** (seed 1) → **clean TEST 0.335** ≈ v4's 0.332. **CONFIRMED** — the data-lever gain
    is robust across two seeds, not a lucky draw. Honest free-gen held-out = **0.243 → 0.333** (verified).
-7. **v5** — last generalization lever: dropout 0.2 on the v4 recipe. Does more regularization help the
-   deduction wall? (running)
+7. **v5** — dropout 0.2 on the v4 recipe → **clean 0.283**. NULL/negative: more regularization HURT
+   (the model needs the capacity; dropout 0.1 is right). Generalization-via-regularization doesn't help.
+8. **v6** — path diversity: 6 teacher passes (more game-paths per secret) on the v4 recipe. Last
+   in-distribution data lever. (running)
+
+**Overnight verdict (forming):** best honest model = **validity-max v4 = 0.333** (verified 2 seeds). The
+honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
+(0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
+(template net-negative), ensemble (0.283), RFT/STaR, DPO, scale (turns over). The remaining wall is
+deduction-generalization, and it's a *data* limit, not a method we're missing.
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.
