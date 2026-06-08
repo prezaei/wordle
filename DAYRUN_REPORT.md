@@ -141,6 +141,30 @@ with `v,o` already gray; (3) that causes the dashboard loop: replaying a word th
 (validity-max) can't loop this way because the board always grows — a structural reason the dense state is
 *worse* honestly, not just under-trained. **Verdict: dense encoding rejected** (honest TEST 0.065 ≪ 0.338).
 
+### honest free-gen GRPO on the 50M base — DONE: **NULL 0.332 TEST** (the RL question, answered)
+
+User asked: *any RL techniques to push the win rate higher?* Built the first **clean-lineage** RL run
+(`scripts/grpo_freegen.py`): correct free-gen GRPO on `validity_max_v4` — full CoT-bearing rollout, reward
+= win-dominance + non-word penalty + per-valid partial credit, group-relative advantage (mean-center, NO
+/std), zero-variance filter, clipped surrogate, k3 KL to a frozen ref. Honest: reward is engine-outcome
+only (no solver/dict), train-only secrets, eval = greedy CoT free-gen (zero rules) on disjoint TEST.
+
+- **Load-bearing CoT (new finding):** forcing immediate commit (no CoT) collapses win **0.333 → 0.073** at
+  equal validity (0.866 → 0.847). The ephemeral "think" does the deduction — so RL shapes real reasoning,
+  not just spelling. The RL action = the full free generation (CoT + `<guess>` + 5 letters).
+- **A real bug, found + fixed:** first attempt *degraded* (reward −0.13, VAL drifting down). Cause:
+  `old_logp` computed in eval mode (dropout off) but `new_logp` in train mode (dropout ON) → the surrogate
+  ratio `exp(new−old)` was corrupted by dropout noise. Fix: keep the policy in eval mode through the update
+  (gradients still flow via `enable_grad`). After the fix, RL behaved correctly.
+- **Fixed RL works — on TRAIN.** Over 50 iters: train rollout win **0.41 → 0.60** (+19 pts), train
+  non-words **0.57 → 0.36**. It genuinely learns to deduce + spell the train answers better.
+- **…and transfers nothing.** Held-out **TEST 0.332 (122/367) valid 0.855 avg 4.30 ≈ base 0.338**. The
+  per-eval VAL oscillated 0.333–0.354 (noise); the 0.354 "best" collapsed to 0.332 on the 4×-larger TEST.
+- **Verdict: RL does not raise the honest win rate.** A *correctly implemented* GRPO improves train by ~50%
+  relative and transfers zero to held-out — the cleanest demonstration yet that the wall is
+  deduction-**generalization** (data-bound), not RL mechanics. No RL knob (temp, KL, reward shaping, lr)
+  fixes a generalization wall. **RL closed (honestly), at 0.33.**
+
 The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill

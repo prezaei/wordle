@@ -100,6 +100,25 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 🧪 Honest RL (free-gen GRPO) on the 50M base — **NULL 0.332 TEST** (RL sharpens train, doesn't generalize) ([full report](./DAYRUN_REPORT.md))
+
+"Are there RL techniques to push the win rate higher?" Answered with the first **clean-lineage** RL run: a
+correct free-gen GRPO on `validity_max_v4` — CoT-bearing rollout, win-dominance + non-word-penalty reward,
+group-relative advantage (no ÷std), zero-variance filter, clipped surrogate, **k3 KL to a frozen ref**;
+train-only secrets; eval = greedy CoT free-gen, zero rules, disjoint TEST.
+
+- **First attempt degraded** — found a real bug: `old_logp` was computed in eval mode (dropout off) but the
+  inner-update `new_logp` in **train mode (dropout on)**, so the surrogate ratio `exp(new−old)` was
+  corrupted by dropout noise. Keeping the policy in eval mode through the update (gradients still flow) fixed it.
+- **Fixed RL works — mechanically.** Over 50 iters, **train rollout win climbed 0.41 → 0.60** (+19 pts) and
+  train non-words nearly halved (0.57 → 0.36). The CoT is load-bearing (no-CoT commit collapses win
+  0.333→0.073 at equal spelling), so RL was shaping real reasoning, not just spelling.
+- **…and transfers nothing.** Held-out **TEST = 0.332 (122/367) ≈ base 0.338** (the noisy peak VAL 0.354
+  collapsed on the 4×-larger sample). Held-out validity also flat (0.855 vs 0.866). **Verdict: RL does not
+  raise the honest win rate** — the gains are memorization/sharpening of the train answers; the wall is
+  deduction-*generalization*, which no RL knob touches. (Consistent with every prior 5M RL null, now proven
+  on a correct, clean-lineage 50M GRPO.)
+
 ### 🔬 Colleague's "90% without cheating" — reproduced HONESTLY: **0.065 TEST** (the encoding memorizes) ([full report](./DAYRUN_REPORT.md))
 
 A colleague's repo (`rynowak/mm`) reportedly hit **90% without cheating**. Investigated deeply, then ported

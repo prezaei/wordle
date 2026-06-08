@@ -95,6 +95,7 @@ N = {
   "validity_max_v4": ("scale", "validity-max v4 (aux6, ALL train)", "≈50M", "same recipe, scaled to all 1852 train secrets — DATA lever (better deduction generalization)", "CLEAN 0.332/0.335 (2 seeds) — BEST honest, verified", "head"),
   "infill": ("scale", "green-conditioned infill (user idea)", "≈50M", "green+yellow template as INPUT; clue-aware aux training-only. Valid opener (slate) but template-with-content breaks constrained turns", "FAILED 0.05 (λ6/λ1 both) — explicit template net-negative, hurts like structured-context", "cont"),
   "dense_encode": ("scale", "dense constraint-state (mm V2 port)", "≈50M", "honest port of colleague's '90%' V2: replace raw history w/ clean digest (greens-by-pos, yellows-w-excluded-pos, grays-w-exact-count) as the ONLY input; dense-format warm-up, free char-gen, train-only secrets, disjoint TEST", "REJECTED 0.065 TEST — MEMORIZES (train 0.317 vs held 0.075); their 90% was contamination, not the encoding", "clean"),
+  "grpo_honest": ("scale", "honest free-gen GRPO on 50M base", "≈50M", "FIRST clean-lineage RL: correct free-gen GRPO (CoT-bearing rollout, win-dominance+non-word reward, group-rel adv no/std, clipped surrogate, k3 KL to frozen ref) on validity_max_v4; fixed the dropout-in-ratio bug so RL works mechanically; train-only secrets, eval clean", "NULL 0.332 TEST — train win 0.41->0.60 (+19pt) but held-out FLAT; RL sharpens/memorizes train, zero transfer (the generalization wall, now via correct RL)", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -143,6 +144,7 @@ EDGES = [
   ("fair_stage1","constrained_decode","mask spelling (diagnostic)"),("fair_stage1","bestof16","test-time compute"),("fair_stage1","bestof16_nodict","no-dict ablation"),("bestof16","bestof64","N=64"),("bestof64","bestof128","N=128"),("fair_stage1","beam_trie","beam"),
   ("validity_max_v4","ensemble","commit-by-committee vote"),
   ("validity_max_v4","dense_encode","honest port of mm V2 dense encoding"),
+  ("validity_max_v4","grpo_honest","honest free-gen GRPO (CoT-bearing, RL question)"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 
