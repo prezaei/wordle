@@ -77,7 +77,11 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
    across 463 independent secrets (neither selected-on), and a clear mechanism — validity held ~0.76, so
    the gain is **fewer deduction (ran-out) losses from more in-distribution data**. The data lever is now
    MAXED (all train secrets used). Caveat: +0.03 still warrants a different-seed confirm; flagged.
-5. **ensemble committee** (new) — multi-model majority vote, no dict: does a committee beat v4's 0.332? (running)
+5. **ensemble committee** (new) — 5-model majority vote, no dict → **TEST 0.283**. NULL: below v4 (0.332)
+   and v2 (0.302); the committee averages toward weaker members (stage-1 0.243 drags it) and the models
+   aren't diverse enough (all validity-recipe variants) for voting to surface more real words.
+6. **v4 verification** — same recipe, different train seed (split unchanged): is 0.332 real or a lucky
+   draw? (running)
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.

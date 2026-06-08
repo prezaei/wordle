@@ -103,6 +103,7 @@ N = {
   "bestof128": ("inf2", "best-of-128 — BEST", "≈50M", "N=128", "0.719 · valid 0.979 (plateau)", "best"),
   "beam_trie": ("inf2", "beam over real-word trie", "≈50M", "sequence-level argmax over valid words (best deterministic)", "0.550 · valid 1.0", "aided"),
   # ---- deployed ----
+  "ensemble": ("inf2", "ensemble committee (no dict)", "5x≈50M", "5 trained models vote per board, majority (no dictionary) — pure multi-model test-time compute", "0.283 — NULL (averages toward weaker members; below v4 0.332)", "aided"),
   "deployed": ("dep", "deployed real-Wordle player", "≈50M", "trained on all 2,315 known answers (fixed set = the real game)", "~0.62 (legit deployed, framing)", "cont"),
 }
 LANES = {
@@ -139,6 +140,7 @@ EDGES = [
   ("rft_stage2","control_teacher","attribution: ablate ingredients"),("validity_max","validity_max_v2","push aux harder (clean protocol)"),
   ("validity_max_v2","validity_max_v3","aux 8 — plateaus"),("validity_max_v3","validity_max_v4","aux6 + ALL train data"),("fair_stage1","infill","clue-aware infill (template input, clue logic training-only)"),
   ("fair_stage1","constrained_decode","mask spelling (diagnostic)"),("fair_stage1","bestof16","test-time compute"),("fair_stage1","bestof16_nodict","no-dict ablation"),("bestof16","bestof64","N=64"),("bestof64","bestof128","N=128"),("fair_stage1","beam_trie","beam"),
+  ("validity_max_v4","ensemble","commit-by-committee vote"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 

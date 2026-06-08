@@ -92,6 +92,7 @@ digraph experiments {
     bestof64 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#aac4dd"><B>best-of-64</B></TD></TR><TR><TD BGCOLOR="#efefef"><FONT POINT-SIZE="9" COLOR="#222222"><B>≈50M params</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">N=64</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>0.703</B></FONT></TD></TR></TABLE>>];
     bestof128 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#7fa8cf"><B>best-of-128 — BEST</B></TD></TR><TR><TD BGCOLOR="#efefef"><FONT POINT-SIZE="9" COLOR="#222222"><B>≈50M params</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">N=128</FONT></TD></TR><TR><TD BGCOLOR="#1f5e66"><FONT COLOR="white" POINT-SIZE="10"><B>0.719 · valid 0.979 (plateau)</B></FONT></TD></TR></TABLE>>];
     beam_trie [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#aac4dd"><B>beam over real-word trie</B></TD></TR><TR><TD BGCOLOR="#efefef"><FONT POINT-SIZE="9" COLOR="#222222"><B>≈50M params</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">sequence-level argmax over valid words (best deterministic)</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>0.550 · valid 1.0</B></FONT></TD></TR></TABLE>>];
+    ensemble [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#aac4dd"><B>ensemble committee (no dict)</B></TD></TR><TR><TD BGCOLOR="#efefef"><FONT POINT-SIZE="9" COLOR="#222222"><B>5x≈50M params</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">5 trained models vote per board, majority (no dictionary) — pure multi-model test-time compute</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>0.283 — NULL (averages toward weaker members; below v4 0.332)</B></FONT></TD></TR></TABLE>>];
   }
   subgraph cluster_dep { label=<<B>DEPLOYED FRAMING</B>>; fontsize=13; color="#cccccc"; style="rounded"; bgcolor="#fbfbfb";
     deployed [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5"><TR><TD BGCOLOR="#d9c89a"><B>deployed real-Wordle player</B></TD></TR><TR><TD BGCOLOR="#efefef"><FONT POINT-SIZE="9" COLOR="#222222"><B>≈50M params</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">trained on all 2,315 known answers (fixed set = the real game)</FONT></TD></TR><TR><TD BGCOLOR="#4a4a4a"><FONT COLOR="white" POINT-SIZE="10"><B>~0.62 (legit deployed, framing)</B></FONT></TD></TR></TABLE>>];
@@ -171,6 +172,7 @@ digraph experiments {
   bestof16 -> bestof64 [label="N=64"];
   bestof64 -> bestof128 [label="N=128"];
   fair_stage1 -> beam_trie [label="beam"];
+  validity_max_v4 -> ensemble [label="commit-by-committee vote"];
   cot_eph_aux -> deployed [label="deployed framing"];
   dpo_commit -> deployed [label="best deployed"];
 }
