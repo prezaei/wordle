@@ -39,7 +39,7 @@ torch.manual_seed(int(_os.environ.get("VM_SEED","0")))  # train seed (split stay
 tok = Tokenizer()
 THINK = tok.vocab_size
 VOCAB = tok.vocab_size + 1
-CFG = ModelConfig(d_model=512, n_layers=16, n_heads=8, d_ff=2048, context_len=256, dropout=0.1)  # ~50M
+CFG = ModelConfig(d_model=512, n_layers=16, n_heads=8, d_ff=2048, context_len=256, dropout=float(os.environ.get("VM_DROPOUT","0.1")))  # ~50M
 OPENERS = ("salet", "crane", "slate", "trace", "stare", "raise", "crate")
 _COLOR = {Color.GREEN: "<green>", Color.YELLOW: "<yellow>", Color.GRAY: "<gray>"}
 LETTER_IDS = [tok.token_to_id(c) for c in "abcdefghijklmnopqrstuvwxyz"]
