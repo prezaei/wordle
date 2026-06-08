@@ -56,7 +56,9 @@ Walls: spelling (vocabulary, in-weights) dominant (~97% of losses), then deducti
 bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict — not allowed as a model).
 
 **Queue (one-at-a-time background jobs; capture each → README+map+push; adapt on results):**
-1. v3 — validity push aux8 (running).
+1. v3 — validity push aux8 → **clean 0.264** (validity 0.767). Within noise of v2's 0.302 → **the aux
+   validity lever has PLATEAUED** (validity caps ~0.78, clean win ~0.28–0.30; aux 6→8 = no real gain).
+   Best honest model stays validity-max v2 (~0.30, robustly ~0.28). Aux-cranking is exhausted.
 2. **Infill no-CoT** (`IF_THINK=0`) — green/yellow template as INPUT, generate whole word free, template-
    aware + clue-aware validity aux (training-only). The user's idea, honest version.
 3. **Infill with-CoT** (`IF_THINK=1`) — ablation: does candidate-listing CoT help in the clean regime?
