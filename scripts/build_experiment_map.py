@@ -89,7 +89,8 @@ N = {
   "scale_base": ("scale", "scale — base", "12M", "fair recipe, mid net", "0.251 (gap grows)", "clean"),
   "scale_xl": ("scale", "scale — xl", "99M", "fair recipe, largest net", "0.270 · valid 0.591 — turns over (< 50M)", "clean"),
   "rft_stage2": ("scale", "stage-2 RFT (on-policy distill)", "≈50M", "distill the model's OWN best-of-N winning games back into greedy (RAFT)", "win ~noise (0.32 selection peak); valid 0.681", "clean"),
-  "validity_max": ("scale", "validity-max (composition)", "≈50M", "crank aux λ3 + distill own constrained-decode games to push in-weights spelling", "validity 0.66→0.712 REAL; win flat", "clean"),
+  "validity_max": ("scale", "validity-max (aux 3)", "≈50M", "crank aux + distill own constrained-decode games to push in-weights spelling", "CLEAN 0.281 (valid 0.71) — lever works", "clean"),
+  "validity_max_v2": ("scale", "validity-max v2 (aux 6/8)", "≈50M", "push aux harder + more always-valid self-distill; honest clean protocol (no dict)", "CLEAN 0.302 (valid 0.76) — new honest best", "head"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -132,7 +133,7 @@ EDGES = [
   ("fair_stage1","distill_constrained","push validity"),("fair_stage1","infogain_xit_c","info-gain XIT"),("fair_stage1","infogain_xit_f","free / STaR"),("fair_stage1","dpo_fair","retry DPO clean"),("distill_constrained","grpo_full_fair","long GRPO"),
   ("fair_stage1","scale_tiny","shrink"),("fair_stage1","scale_base","mid"),("fair_stage1","scale_xl","grow"),
   ("fair_stage1","rft_stage2","on-policy self-distill"),("fair_stage1","validity_max","push in-weights validity"),
-  ("rft_stage2","control_teacher","attribution: ablate ingredients"),
+  ("rft_stage2","control_teacher","attribution: ablate ingredients"),("validity_max","validity_max_v2","push aux harder (clean protocol)"),
   ("fair_stage1","constrained_decode","mask spelling (diagnostic)"),("fair_stage1","bestof16","test-time compute"),("fair_stage1","bestof16_nodict","no-dict ablation"),("bestof16","bestof64","N=64"),("bestof64","bestof128","N=128"),("fair_stage1","beam_trie","beam"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]

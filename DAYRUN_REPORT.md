@@ -129,9 +129,33 @@ then can't compose a valid word that lands the required late letter. ⇒ generat
 it stops being OOD and learns to keep greens / not cascade. Both target composition, so capped ~0.55 by
 the deduction wall, but they attack genuine mechanism bugs (not noise).
 
-### Best model = stage-1; the validity gain is even net-NEGATIVE for inference
+### ⭐ Honesty tightened → the validity lever WORKS (the first robust honest gain)
 
-Profiling the higher-validity weights (`validity_max`, free-gen valid 0.712) on the honest-spelling tier:
+**New honesty rules (user, stricter and correct):** *no dictionary/trie at inference, ever* (retires
+beam-over-trie 0.55 / best-of-N 0.72 / constrained-decode 0.44 as "the model"); and a non-word guess is
+*counted as a turn* but *not fed back* to the model (kills the all-gray poisoning; also fixes the
+train/inference mismatch — clean context = valid-only = what training looked like). The honest metric is
+now the **clean protocol** (`clean_eval.py`): pure free-gen, non-words fatal.
+
+Under it, the validity lever — which looked *net-negative* on the (now-retired) dictionary tier — is
+**monotonic, mechanistic, and real**:
+
+| model | in-weights validity | **clean TEST win** | non-word losses |
+|---|---|---|---|
+| stage-1 | 0.66 | **0.243** | 269 |
+| validity-max (aux 3) | 0.71 | **0.281** | 250 |
+| validity-max v2 (aux 6) | 0.76 | **0.302** | 227 |
+
++22 wins over stage-1 on 367 disjoint TEST (~2.5σ), and the mechanism is clear (more in-weights validity
+→ fewer non-word losses → more wins). **This is the first robust honest improvement of the project.** The
+old eval's 0.281 was inflated ~+0.04 by the all-gray "lottery"; the true stage-1 honest number is **0.243**.
+Headroom: the validity=1.0 ceiling (constrained-mask, dict) is 0.436, so pushing in-weights validity should
+keep climbing toward it. v3 (aux 8, 1500 secrets) running; then the green-conditioned infill (combines).
+
+### [SUPERSEDED by the clean protocol above] Best model = stage-1; validity net-negative *on the dict tier*
+
+*(This held only for the dictionary-aided inference tier, which the user has since ruled out. Kept for the
+record.)* Profiling the higher-validity weights (`validity_max`, free-gen valid 0.712) on the honest-spelling tier:
 **beam-16 0.529 / best-of-64 0.659** — *worse* than stage-1's **beam 0.55 / best-of-64 0.703**. The
 cranked-aux **sharpened the distribution** (more confident per letter), which raises free-gen validity but
 *reduces sample diversity* — and beam/best-of-N depend on diversity to surface the answer. So the one
