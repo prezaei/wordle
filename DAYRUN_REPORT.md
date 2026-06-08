@@ -44,6 +44,27 @@ matches the audit story: the lever is data honesty + test-time compute, not weig
 
 ---
 
+## 🌙 Overnight #4 (2026-06-07→08, unattended): build the best honest model
+
+**Mandate:** work all night, try new experiments/algos, change any params/algos, **no cheating** (no
+dictionary at inference; non-words counted-not-fed-back; clue logic + dict are TRAINING-only; train-only
+secrets; clean-protocol free-gen TEST on disjoint held[96:]), update README + map, don't make mistakes.
+
+**Honest scoreboard at lights-out:** best honest model = **validity-max v2 = 0.302** clean-protocol TEST
+(stage-1 = 0.243). Lever that works = in-weights validity (spelling); plateauing ~0.78 validity via aux.
+Walls: spelling (vocabulary, in-weights) dominant (~97% of losses), then deduction (generalization, data-
+bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict — not allowed as a model).
+
+**Queue (one-at-a-time background jobs; capture each → README+map+push; adapt on results):**
+1. v3 — validity push aux8 (running).
+2. **Infill no-CoT** (`IF_THINK=0`) — green/yellow template as INPUT, generate whole word free, template-
+   aware + clue-aware validity aux (training-only). The user's idea, honest version.
+3. **Infill with-CoT** (`IF_THINK=1`) — ablation: does candidate-listing CoT help in the clean regime?
+4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
+5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
+6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.
+7. Iterate whatever wins; keep TEST-not-VAL discipline (small gains <0.03 = selection noise; verify).
+
 ## Autonomous push #3 (2026-06-07, unattended): chase the REAL in-weights number
 
 **Mandate:** "do anything for the best real and honest results, rework stages, question everything, do
