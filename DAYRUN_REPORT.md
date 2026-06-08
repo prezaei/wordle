@@ -100,6 +100,18 @@ info-gain, distill, RFT/STaR, validity-max). The only honest way past it is **te
 public dictionary** (beam-over-trie 0.55 deterministic; best-of-N 0.72) — the model generates freely,
 the dictionary only spell-checks (never clue-filters). That is the real "best model."
 
+### Best model = stage-1; the validity gain is even net-NEGATIVE for inference
+
+Profiling the higher-validity weights (`validity_max`, free-gen valid 0.712) on the honest-spelling tier:
+**beam-16 0.529 / best-of-64 0.659** — *worse* than stage-1's **beam 0.55 / best-of-64 0.703**. The
+cranked-aux **sharpened the distribution** (more confident per letter), which raises free-gen validity but
+*reduces sample diversity* — and beam/best-of-N depend on diversity to surface the answer. So the one
+robustly-movable knob (in-weights validity) is **net-negative** for the best honest model. **`stage-1`
+(`cot_eph_aux_fair.pt`) is the definitive best model on every honest metric:** free-gen **0.281** ·
+beam-over-trie **0.55** · best-of-64 **0.703** · best-of-128 **0.719** (model generates, dict spell-checks
+only). Next: testing the generation-order hypothesis (infill/backwards) — capped ~0.55 by deduction, but
+the cleanest "rework the model" experiment.
+
 **The turn.** Two warm-start fine-tunes **beat stage-1 on disjoint TEST** — the first to do so after 8
 nulls. RFT best-shot **0.319** and validity-max **0.305** (vs 0.281). The gentle LR (3e-5) was the
 unlock: the pilot's 1e-4 damaged the converged minimum; 3e-5 nudges it. **Honest caveat:** both select
