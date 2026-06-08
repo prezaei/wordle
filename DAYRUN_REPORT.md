@@ -80,8 +80,10 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
 5. **ensemble committee** (new) — 5-model majority vote, no dict → **TEST 0.283**. NULL: below v4 (0.332)
    and v2 (0.302); the committee averages toward weaker members (stage-1 0.243 drags it) and the models
    aren't diverse enough (all validity-recipe variants) for voting to surface more real words.
-6. **v4 verification** — same recipe, different train seed (split unchanged): is 0.332 real or a lucky
-   draw? (running)
+6. **v4 verification** (seed 1) → **clean TEST 0.335** ≈ v4's 0.332. **CONFIRMED** — the data-lever gain
+   is robust across two seeds, not a lucky draw. Honest free-gen held-out = **0.243 → 0.333** (verified).
+7. **v5** — last generalization lever: dropout 0.2 on the v4 recipe. Does more regularization help the
+   deduction wall? (running)
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.

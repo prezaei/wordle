@@ -99,7 +99,8 @@ this **clean protocol** (pure free-gen), the true stage-1 number is **0.243** (t
 - **The data lever broke the plateau.** Same recipe (aux 6 + constrained self-distill) on **all 1852 train
   secrets** → **clean TEST 0.332** (+0.030; clean-VAL 0.333 ≈ clean-TEST across 463 independent secrets;
   validity held ~0.76, so the gain is **fewer deduction losses from more in-distribution data**). This is
-  the **best honest model** (`validity_max_v4.pt`). The data lever is now maxed (held-out is off-limits).
+  the **best honest model** (`validity_max_v4.pt`), **verified across two seeds** (seed 0 = 0.332, seed 1 =
+  0.335). The data lever is now maxed (held-out is off-limits).
 - **What failed (honestly):** the green/yellow **infill/template** (clue logic taught in training, free-gen
   at inference) — both aux configs landed ~0.05; the model spells a valid *opener* but the explicit
   template *breaks* constrained turns (the "structured-context hurt" lesson again). On-policy RFT/STaR,

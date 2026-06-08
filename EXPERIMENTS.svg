@@ -1662,7 +1662,7 @@
 <text xml:space="preserve" text-anchor="start" x="1839" y="-643.25" font-family="Helvetica,sans-Serif" font-size="9.00">same recipe, scaled to all 1852 train secrets — DATA lever (better deduction generalization)</text>
 <polygon fill="#1f5e66" stroke="none" points="1833,-611.75 1833,-635 2217,-635 2217,-611.75 1833,-611.75"/>
 <polygon fill="none" stroke="black" points="1833,-611.75 1833,-635 2217,-635 2217,-611.75 1833,-611.75"/>
-<text xml:space="preserve" text-anchor="start" x="1901.25" y="-620.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">CLEAN 0.332 — NEW BEST honest (+0.03 from data)</text>
+<text xml:space="preserve" text-anchor="start" x="1899.38" y="-620.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">CLEAN 0.332/0.335 (2 seeds) — BEST honest, verified</text>
 </g>
 <!-- validity_max_v3&#45;&gt;validity_max_v4 -->
 <g id="edge68" class="edge">

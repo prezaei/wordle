@@ -92,7 +92,7 @@ N = {
   "validity_max": ("scale", "validity-max (aux 3)", "≈50M", "crank aux + distill own constrained-decode games to push in-weights spelling", "CLEAN 0.281 (valid 0.71) — lever works", "clean"),
   "validity_max_v2": ("scale", "validity-max v2 (aux 6)", "≈50M", "push aux + more always-valid self-distill; honest clean protocol (no dict)", "CLEAN 0.302 (valid 0.76)", "clean"),
   "validity_max_v3": ("scale", "validity-max v3 (aux 8)", "≈50M", "push aux harder still — validity lever PLATEAUS", "CLEAN 0.264 (valid 0.77) — no gain, noise band", "clean"),
-  "validity_max_v4": ("scale", "validity-max v4 (aux6, ALL train)", "≈50M", "same recipe, scaled to all 1852 train secrets — DATA lever (better deduction generalization)", "CLEAN 0.332 — NEW BEST honest (+0.03 from data)", "head"),
+  "validity_max_v4": ("scale", "validity-max v4 (aux6, ALL train)", "≈50M", "same recipe, scaled to all 1852 train secrets — DATA lever (better deduction generalization)", "CLEAN 0.332/0.335 (2 seeds) — BEST honest, verified", "head"),
   "infill": ("scale", "green-conditioned infill (user idea)", "≈50M", "green+yellow template as INPUT; clue-aware aux training-only. Valid opener (slate) but template-with-content breaks constrained turns", "FAILED 0.05 (λ6/λ1 both) — explicit template net-negative, hurts like structured-context", "cont"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
