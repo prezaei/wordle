@@ -18,7 +18,22 @@ uv run wordle-slm --help
 
 ## Status
 
-S0 (scaffold) in place. See the build plan for the wave-by-wave roadmap.
+**Best honest model: `runs/validity_max_v4.pt` — held-out free-gen win 0.333** (verified across two seeds:
+0.332 / 0.335), on the strict **clean protocol** (greedy free-generation, **no dictionary or any
+inference-time rules**, non-words counted-but-not-fed-back, evaluated on the disjoint TEST split that is
+never trained on). Reproduce: aux-validity loss (λ6) + constrained self-distillation on all 1,852 train
+secrets (`scripts/validity_max.py`).
+
+**The honest arc:** from-scratch char transformer → spell warm-up → SFT on a near-optimal teacher →
+in-weights **validity** (the model learns to spell real words) → **maxing in-distribution data**. That
+lifted the honest free-gen number **0.243 → 0.333**. The remaining wall is **deduction-generalization**,
+bounded by the ~1,852-word answer set — confirmed by an exhaustive set of nulls (RL ×11, DPO, DAgger,
+on-policy RFT/STaR, scale-turns-over-past-50M, the green/yellow infill, ensembles). The full lineage is
+the [Experiment Log](#experiment-log) and the visual map (`EXPERIMENTS.svg`, 75+ experiments).
+
+*(Aside: with the public dictionary allowed as an inference-time spell-checker — a different, clearly-
+labeled tier — the same weights reach ~0.55 (beam-over-trie) to ~0.72 (best-of-N). We keep that separate
+from "the model," which is dictionary-free.)*
 
 ## Why a transformer + RL for Wordle (a deliberately sub-optimal tool)
 
@@ -82,7 +97,7 @@ The honest headline metric is the **held-out win rate** on the immutable 463-wor
 (`data/wordlists.split` — train/held disjoint, held never trained on), greedy, free-generation,
 **no inference-time rules** (no dictionary, no consistency filter, no candidate list). Numbers that
 are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked CoT) are labeled as
-such. The whole thread runs 2026-06-02 → 06-06 on the M5 Max (MPS). All experiment drivers live in
+such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
 ### 🌙 Overnight #4 (2026-06-07→08): the honest protocol + the data lever — best honest model **0.332** ([full report](./DAYRUN_REPORT.md))
