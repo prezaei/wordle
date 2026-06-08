@@ -34,7 +34,8 @@ from wordle_slm.sft.train import _batches, _valid_trie, load_checkpoint, save_ch
 from wordle_slm.teacher import generate_transcripts
 
 DEV = "mps"
-torch.manual_seed(0)
+import os as _os
+torch.manual_seed(int(_os.environ.get("VM_SEED","0")))  # train seed (split stays seed=0)
 tok = Tokenizer()
 THINK = tok.vocab_size
 VOCAB = tok.vocab_size + 1
@@ -199,11 +200,12 @@ def main():
     print(f"[vm] warm-start VAL win={base['win']:.3f} valid={base['valid']:.3f}  "
           f"(stage-1 ref: free-gen TEST 0.281/0.662 ; constrained-mask 0.436/1.0)", flush=True)
 
-    rng = Random(0)
+    _SEED = int(os.environ.get("VM_SEED", "0"))
+    rng = Random(_SEED)
     games = []
     for s in range(3):  # teacher games preserve deduction
         games += [tr.game for tr in generate_transcripts(
-            secrets, weak_frac=0.5, openers=safe_openers, seed=100 + s, valid_pool=VALID, answer_pool=secrets)]
+            secrets, weak_frac=0.5, openers=safe_openers, seed=100 + s + 1000 * _SEED, valid_pool=VALID, answer_pool=secrets)]
     n_teacher = len(games)
     if USE_CONSTRAINED:  # the model's OWN always-valid composition targets (winning constrained games)
         print(f"[vm] mining constrained-decode games on {len(secrets)} train secrets …", flush=True)
@@ -223,7 +225,7 @@ def main():
 
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS, eta_min=LR * 0.1)
-    rng2 = Random(0)
+    rng2 = Random(_SEED)
     best = base["win"]
     saved = False
     VIZ = tuple(held[:24])
