@@ -95,6 +95,31 @@ the sweep) *and* spells worse (valid 0.662 → 0.591). The deduction/vocabulary 
 capacity problem; more parameters past 50M buy memorization, not generalization. The levers remain
 data honesty + test-time compute, not weight count. (Visual lineage: `EXPERIMENTS.svg`.)
 
+### 🧪 Autonomous push #3 (2026-06-07): on-policy distillation + the composition lever — the win ceiling holds ([full report](./DAYRUN_REPORT.md))
+
+A from-scratch attack on the **free-gen greedy** number (0.281, the only no-aid metric), with a control
+to keep us honest. The governing fact: **best-of-N reaches ~0.70 on the same held-out TEST greedy gets
+0.281 on** — the capability *generalizes into the model's distribution*; greedy decoding won't surface it.
+
+- **On-policy self-distillation (RFT/RAFT, `rft_distill.py`):** distill the model's *own* best-of-N
+  winning games back into greedy (reward-weighted MLE). A gentle LR (3e-5) initially looked like a win
+  (TEST 0.319), but a **STaR iteration did not compound** and a **teacher-only control busted it**: the
+  same best-of-16-epochs-on-96-VAL selection hits VAL 0.365 *by chance* and scores TEST anywhere in
+  **[0.26, 0.32] regardless of method** (the control landed 0.259, *below* stage-1). The "gains" were
+  selection noise. ⇒ honest free-gen win is **~0.28–0.30 across every method**.
+- **Composition lever (`validity_max.py`):** crank the aux-validity loss (λ3) + distill the model's own
+  *constrained-decode* (always-valid) games. This **robustly raised in-weights validity 0.662 → 0.712**
+  (the control stayed 0.656) — but it **bought no win**. That answers the composition question: **spelling
+  is not the win bottleneck; deduction-generalization is** — and it's data-bound (only ~1,852
+  in-distribution train secrets; held-out answers are off-limits).
+
+**Tally: 9 training approaches now confirm the ~0.28–0.30 free-gen ceiling** (RL ×11, DPO ×3, DAgger ×2,
+info-gain, distill, RFT/STaR, validity-max). The model *knows* more than greedy says; the only honest way
+to surface it is **test-time compute + the public dictionary as a spell-checker** (beam-over-trie 0.55
+deterministic; best-of-N 0.72) — the model generates freely, the dictionary only validates spelling, never
+filters by clue-consistency. **That is the best honest model.** *(Method note: a 96-secret VAL is too
+noisy for best-epoch selection of ~0.02 effects — the control is the cautionary tale; trust TEST, not VAL.)*
+
 ### ✅ Fair-honest run (2026-06-06): dictionary pools, not answer-set — honest TEST **0.281**
 
 The clean, *fair* recipe: candidate/teacher pools = the full **valid-guess dictionary** (the model may
