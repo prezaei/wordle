@@ -126,10 +126,12 @@ def cot_valid_mask(seqs):
 
 @torch.no_grad()
 def play(model, secret):
-    """Greedy ephemeral-CoT FREE-gen play — the honest eval path (no rules, no mask)."""
+    """CLEAN-protocol greedy free-gen play: a non-word is counted as a turn but NOT fed back to the model
+    (the model's context = its VALID guesses only — no all-gray poisoning that contradicts real clues)."""
     g = Game(secret)
+    visible = []  # valid turns only -> what the model conditions on
     while g.status is Status.ONGOING:
-        seq = board_only(g.turns)
+        seq = board_only(visible)
         guess, committed = [], False
         for _ in range(60):
             nxt = int(ALLOWED_GEN[int(torch.argmax(model.forward(torch.tensor([seq], device=DEV))[0, -1][ALLOWED_GEN]))])
@@ -142,7 +144,11 @@ def play(model, secret):
             elif nxt == tok.guess_id:
                 committed = True
         word = "".join(tok.id_to_token(t) for t in guess[:5])
-        g.guess(word if len(word) == 5 else "zzzzz")
+        turn = g.guess(word if len(word) == 5 else "zzzzz")
+        if turn.valid:
+            visible.append(turn)
+        else:
+            break  # non-word: from the unchanged context greedy would just repeat it -> game lost
     return g
 
 

@@ -87,7 +87,22 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
 8. **v6** — path diversity: 6 teacher passes (more game-paths per secret) on the v4 recipe. Last
    in-distribution data lever. (running)
 
-**Overnight verdict (forming):** best honest model = **validity-max v4 = 0.333** (verified 2 seeds). The
+### 🐞 Bug (user-found on the live dashboard): the all-gray poisoning was NOT fixed in the training path
+
+I claimed the clean protocol fixed the non-word poisoning; the user caught (on the live dashboard) that it
+did **not**. The fix lived only in the separate `clean_eval.py` (which computes the headline number);
+the **training scripts' own `play()` still did `board_only(g.turns)`** — feeding invalid guesses back as
+fabricated **all-gray**, which contradicts real clues. This poisons (a) the **live dashboard** and (b) the
+**checkpoint selection** (best epoch chosen on the poisoned metric). Vivid proof: `fluke` — after `GUILE`
+(U/L yellow, E green), two non-words (`LUNCE`,`PHEOE`) fed all-gray → the model dropped U, L, *and the
+green E* → `FIXIE`,`FIZZY` (valid words, but inconsistent — they abandon every clue).
+**Scope:** the reported clean numbers (v4 0.333 etc.) came from `clean_eval` and ARE clean; but the
+dashboard + selection were poisoned. **Fix:** `validity_max.play()` now conditions on VALID turns only
+(non-words counted, not fed back). **v7** re-runs the v4 recipe with the fixed clean pipeline (clean
+dashboard + clean selection) → the proper canonical best model.
+
+**Overnight verdict (forming):** best honest model = **validity-max v4 = 0.333** (verified 2 seeds);
+v7 re-confirms it under a fully-clean selection pipeline. The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
 (template net-negative), ensemble (0.283), RFT/STaR, DPO, scale (turns over). The remaining wall is
