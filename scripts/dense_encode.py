@@ -156,6 +156,43 @@ def evaluate(model, secrets):
             "nonword": sum(1 for x in games if not x.won and x.turns and not x.turns[-1].valid)}
 
 
+def dense_warmup(model, epochs, lr=1e-3):
+    """Spell warm-up IN THE DENSE FORMAT: empty-constraint -> spell a valid word, over the FULL dictionary.
+    Teaches full-vocab spelling at the task's positions/format. Honest: empty constraint carries NO
+    answer-hood — it's just 'spell this valid word', which is public for every word (incl. held-out)."""
+    base = encode_constraint({}, set(), {}) + [tok.guess_id]  # [bos, _,_,_,_,_, sep, guess]
+    exs = []
+    for w in load_valid_guesses():
+        ids = base + [tok.token_to_id(c) for c in w] + [tok.eos_id]
+        mask = [False] * len(base) + [True] * 5 + [False]
+        exs.append((ids, mask))
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
+    rng = Random(1)
+    model.train()
+    for epoch in range(epochs):
+        last = 0.0
+        for idx in _batches(len(exs), 256, rng):
+            bs = [exs[i] for i in idx]
+            L = max(len(s) for s, _ in bs)
+            ids = torch.full((len(bs), L), tok.pad_id, dtype=torch.long)
+            tmask = torch.zeros((len(bs), L))
+            for i, (s, m) in enumerate(bs):
+                ids[i, : len(s)] = torch.tensor(s)
+                tmask[i, : len(m)] = torch.tensor([float(x) for x in m])
+            ids, tmask = ids.to(DEV), tmask.to(DEV)
+            logits = model.forward(ids)
+            logp = torch.log_softmax(logits[:, :-1], dim=-1)
+            nll = -logp.gather(-1, ids[:, 1:].unsqueeze(-1)).squeeze(-1)
+            loss = (nll * tmask[:, 1:]).sum() / tmask[:, 1:].sum()
+            opt.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+            last = float(loss.detach())
+        if epoch % 5 == 0 or epoch == epochs - 1:
+            print(f"  [warmup] epoch {epoch:>2} loss {last:.3f}", flush=True)
+
+
 def main():
     train, held = split(seed=0)
     safe = tuple(o for o in ("salet", "crane", "slate", "trace", "stare", "raise", "crate") if o not in set(held))
@@ -170,8 +207,8 @@ def main():
     print(f"[dense] VOCAB={VOCAB} aux={AUX_LAMBDA} epochs={EPOCHS} pretrain={PRE} |secrets|={len(secrets)}", flush=True)
 
     model = WordleGenerator(CFG := ModelConfig(d_model=512, n_layers=16, n_heads=8, d_ff=2048, context_len=256, dropout=0.1), VOCAB).to(DEV)
-    print(f"[dense] spell warm-up ({PRE} ep) — teaches letter spelling (constraint tokens learned in SFT)", flush=True)
-    pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=PRE, batch_size=256, device=DEV, seed=0)
+    print(f"[dense] DENSE-format spell warm-up ({PRE} ep) — empty-constraint -> word, full dict (right positions)", flush=True)
+    dense_warmup(model, PRE)
 
     games = []
     for s in range(TEACHER):
