@@ -52,6 +52,7 @@ VALID = load_valid_guesses()
 K_CANDS = 3
 AUX_LAMBDA = float(os.environ.get("IF_AUX", "6.0"))  # combine the proven validity lever (was 3)
 YELLOWS = os.environ.get("IF_YELLOWS", "1") == "1"  # also pass a yellow row (present-but-excluded-here)
+THINK_ON = os.environ.get("IF_THINK", "1") == "1"  # ephemeral CoT candidate-listing (ablate: is it needed?)
 EPOCHS = int(os.environ.get("IF_EPOCHS", "18"))
 LR = float(os.environ.get("IF_LR", "1.5e-4"))
 CAP = int(os.environ.get("IF_SECRETS", "1200"))
@@ -174,11 +175,12 @@ def build_example(game, rng):
         tmpl = template_tokens(greens, yellows)  # green (+yellow) template (context, no loss)
         ids += tmpl
         mask += [False] * len(tmpl)
-        for c in pick_cands(game.turns[:k], turn.guess, rng):  # think candidates (loss)
-            ids.append(THINK)
-            mask.append(True)
-            ids += _letters(c)
-            mask += [True] * 5
+        if THINK_ON:
+            for c in pick_cands(game.turns[:k], turn.guess, rng):  # think candidates (loss)
+                ids.append(THINK)
+                mask.append(True)
+                ids += _letters(c)
+                mask += [True] * 5
         _, excluded, absent = clue_constraints(game.turns[:k])  # clue-mask = TRAINING signal only
         absent_idx = {ord(c) - 97 for c in absent}
         tvs = template_valid_sets(greens)  # template-aware valid-letter sets per blank position
@@ -225,14 +227,16 @@ def play_infill(model, secret):
         greens = known_greens(visible)
         yellows = known_yellows(visible)
         seq = board_only(visible) + template_tokens(greens, yellows)  # clues as INPUT only (no enforcement)
-        # think phase: free-gen until <GUESS>
-        for _ in range(60):
-            nxt = int(ALLOWED_GEN[int(torch.argmax(model.forward(torch.tensor([seq], device=DEV))[0, -1][ALLOWED_GEN]))])
-            seq.append(nxt)
-            if nxt == tok.guess_id:
-                break
+        if THINK_ON:  # think phase: free-gen until <GUESS>
+            for _ in range(60):
+                nxt = int(ALLOWED_GEN[int(torch.argmax(model.forward(torch.tensor([seq], device=DEV))[0, -1][ALLOWED_GEN]))])
+                seq.append(nxt)
+                if nxt == tok.guess_id:
+                    break
+            else:
+                seq.append(tok.guess_id)
         else:
-            seq.append(tok.guess_id)
+            seq.append(tok.guess_id)  # no CoT: straight to the guess
         # commit: PURE free-gen of all 5 letters — NO pinning, NO clue-mask, NO dict (clue logic was
         # taught in training; at inference the model must respect its own clues on its own).
         letters = []
