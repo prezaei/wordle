@@ -100,6 +100,25 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 🔬 Colleague's "90% without cheating" — reproduced HONESTLY: **0.065 TEST** (the encoding memorizes) ([full report](./DAYRUN_REPORT.md))
+
+A colleague's repo (`rynowak/mm`) reportedly hit **90% without cheating**. Investigated deeply, then ported
+their genuinely-good idea — the **dense constraint-state encoding** (replace the raw board history with a
+clean digest: greens-by-position, yellows-with-excluded-position, grays-with-exact-counts) — **honestly**
+(train-only secrets, free char-gen, letter-mask only, disjoint TEST). Result: **clean-protocol TEST win
+0.065 (24/367)** — **~5× worse than our validity-max 0.338**.
+
+- **The 90% was train-test contamination, not the encoding.** Their pipeline trains + evals on the **full**
+  2,315-answer set with only a per-*example* split (no held-out *by answer*), so 90% = memorizing answers
+  (same class as the rejected oreo 0.89). Reproduced with an honest answer-level split, the same
+  architecture barely generalizes.
+- **"Is it a bug?" — no.** The discriminator: **TRAIN-secret win 0.317 vs HELD-OUT 0.075.** A broken
+  pipeline can't win 31.7% on trained secrets — so the encoding/mask/eval are correct; the gap *is* the
+  result. The dense encoding learns `constraint→answer` for **seen** answers and ignores the clue facts on
+  unseen ones (guesses `salvo` with `v,o` already gray; greedy then loops on a byte-identical state — the
+  dashboard "stuck" symptom). Raw history can't loop that way (the board always grows), so the dense state
+  is structurally *worse* honestly, not just under-trained. **Verdict: rejected (0.065 ≪ 0.338).**
+
 ### 🌙 Overnight #4 (2026-06-07→08): the honest protocol + the data lever — best honest model **0.332** ([full report](./DAYRUN_REPORT.md))
 
 Two honesty rules were tightened (and they're the right ones): **(1) no dictionary at inference, ever**

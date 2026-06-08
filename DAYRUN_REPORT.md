@@ -120,12 +120,28 @@ Went deep on `/Users/pedram/repo/mm` (V2 = dense constraint-state encoding). Ver
   with a clean summary (greens by pos, yellows w/ excluded pos, grays w/ EXACT counts). Cleaner + richer
   than my failed infill (which *appended* a template to history). Porting it honestly → `dense_encode.py`.
 
-### dense-encode (the honest learning) — running
+### dense-encode (the honest learning) — DONE: **0.065 TEST** (the encoding *memorizes*, doesn't deduce)
 
 `scripts/dense_encode.py`: V2-style dense constraint state as the ONLY input, free char-gen (letter-mask,
-no dict), aux-validity, clean protocol, disjoint TEST. Bar to beat: **0.338**. Honest expectation: cleaner
-clue representation *might* lift deduction off 0.33 toward ~0.40; will NOT reach 90% (deduction wall is
-data-bound). Result pending. The
+no dict), aux-validity, dense-format spell warm-up, clean protocol, disjoint TEST. Bar to beat: **0.338**.
+
+**Result: clean-protocol TEST win = 0.065 (24/367)**, valid 0.776, avg 3.67 (best VAL 0.094 @ ep35). That's
+**~5× WORSE than validity-max (0.338)** — the honest port of the colleague's "90%" architecture lands at
+~0.07 held-out. This is the clean confirmation that **their 90% was the train-test contamination, not the
+encoding**: reproduced honestly (train-only secrets, disjoint TEST) the dense encoding barely generalizes.
+
+**"Is there a bug?" — investigated deeply, NO bug.** The discriminator: **TRAIN-secret win 0.317 vs
+HELD-OUT 0.075**. If the encoding/mask/eval were broken it couldn't win 31.7% on trained secrets — it can,
+so the pipeline (`clue_state → encode_constraint → generate-5 → validate → win`) is correct. The gap *is*
+the finding: the dense encoding learns `constraint→answer` for **seen** answers (memorizes) and ignores the
+clue facts on unseen ones. Receipts: (1) grays ARE encoded and grow (salsa `enclen 7→9→11→13`, grays
+`[]→{e,t}→{e,o,t,v}→{e,l,o,t,v,y}`) — no "gray dropped" bug; (2) the model *ignores* them — guessed `salvo`
+with `v,o` already gray; (3) that causes the dashboard loop: replaying a word that adds no new gray →
+**byte-identical state → deterministic greedy → same guess forever** (turn4≡turn5). Raw-history
+(validity-max) can't loop this way because the board always grows — a structural reason the dense state is
+*worse* honestly, not just under-trained. **Verdict: dense encoding rejected** (honest TEST 0.065 ≪ 0.338).
+
+The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
 (template net-negative), ensemble (0.283), RFT/STaR, DPO, scale (turns over). The remaining wall is
