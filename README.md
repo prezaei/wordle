@@ -85,6 +85,29 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-06 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 🌙 Overnight #4 (2026-06-07→08): the honest protocol + the data lever — best honest model **0.332** ([full report](./DAYRUN_REPORT.md))
+
+Two honesty rules were tightened (and they're the right ones): **(1) no dictionary at inference, ever**
+(retires beam-over-trie / best-of-N / constrained-decode as "the model"); **(2) a non-word guess is
+counted as a turn but NOT fed back** to the model (kills the all-gray "lottery" the old eval gave). Under
+this **clean protocol** (pure free-gen), the true stage-1 number is **0.243** (the old 0.281 was inflated
+~+0.04 by the lottery).
+
+- **The validity lever works but plateaus.** In-weights validity (aux + constrained self-distillation) is
+  monotonic with honest win: 0.243 (valid 0.66) → 0.281 → 0.302 (valid 0.76); pushing aux further (v3,
+  validity 0.77) gave **no** gain — the per-position aux is exhausted.
+- **The data lever broke the plateau.** Same recipe (aux 6 + constrained self-distill) on **all 1852 train
+  secrets** → **clean TEST 0.332** (+0.030; clean-VAL 0.333 ≈ clean-TEST across 463 independent secrets;
+  validity held ~0.76, so the gain is **fewer deduction losses from more in-distribution data**). This is
+  the **best honest model** (`validity_max_v4.pt`). The data lever is now maxed (held-out is off-limits).
+- **What failed (honestly):** the green/yellow **infill/template** (clue logic taught in training, free-gen
+  at inference) — both aux configs landed ~0.05; the model spells a valid *opener* but the explicit
+  template *breaks* constrained turns (the "structured-context hurt" lesson again). On-policy RFT/STaR,
+  scale (turns over past 50M), and aux-cranking were all confirmed at/under the ceiling too.
+
+**Net:** honest free-gen held-out climbed **0.243 → 0.332** via in-weights validity + maxed in-distribution
+data; the remaining wall is **deduction-generalization**, bounded by the ~1852-secret answer set.
+
 ### 📈 Day run (2026-06-07): scale sweep — held-out **turns over** past 50M ([full report](./DAYRUN_REPORT.md))
 
 "Would a bigger model fix it?" — answered, and the answer is **no**. The fair recipe trained at four

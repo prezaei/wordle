@@ -72,8 +72,12 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
    implicitly from the board** (validity-max) than from an explicit template (the "structured-context
    hurt" lesson, again). **VERDICT: the infill/template idea does NOT work** (fair test: ablation + 2 aux
    configs + opener diagnosis). Pivoted. validity-max v2 (0.302) stays the best honest model.
-4. **validity-max v4** — proven recipe (aux6 + constrained self-distill) scaled to ALL train secrets;
-   does more data beat the 0.302 plateau? (running)
+4. **validity-max v4** — aux6 + constrained self-distill on **ALL 1852 train secrets** → **clean TEST
+   0.332** (+0.030 over v2). **New best honest model**, plausibly real: clean-VAL 0.333 ≈ clean-TEST 0.332
+   across 463 independent secrets (neither selected-on), and a clear mechanism — validity held ~0.76, so
+   the gain is **fewer deduction (ran-out) losses from more in-distribution data**. The data lever is now
+   MAXED (all train secrets used). Caveat: +0.03 still warrants a different-seed confirm; flagged.
+5. **ensemble committee** (new) — multi-model majority vote, no dict: does a committee beat v4's 0.332? (running)
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.

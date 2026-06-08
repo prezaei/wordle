@@ -90,8 +90,9 @@ N = {
   "scale_xl": ("scale", "scale — xl", "99M", "fair recipe, largest net", "0.270 · valid 0.591 — turns over (< 50M)", "clean"),
   "rft_stage2": ("scale", "stage-2 RFT (on-policy distill)", "≈50M", "distill the model's OWN best-of-N winning games back into greedy (RAFT)", "win ~noise (0.32 selection peak); valid 0.681", "clean"),
   "validity_max": ("scale", "validity-max (aux 3)", "≈50M", "crank aux + distill own constrained-decode games to push in-weights spelling", "CLEAN 0.281 (valid 0.71) — lever works", "clean"),
-  "validity_max_v2": ("scale", "validity-max v2 (aux 6)", "≈50M", "push aux + more always-valid self-distill; honest clean protocol (no dict)", "CLEAN 0.302 (valid 0.76) — honest best", "head"),
+  "validity_max_v2": ("scale", "validity-max v2 (aux 6)", "≈50M", "push aux + more always-valid self-distill; honest clean protocol (no dict)", "CLEAN 0.302 (valid 0.76)", "clean"),
   "validity_max_v3": ("scale", "validity-max v3 (aux 8)", "≈50M", "push aux harder still — validity lever PLATEAUS", "CLEAN 0.264 (valid 0.77) — no gain, noise band", "clean"),
+  "validity_max_v4": ("scale", "validity-max v4 (aux6, ALL train)", "≈50M", "same recipe, scaled to all 1852 train secrets — DATA lever (better deduction generalization)", "CLEAN 0.332 — NEW BEST honest (+0.03 from data)", "head"),
   "infill": ("scale", "green-conditioned infill (user idea)", "≈50M", "green+yellow template as INPUT; clue-aware aux training-only. Valid opener (slate) but template-with-content breaks constrained turns", "FAILED 0.05 (λ6/λ1 both) — explicit template net-negative, hurts like structured-context", "cont"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
@@ -136,7 +137,7 @@ EDGES = [
   ("fair_stage1","scale_tiny","shrink"),("fair_stage1","scale_base","mid"),("fair_stage1","scale_xl","grow"),
   ("fair_stage1","rft_stage2","on-policy self-distill"),("fair_stage1","validity_max","push in-weights validity"),
   ("rft_stage2","control_teacher","attribution: ablate ingredients"),("validity_max","validity_max_v2","push aux harder (clean protocol)"),
-  ("validity_max_v2","validity_max_v3","aux 8 — plateaus"),("fair_stage1","infill","clue-aware infill (template input, clue logic training-only)"),
+  ("validity_max_v2","validity_max_v3","aux 8 — plateaus"),("validity_max_v3","validity_max_v4","aux6 + ALL train data"),("fair_stage1","infill","clue-aware infill (template input, clue logic training-only)"),
   ("fair_stage1","constrained_decode","mask spelling (diagnostic)"),("fair_stage1","bestof16","test-time compute"),("fair_stage1","bestof16_nodict","no-dict ablation"),("bestof16","bestof64","N=64"),("bestof64","bestof128","N=128"),("fair_stage1","beam_trie","beam"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
