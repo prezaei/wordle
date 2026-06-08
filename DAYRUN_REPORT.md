@@ -65,8 +65,15 @@ bound ~1,852 secrets). Ceiling if validity→1.0 = 0.436 (constrained-mask, dict
    **scratch** model λ6 lets the per-position validity aux dominate the imitation loss → the model
    optimizes per-position valid-letter mass instead of composing coherent words → non-words. (stage-1's
    scratch run used λ=1.) The with-CoT 0.000 also says think+template+commit is too hard to learn from
-   scratch. ⇒ **retry no-CoT with gentle aux λ=1** (diagnostic running). If it learns, scale; else the
-   template idea doesn't beat validity-max and we pivot.
+   scratch. ⇒ retried no-CoT gentle aux λ=1 → **also failed (clean 0.014)**, so it wasn't the aux.
+   **Opener diagnosis is decisive:** the model spells a **valid opener (`slate`)** but produces non-words
+   on later turns *once the template has greens/yellows* — i.e. the **explicit template is net-negative**:
+   it disrupts constrained generation rather than helping. The model learns clue-conditioning **better
+   implicitly from the board** (validity-max) than from an explicit template (the "structured-context
+   hurt" lesson, again). **VERDICT: the infill/template idea does NOT work** (fair test: ablation + 2 aux
+   configs + opener diagnosis). Pivoted. validity-max v2 (0.302) stays the best honest model.
+4. **validity-max v4** — proven recipe (aux6 + constrained self-distill) scaled to ALL train secrets;
+   does more data beat the 0.302 plateau? (running)
 4. **Best-recipe combine** — fold the winner (infill?) with constrained self-distill + strong aux.
 5. **Longer/stronger pretrain** (better in-weights vocabulary) on the best recipe.
 6. **Word-level validity** (new algo) — push spelling past the per-position-aux plateau, if time.

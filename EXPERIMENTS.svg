@@ -36,8 +36,8 @@
 </g>
 <g id="clust6" class="cluster">
 <title>cluster_scale</title>
-<path fill="#fbfbfb" stroke="#cccccc" d="M1803,-8C1803,-8 4908,-8 4908,-8 4914,-8 4920,-14 4920,-20 4920,-20 4920,-728.5 4920,-728.5 4920,-734.5 4914,-740.5 4908,-740.5 4908,-740.5 1803,-740.5 1803,-740.5 1797,-740.5 1791,-734.5 1791,-728.5 1791,-728.5 1791,-20 1791,-20 1791,-14 1797,-8 1803,-8"/>
-<text xml:space="preserve" text-anchor="start" x="3226.88" y="-725.15" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">FAIR RE&#45;BUILD + SCALE SWEEP (clean)</text>
+<path fill="#fbfbfb" stroke="#cccccc" d="M1803,-8C1803,-8 4938,-8 4938,-8 4944,-8 4950,-14 4950,-20 4950,-20 4950,-728.5 4950,-728.5 4950,-734.5 4944,-740.5 4938,-740.5 4938,-740.5 1803,-740.5 1803,-740.5 1797,-740.5 1791,-734.5 1791,-728.5 1791,-728.5 1791,-20 1791,-20 1791,-14 1797,-8 1803,-8"/>
+<text xml:space="preserve" text-anchor="start" x="3241.88" y="-725.15" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="13.00">FAIR RE&#45;BUILD + SCALE SWEEP (clean)</text>
 </g>
 <g id="clust7" class="cluster">
 <title>cluster_inf</title>
@@ -1453,24 +1453,24 @@
 <!-- infill -->
 <g id="node61" class="node">
 <title>infill</title>
-<polygon fill="#d9c89a" stroke="none" points="4376,-482.5 4376,-509.5 4904,-509.5 4904,-482.5 4376,-482.5"/>
-<polygon fill="none" stroke="black" points="4376,-482.5 4376,-509.5 4904,-509.5 4904,-482.5 4376,-482.5"/>
-<text xml:space="preserve" text-anchor="start" x="4529.38" y="-491.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">green&#45;conditioned infill (user idea)</text>
-<polygon fill="#efefef" stroke="none" points="4376,-460.75 4376,-482.5 4904,-482.5 4904,-460.75 4376,-460.75"/>
-<polygon fill="none" stroke="black" points="4376,-460.75 4376,-482.5 4904,-482.5 4904,-460.75 4376,-460.75"/>
-<text xml:space="preserve" text-anchor="start" x="4610.75" y="-468.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
-<polygon fill="none" stroke="black" points="4376,-439 4376,-460.75 4904,-460.75 4904,-439 4376,-439"/>
-<text xml:space="preserve" text-anchor="start" x="4382" y="-447.25" font-family="Helvetica,sans-Serif" font-size="9.00">green+yellow template as INPUT, generate whole word free; clue&#45;aware validity aux TRAINING&#45;only (no dict/mask at inference)</text>
-<polygon fill="#4a4a4a" stroke="none" points="4376,-415.75 4376,-439 4904,-439 4904,-415.75 4376,-415.75"/>
-<polygon fill="none" stroke="black" points="4376,-415.75 4376,-439 4904,-439 4904,-415.75 4376,-415.75"/>
-<text xml:space="preserve" text-anchor="start" x="4464.12" y="-424.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">no&#45;CoT 0.049 / CoT 0.000 — FAILED (aux λ6 too strong for scratch); retry λ1</text>
+<polygon fill="#d9c89a" stroke="none" points="4375.62,-482.5 4375.62,-509.5 4934.38,-509.5 4934.38,-482.5 4375.62,-482.5"/>
+<polygon fill="none" stroke="black" points="4375.62,-482.5 4375.62,-509.5 4934.38,-509.5 4934.38,-482.5 4375.62,-482.5"/>
+<text xml:space="preserve" text-anchor="start" x="4544.38" y="-491.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="14.00">green&#45;conditioned infill (user idea)</text>
+<polygon fill="#efefef" stroke="none" points="4375.62,-460.75 4375.62,-482.5 4934.38,-482.5 4934.38,-460.75 4375.62,-460.75"/>
+<polygon fill="none" stroke="black" points="4375.62,-460.75 4375.62,-482.5 4934.38,-482.5 4934.38,-460.75 4375.62,-460.75"/>
+<text xml:space="preserve" text-anchor="start" x="4625.75" y="-468.95" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="9.00" fill="#222222">≈50M params</text>
+<polygon fill="none" stroke="black" points="4375.62,-439 4375.62,-460.75 4934.38,-460.75 4934.38,-439 4375.62,-439"/>
+<text xml:space="preserve" text-anchor="start" x="4381.62" y="-447.25" font-family="Helvetica,sans-Serif" font-size="9.00">green+yellow template as INPUT; clue&#45;aware aux training&#45;only. Valid opener (slate) but template&#45;with&#45;content breaks constrained turns</text>
+<polygon fill="#4a4a4a" stroke="none" points="4375.62,-415.75 4375.62,-439 4934.38,-439 4934.38,-415.75 4375.62,-415.75"/>
+<polygon fill="none" stroke="black" points="4375.62,-415.75 4375.62,-439 4934.38,-439 4934.38,-415.75 4375.62,-415.75"/>
+<text xml:space="preserve" text-anchor="start" x="4453.62" y="-424.5" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">FAILED 0.05 (λ6/λ1 both) — explicit template net&#45;negative, hurts like structured&#45;context</text>
 </g>
 <!-- fair_stage1&#45;&gt;infill -->
 <g id="edge68" class="edge">
 <title>fair_stage1&#45;&gt;infill</title>
-<path fill="none" stroke="#888888" stroke-width="1.1" d="M2808.53,-658.64C3140.55,-654.81 3796.13,-635.02 4344,-543.75 4385.48,-536.84 4429.54,-526.57 4470.64,-515.66"/>
-<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="4471.08,-518.08 4477.21,-513.91 4469.81,-513.35 4471.08,-518.08"/>
-<text xml:space="preserve" text-anchor="middle" x="4348.62" y="-558.65" font-family="Helvetica,sans-Serif" font-size="8.00">clue&#45;aware infill (template input, clue logic training&#45;only)</text>
+<path fill="none" stroke="#888888" stroke-width="1.1" d="M2808.74,-657.8C3140.68,-652.87 3795.77,-631.65 4344,-543.75 4387.44,-536.78 4433.66,-526.5 4476.8,-515.6"/>
+<polygon fill="#888888" stroke="#888888" stroke-width="1.1" points="4477.31,-518 4483.49,-513.9 4476.1,-513.25 4477.31,-518"/>
+<text xml:space="preserve" text-anchor="middle" x="4348.53" y="-558.65" font-family="Helvetica,sans-Serif" font-size="8.00">clue&#45;aware infill (template input, clue logic training&#45;only)</text>
 </g>
 <!-- constrained_decode -->
 <g id="node68" class="node">
