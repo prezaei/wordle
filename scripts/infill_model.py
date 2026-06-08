@@ -120,6 +120,49 @@ def pick_cands(history, guess, rng):
     return cands
 
 
+def clue_constraints(turns):
+    """Pure clue logic (no dictionary): greens (pinned), per-position excluded letters (yellow/gray
+    seen there), and globally-absent letters (gray everywhere, never present). Enforced at inference."""
+    greens, excluded, present, grays = {}, {p: set() for p in range(5)}, set(), set()
+    for t in turns:
+        if t.feedback is None:
+            continue
+        for i, c in enumerate(t.feedback):
+            ch = t.guess[i]
+            if c is Color.GREEN:
+                greens[i] = ch
+                present.add(ch)
+            elif c is Color.YELLOW:
+                excluded[i].add(ch)  # in the word, but NOT at position i
+                present.add(ch)
+            else:
+                excluded[i].add(ch)  # gray at i -> not at i (covers duplicate-elsewhere too)
+                grays.add(ch)
+    absent = grays - present  # gray everywhere, never green/yellow -> not in the word at all
+    return greens, excluded, absent
+
+
+_TVS_CACHE: dict = {}
+
+
+def template_valid_sets(greens):
+    """TEMPLATE-AWARE aux (dict at TRAINING only): per blank position, the set of letters that complete a
+    REAL word with ALL greens pinned. Fixes the left-to-right trie's blindness to later greens (DOINT)."""
+    key = frozenset(greens.items())
+    cached = _TVS_CACHE.get(key)
+    if cached is not None:
+        return cached
+    matching = [w for w in VALID if all(w[p] == greens[p] for p in greens)] if greens else VALID
+    sets = {}
+    for b in range(5):
+        if b in greens:
+            continue
+        s = {ord(w[b]) - 97 for w in matching}
+        sets[b] = s if s else set(range(26))
+    _TVS_CACHE[key] = sets
+    return sets
+
+
 def build_example(game, rng):
     """board -> TEMPLATE -> think -> <GUESS> -> 5 letters. Loss on think + BLANK guess-positions only."""
     exs = []
@@ -136,14 +179,24 @@ def build_example(game, rng):
             mask.append(True)
             ids += _letters(c)
             mask += [True] * 5
+        _, excluded, absent = clue_constraints(game.turns[:k])  # clue-mask = TRAINING signal only
+        absent_idx = {ord(c) - 97 for c in absent}
+        tvs = template_valid_sets(greens)  # template-aware valid-letter sets per blank position
         ids.append(tok.guess_id)
         mask.append(False)
-        for pos in range(5):  # the committed word: loss ONLY on blanks (greens are given/forced)
+        aux_rows = []  # (predict_position, clue-consistent valid letter set) — teaches validity + clue-respect
+        for pos in range(5):  # inference generates all 5, so train (loss) on all 5
+            if pos in greens:
+                vset = {ord(greens[pos]) - 97}  # green: the pinned letter
+            else:
+                excl = {ord(c) - 97 for c in excluded[pos]} | absent_idx  # yellow-here + absent (clue-mask)
+                vset = tvs[pos] - excl or tvs[pos]  # real-word-completing AND clue-allowed
+            aux_rows.append((len(ids) - 1, vset))
             ids.append(tok.token_to_id(turn.guess[pos]))
-            mask.append(pos not in greens)
+            mask.append(True)
         ids.append(tok.eos_id)
         mask.append(False)
-        exs.append((ids, mask))
+        exs.append((ids, mask, aux_rows))
     return exs
 
 
@@ -171,7 +224,7 @@ def play_infill(model, secret):
     for attempt in range(1, 7):
         greens = known_greens(visible)
         yellows = known_yellows(visible)
-        seq = board_only(visible) + template_tokens(greens, yellows)
+        seq = board_only(visible) + template_tokens(greens, yellows)  # clues as INPUT only (no enforcement)
         # think phase: free-gen until <GUESS>
         for _ in range(60):
             nxt = int(ALLOWED_GEN[int(torch.argmax(model.forward(torch.tensor([seq], device=DEV))[0, -1][ALLOWED_GEN]))])
@@ -180,14 +233,12 @@ def play_infill(model, secret):
                 break
         else:
             seq.append(tok.guess_id)
-        # commit: force greens, greedily fill blanks
+        # commit: PURE free-gen of all 5 letters — NO pinning, NO clue-mask, NO dict (clue logic was
+        # taught in training; at inference the model must respect its own clues on its own).
         letters = []
-        for pos in range(5):
-            if pos in greens:
-                tid = tok.token_to_id(greens[pos])
-            else:
-                logits = model.forward(torch.tensor([seq], device=DEV))[0, -1]
-                tid = int(LETTER_IDS[int(torch.argmax(logits[LIDS]))])
+        for _ in range(5):
+            logits = model.forward(torch.tensor([seq], device=DEV))[0, -1]
+            tid = int(LETTER_IDS[int(torch.argmax(logits[LIDS]))])
             letters.append(tok.id_to_token(tid))
             seq.append(tid)
         word = "".join(letters)
@@ -248,13 +299,19 @@ def main():
     for epoch in range(EPOCHS):
         for idx in _batches(len(exs), 128, rng2):
             bs = [exs[i] for i in idx]
-            L = max(len(s) for s, _ in bs)
+            L = max(len(s) for s, _, _ in bs)
             ids = torch.full((len(bs), L), tok.pad_id, dtype=torch.long)
             tmask = torch.zeros((len(bs), L))
-            for i, (s, m) in enumerate(bs):
+            for i, (s, m, _ar) in enumerate(bs):
                 ids[i, : len(s)] = torch.tensor(s)
                 tmask[i, : len(m)] = torch.tensor([float(x) for x in m])
-            vmask = cot_valid_mask([s for s, _ in bs]).to(DEV)
+            vmask = cot_valid_mask([s for s, _, _ in bs])  # prefix-trie (think); CPU [B,L,26]
+            for i, (_s, _m, ar) in enumerate(bs):  # TEMPLATE-AWARE override for guess blanks
+                for pp, vset in ar:
+                    vmask[i, pp, :] = 0.0
+                    for li in vset:
+                        vmask[i, pp, li] = 1.0
+            vmask = vmask.to(DEV)
             ids, tmask = ids.to(DEV), tmask.to(DEV)
             logits = model.forward(ids)
             logp = torch.log_softmax(logits[:, :-1], dim=-1)
