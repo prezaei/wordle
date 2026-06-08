@@ -78,8 +78,27 @@ Honest: rollouts use only the model's samples + public spelling + majority vote 
 | RFT pilot (LR 1e-4) | — | — | NULL (LR damaged the minimum) |
 | **RFT best-shot** (LR 3e-5, on-policy ×3) | **0.319** (117/367) | 0.681 | **first method to beat stage-1** (+0.038, ~1.6σ) |
 | **validity-max** (aux λ3 + constrained games) | **0.305** (112/367) | 0.712 | validity rose 0.662→0.712, win partly followed (+0.024) |
-| STaR iter-2 (RFT from the 0.319 ckpt) | null | 0.71 | **did NOT compound** — re-warmed from VAL 0.365 but settled VAL 0.31-0.33; the 0.319 was selection-over-noise |
-| teacher-only control (gentle LR, no on-policy/constrained) | running | | attribution: is the small gain the ingredients or just re-training? |
+| STaR iter-2 (RFT from the 0.319 ckpt) | null | 0.71 | **did NOT compound** — re-warmed from VAL 0.365 but settled VAL 0.31-0.33 |
+| **teacher-only control** (no on-policy/constrained, aux 1.0) | **0.259** | 0.656 | **BUSTS the gains**: same VAL-0.365 selection (by chance, ep14) → TEST 0.259, *below* stage-1 |
+
+### Verdict: the win "gains" were selection noise; only validity is robustly movable
+
+The control is decisive. Selecting best-of-16-epochs on a **96-secret VAL** yields TEST anywhere in
+**[0.26, 0.32] regardless of method** — the control (a plain teacher-only re-train, no special ingredients)
+hit VAL 0.365 by chance and scored TEST **0.259**, *below* stage-1. So **RFT's 0.319 and validity-max's
+0.305 are noise, retracted.** Free-gen held-out win is **~0.28–0.30 across every method**, statistically
+indistinguishable from stage-1's 0.281.
+
+What *is* real and method-driven: **validity-max raised in-weights validity 0.662 → 0.712** (the control
+stayed 0.656) — the cranked aux + constrained-decode self-distillation genuinely improve spelling. **But
+it bought no win.** This is the **answer to the composition question**: pushing in-weights spelling does
+*not* lift win, because spelling was never the win bottleneck — **deduction-generalization is the wall**,
+and it is data-bound (only ~1,852 in-distribution train secrets; held-out answers are off-limits).
+
+**Tally: 9 training approaches now confirm the ~0.28–0.30 free-gen ceiling** (RL ×11, DPO ×3, DAgger ×2,
+info-gain, distill, RFT/STaR, validity-max). The only honest way past it is **test-time compute + the
+public dictionary** (beam-over-trie 0.55 deterministic; best-of-N 0.72) — the model generates freely,
+the dictionary only spell-checks (never clue-filters). That is the real "best model."
 
 **The turn.** Two warm-start fine-tunes **beat stage-1 on disjoint TEST** — the first to do so after 8
 nulls. RFT best-shot **0.319** and validity-max **0.305** (vs 0.281). The gentle LR (3e-5) was the
