@@ -199,10 +199,14 @@ def main():
         os.remove(PROG)
     print(f"[infill] aux={AUX_LAMBDA} epochs={EPOCHS} lr={LR} |secrets|={len(secrets)} base={BASE}", flush=True)
     model = WordleGenerator(CFG, VOCAB).to(DEV)
-    load_checkpoint(BASE, model)
-    base = clean_metrics(model, VAL)
-    print(f"[infill] stage-1 warm-start (infill inference) clean-VAL win={base['win']:.3f}  "
-          f"(stage-1 plain clean: TEST 0.243; ref constrained-mask 0.436)", flush=True)
+    if BASE == "scratch":  # FULL retrain: spell warm-up, then learn the template format natively
+        from wordle_slm.sft import pretrain_lm, pretrain_words
+        print("[infill] scratch: spell warm-up (pretrain_lm) ...", flush=True)
+        pretrain_lm(model, pretrain_words(), tok, SFTConfig(lr=1e-3), epochs=30, batch_size=256, device=DEV, seed=0)
+    else:
+        load_checkpoint(BASE, model)
+        base = clean_metrics(model, VAL)
+        print(f"[infill] warm-start clean-VAL win={base['win']:.3f} (likely ~0 — template is OOD for stage-1)", flush=True)
 
     rng = Random(0)
     games = []
@@ -246,19 +250,18 @@ def main():
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
         sched.step()
-        model.eval()
-        vg = [play_infill(model, s) for s in VIZ]
-        vw = [x for x in vg if x["won"]]
-        append_epoch(PROG, epoch, {"win": len(vw) / len(vg), "valid": 1.0, "avg": 0.0}, [], sample=0, kind="sft")
-        m = clean_metrics(model, VAL)
-        flag = ""
-        if m["win"] > best:
-            best = m["win"]
-            save_checkpoint(OUT, model, opt, epoch, SFTConfig())
-            saved = True
-            flag = "  <- best, saved"
-        print(f"  epoch {epoch:>2}  clean-VAL win {m['win']:.3f}  nonword-losses {m['nonword']}{flag}", flush=True)
-        model.train()
+        if epoch % 5 == 0 or epoch == EPOCHS - 1:  # clean-VAL eval is slow; every 5 epochs
+            model.eval()
+            m = clean_metrics(model, VAL)
+            flag = ""
+            if m["win"] > best:
+                best = m["win"]
+                save_checkpoint(OUT, model, opt, epoch, SFTConfig())
+                saved = True
+                flag = "  <- best, saved"
+            print(f"  epoch {epoch:>2}  loss={float(loss.detach()):.3f}  clean-VAL win {m['win']:.3f}  "
+                  f"nonword-losses {m['nonword']}{flag}", flush=True)
+            model.train()
 
     print("\n=== INFILL: honest clean-protocol TEST (greens pinned, blanks free-gen, no dict) ===", flush=True)
     b = WordleGenerator(CFG, VOCAB).to(DEV)
