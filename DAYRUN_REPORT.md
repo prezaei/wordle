@@ -102,7 +102,30 @@ dashboard + selection were poisoned. **Fix:** `validity_max.play()` now conditio
 dashboard + clean selection) → the proper canonical best model.
 
 **Overnight verdict (forming):** best honest model = **validity-max v4 = 0.333** (verified 2 seeds);
-v7 re-confirms it under a fully-clean selection pipeline. The
+**v7 (fully-clean pipeline: clean play() + clean selection) = clean TEST 0.338** — confirms it, clean
+selection edged it up slightly. Honest best ≈ **0.337**.
+
+### 🔎 Investigated a colleague's "90% without cheating" repo (rynowak/mm)
+
+Went deep on `/Users/pedram/repo/mm` (V2 = dense constraint-state encoding). Verdict:
+- **Decode is HONEST** — V2 generates free char-by-char, `letter_mask` only masks to the 26 letters (no
+  dictionary, no answer-trie, no consistency filter). (My first read wrongly flagged V1's answer-trie; the
+  V2/90% path doesn't use it — corrected after the user pushed.)
+- **The 90% is train-test CONTAMINATION** — no held-out by answer. Pretrain (`transcripts.py:73
+  random.choice(answers)`) + RL (`finetune.py:193 random.choices(answers)`) train on the FULL 2,315 answer
+  set; eval (`finetune.py:171 random.sample(answers)`) is a random sample of the SAME set; the only split
+  is per-*example* after a shuffle (`data.py:126`). So 90% = memorizing the answer set, not generalizing
+  (same class as oreo's rejected 0.89). Their honest analog is their own V1 *unconstrained* ~30% ≈ our 0.33.
+- **The genuinely good honest learning:** their **dense constraint-state encoding** — REPLACE raw history
+  with a clean summary (greens by pos, yellows w/ excluded pos, grays w/ EXACT counts). Cleaner + richer
+  than my failed infill (which *appended* a template to history). Porting it honestly → `dense_encode.py`.
+
+### dense-encode (the honest learning) — running
+
+`scripts/dense_encode.py`: V2-style dense constraint state as the ONLY input, free char-gen (letter-mask,
+no dict), aux-validity, clean protocol, disjoint TEST. Bar to beat: **0.338**. Honest expectation: cleaner
+clue representation *might* lift deduction off 0.33 toward ~0.40; will NOT reach 90% (deduction wall is
+data-bound). Result pending. The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
 (template net-negative), ensemble (0.283), RFT/STaR, DPO, scale (turns over). The remaining wall is
