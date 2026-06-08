@@ -100,6 +100,35 @@ info-gain, distill, RFT/STaR, validity-max). The only honest way past it is **te
 public dictionary** (beam-over-trie 0.55 deterministic; best-of-N 0.72) — the model generates freely,
 the dictionary only spell-checks (never clue-filters). That is the real "best model."
 
+### Generation-order flaw (user-found): late greens break L→R spelling; invalid guesses poison context
+
+Two real mechanism bugs surfaced by inspecting lost games on the dashboard:
+
+**1. Invalid guesses are mishandled.** `Game.guess` appends an invalid (non-word) guess as a turn with
+`feedback=None` that *still counts toward the 6-guess limit*; and `board_only`/`_fb` encode it into the
+next inference context as **all-gray** — a fabrication that says "these letters are absent," often
+contradicting greens the model already earned. Worse, **training never contains invalid-word contexts**
+(teacher games are always valid), so after its first non-word the model is in an **out-of-distribution,
+self-contradictory context** — the likely cause of the non-word *cascades* (`manim→bando→pangy→hanja`).
+
+**2. Left-to-right generation fails on late constraints.** The order diagnostic (free-gen, TEST) is
+decisive:
+
+| greens to satisfy | invalid-guess rate | green-violation rate |
+|---|---|---|
+| none | 6.3% | 0.0% |
+| early (pos 1-3) | 37.8% | 4.3% |
+| **late (pos 4-5)** | **52.4%** | **19.5%** |
+
+Unconstrained, the model spells fine (6% non-words). With a green near the **end**, it emits a non-word
+**52%** of the time and **ignores its own green 1-in-5**. L→R autoregression commits the early letters,
+then can't compose a valid word that lands the required late letter. ⇒ generation *order* is a real lever.
+
+**Fixes under test:** (a) **green-anchored decoding** — force-copy known greens, generate only the blanks
+(running); (b) **recovery-augmentation SFT** — train on histories containing the model's own non-words so
+it stops being OOD and learns to keep greens / not cascade. Both target composition, so capped ~0.55 by
+the deduction wall, but they attack genuine mechanism bugs (not noise).
+
 ### Best model = stage-1; the validity gain is even net-NEGATIVE for inference
 
 Profiling the higher-validity weights (`validity_max`, free-gen valid 0.712) on the honest-spelling tier:
