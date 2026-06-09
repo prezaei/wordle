@@ -220,9 +220,32 @@ valid-guess list (never the answer set), eval clean held-out, β=0 == G-alone (b
   among many consistent candidates — that needs either knowing the answer (memorization, banned) or
   late-game tight constraints. The deduction-generalization wall, relocated into a second network.
 
+**PoE re-rank** (`scripts/poe_rerank.py`, word-level variant): G samples N=10 candidate words, C ranks by
+consistency-likelihood, commit best. Also **NULL** — VAL N=1 (G) 0.292 vs N=10 (C-rerank) 0.271 (delta
+−0.021, slightly worse); cost-guard skipped the TEST. Both fusion modes (per-letter + word-level) agree: C
+adds no signal.
+
 **Four honest architectures now converge on 0.33–0.34** (dense=memorize, reason-CoT=route-around,
-iter-refine=identity, PoE=no-signal). The wall is robust to representation, computation, and fusion. The
-honest free-gen ceiling stands at **validity-max 0.338**.
+iter-refine=identity, PoE=no-signal both fusion modes). The wall is robust to representation, computation,
+and fusion. The honest free-gen ceiling stands at **validity-max 0.338**.
+
+### 🔑 Ambiguity diagnostic — the wall is NOT fundamental ambiguity (reframes everything)
+
+Before concluding, measured WHY G loses on held-out (`scripts/ambiguity_diag.py`): play G, and at each
+losing guess count |consistent set| = #valid words still consistent with the clues (exact scan of the full
+14,855-word dict). Result on 150 held-out:
+- won 48/150 (0.320), lost 102.
+- **|consistent set| at the losing guess: median 3, mean 7.5.** Distribution: **size 1 → 30**, 2-3 → 32,
+  4-10 → 24, 11-50 → 12, >50 → 4.
+- **62/102 losses (61%) had ≤3 consistent words** — and **30 had a UNIQUE consistent word (size 1)** that G
+  still failed to produce. Only 16% of losses are genuinely ambiguous (>10).
+
+**The wall is NOT "too many candidates" — it's G failing on near-determined positions.** Implied ceiling if
+the tight cases were solved: **+0.41**. This means PoE wasn't doomed; the consistency expert C was just too
+SOFT — trained on loose random-guess states, it learned "*a* consistent word," never the endgame ("*the*
+word when clues nearly determine it"). Directly fixable + honest → next: a **sharp C** trained on a
+curriculum of realistic tight states (`scripts/poe_sharp.py`). Decisive test: can C generate the unique
+consistent word on held-out size-1 states?
 
 The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped

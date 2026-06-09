@@ -121,15 +121,24 @@ def main():
     print("[rerank] VAL: N=1 (G greedy-ish baseline) vs N (C re-rank):", flush=True)
     base = evaluate(G, None, VAL, 1, gen)
     rer = evaluate(G, C, VAL, N, gen)
+    delta = rer["win"] - base["win"]
     print(f"  N=1  win {base['win']:.3f} valid {base['valid']:.3f}", flush=True)
-    print(f"  N={N} win {rer['win']:.3f} valid {rer['valid']:.3f}  (delta {rer['win'] - base['win']:+.3f})", flush=True)
+    print(f"  N={N} win {rer['win']:.3f} valid {rer['valid']:.3f}  (delta {delta:+.3f})", flush=True)
 
-    print("\n[rerank] memorization audit (TRAIN vs HELD @ N re-rank):", flush=True)
+    # Cost guard: the N-sample TEST eval is ~Nx slower; only run it if VAL re-rank actually beats N=1.
+    if delta <= 0.02:
+        print(f"\n[rerank] no VAL improvement (delta {delta:+.3f} <= 0.02) -> skipping the expensive TEST. "
+              f"NULL: C-rerank does not beat G (same wall as per-letter PoE).", flush=True)
+        print("\n[RERANK DONE]", flush=True)
+        return
+
+    print("\n[rerank] VAL improved -> memorization audit + TEST:", flush=True)
     tr = evaluate(G, C, TRAIN_PROBE, N, gen)
     print(f"  TRAIN-probe win {tr['win']:.3f}  (if >> TEST -> C memorized)", flush=True)
-    mt = evaluate(G, C, TEST, N, gen)
-    print(f"\n=== PoE re-rank: honest clean-protocol TEST (G samples, C ranks; no dict) ===", flush=True)
-    print(f"  TEST win {mt['win']:.3f} ({int(round(mt['win'] * len(TEST)))}/{len(TEST)}) valid {mt['valid']:.3f} avg {mt['avg']:.2f}", flush=True)
+    TEST_SUB = TEST[:150]  # bound the N-sample TEST cost
+    mt = evaluate(G, C, TEST_SUB, N, gen)
+    print(f"\n=== PoE re-rank: honest clean-protocol TEST[:150] (G samples, C ranks; no dict) ===", flush=True)
+    print(f"  TEST win {mt['win']:.3f} ({int(round(mt['win'] * len(TEST_SUB)))}/{len(TEST_SUB)}) valid {mt['valid']:.3f} avg {mt['avg']:.2f}", flush=True)
     print(f"  [bar] validity-max v4 clean 0.338 ; train-probe {tr['win']:.3f}", flush=True)
     print("\n[RERANK DONE]", flush=True)
 

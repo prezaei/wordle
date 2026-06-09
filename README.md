@@ -134,6 +134,15 @@ many consistent candidates on held-out** — that requires either knowing the an
 constraints tight enough to be unambiguous. The deduction-generalization wall, relocated into a second
 network. **Four honest architectures (dense, reason-CoT, iter-refine, PoE) now converge on the same wall.**
 
+**…but the ambiguity diagnostic reframes the wall (and reopens the attack).** Measuring *why* G loses on
+held-out (`ambiguity_diag.py`, exact full-dict consistent-set count at each losing guess): **61% of losses
+have ≤3 consistent words, and 30/150 games have a UNIQUELY determined answer (consistent set = 1) that G
+still misses.** Only 16% of losses are genuinely ambiguous. So the wall isn't "too many candidates" — it's
+**G failing on near-determined positions** (median consistent set = 3; implied ceiling +0.41). PoE's C was
+just too *soft* (trained on loose random-guess states). The fix under test (`poe_sharp.py`): a **sharp C**
+trained on a curriculum of realistic *tight* states (the endgame), measured by whether it can generate the
+unique consistent word on held-out size-1 states. *[result pending]*
+
 ### 🧪 Honest RL (free-gen GRPO) on the 50M base — **NULL 0.332 TEST** (RL sharpens train, doesn't generalize) ([full report](./DAYRUN_REPORT.md))
 
 "Are there RL techniques to push the win rate higher?" Answered with the first **clean-lineage** RL run: a
