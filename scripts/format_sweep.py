@@ -228,7 +228,17 @@ def evaluate(model, secrets):
     games = batched_play(model, list(secrets))
     wins = [g for g in games if g.won]
     n = sum(len(g.turns) for g in games)
+    # clue-respect: of VALID guesses, fraction CONSISTENT with the clues so far (the format-tracking metric,
+    # measurable even when win~0). Higher = the format helps the model track its own clues.
+    vg = cg = 0
+    for g in games:
+        for k, t in enumerate(g.turns):
+            if not is_valid(t.guess):
+                continue
+            vg += 1
+            cg += is_consistent(t.guess, g.turns[:k])
     return {"win": len(wins) / len(games), "valid": sum(is_valid(t.guess) for g in games for t in g.turns) / n if n else 0.0,
+            "respect": cg / vg if vg else 0.0,
             "avg": statistics.mean(g.guesses_used for g in wins) if wins else float("nan")}
 
 
@@ -306,7 +316,7 @@ def main():
     rng2 = Random(0)
     best, saved = -1.0, False
     model.train()
-    print(f"[fmt={FMT}] epoch  clean-VAL win / valid", flush=True)
+    print(f"[fmt={FMT}] epoch  clean-VAL win / valid / clue-RESPECT (the format metric)", flush=True)
     for epoch in range(EPOCHS):
         for idx in _batches(N, int(os.environ.get("VM_BATCH", "512")), rng2):  # 128GB -> big batches saturate the GPU
             bidx = torch.tensor(idx, device=DEV)
@@ -333,14 +343,14 @@ def main():
                 best, saved = m["win"], True
                 save_checkpoint(OUT, model, opt, epoch, SFTConfig())
                 flag = "  <- best, saved"
-            print(f"  epoch {epoch:>2}  win {m['win']:.3f} / valid {m['valid']:.3f}{flag}", flush=True)
+            print(f"  epoch {epoch:>2}  win {m['win']:.3f} / valid {m['valid']:.3f} / respect {m['respect']:.3f}{flag}", flush=True)
             model.train()
 
     print(f"\n=== fmt={FMT}: honest clean TEST ===", flush=True)
     b = WordleGenerator(CFG, VOCAB).to(DEV)
     load_checkpoint(OUT, b)
     mt = evaluate(b, TEST)
-    print(f"  TEST win {mt['win']:.3f} ({int(round(mt['win'] * len(TEST)))}/{len(TEST)}) valid {mt['valid']:.3f} avg {mt['avg']:.2f}", flush=True)
+    print(f"  TEST win {mt['win']:.3f} ({int(round(mt['win'] * len(TEST)))}/{len(TEST)}) valid {mt['valid']:.3f} respect {mt['respect']:.3f} avg {mt['avg']:.2f}", flush=True)
     print(f"  [bar] validity-max v4 (warm-started) 0.338 ; compare fmt deltas from-scratch", flush=True)
     print(f"\n[FMT {FMT} DONE]", flush=True)
 
