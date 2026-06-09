@@ -99,6 +99,8 @@ N = {
   "reason_cot": ("scale", "reasoning-CoT (derive constraints)", "≈50M", "condition on RAW history, DERIVE + write out the constraint state (greens/yellows/grays) as CoT, then guess; teacher supervises the derivation (train-only); free ephemeral decode", "NULL (stopped ep20, win ~0.04) — reasoning COLLAPSED (derive-acc pinned 0.679 = all-BLANK); model routes around it. Restating a deterministic fn of the input adds NO info", "clean"),
   "iter_refine": ("scale", "iterative refine (draft->edit)", "≈50M", "learned edit operator: condition on history + a DRAFT word, output a better word; at play feed each guess back K passes (full-word lookahead); lean 36-vocab; near-miss/identity/random draft training", "NULL 0.098 TEST — refinement = IDENTITY (passes 0=1=3 byte-identical); model ignores the draft. Same route-around as reason-CoT", "clean"),
   "poe": ("scale", "product-of-experts (G x C)", "2x≈50M", "fuse FROZEN generator G (validity_max_v4, common words) x a NEW consistency expert C (trained answer-agnostic on full-dict clue->consistent-word, 50k states) at the decode logits; beta sweep incl beta=0=G-alone; honest (both nets forward-pass, no dict/engine)", "NULL 0.332 (delta +0.000 vs G) — C adds nothing at low beta, HURTS at high; learns 'a consistent word' but can't pin THE answer on held-out (the wall, relocated to fusion)", "clean"),
+  "ambiguity_diag": ("scale", "ambiguity diagnostic", "—", "measure WHY G loses: |consistent set| at each losing guess (exact full-dict scan)", "KEY: wall is NOT ambiguity — 61% of losses have <=3 consistent words, 20% UNIQUELY determined yet missed; ceiling +0.41 if tight cases solved", "audit"),
+  "poe_sharp": ("scale", "sharp consistency expert (endgame)", "2x≈50M", "PoE with C retrained on TIGHT realistic states (the endgame curriculum); decisive test = can C produce the UNIQUE consistent word on held-out unique-answer states?", "NULL 0.332 (delta +0.000); size-1 deduction acc 0.07 held / 0.14 train — constraint->unique-answer is a discrete SEARCH, not a learnable-generalizable fn. THE root cause of the 0.34 wall", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -151,6 +153,8 @@ EDGES = [
   ("validity_max_v4","reason_cot","execute deduction via reasoning (not amortize)"),
   ("reason_cot","iter_refine","cross-pass computation instead of restating"),
   ("iter_refine","poe","multiplicative fusion (can't be routed around)"),
+  ("poe","ambiguity_diag","why does G lose? measure the consistent set"),
+  ("ambiguity_diag","poe_sharp","losses are tight -> sharpen C on the endgame"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 

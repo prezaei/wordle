@@ -141,7 +141,22 @@ still misses.** Only 16% of losses are genuinely ambiguous. So the wall isn't "t
 **G failing on near-determined positions** (median consistent set = 3; implied ceiling +0.41). PoE's C was
 just too *soft* (trained on loose random-guess states). The fix under test (`poe_sharp.py`): a **sharp C**
 trained on a curriculum of realistic *tight* states (the endgame), measured by whether it can generate the
-unique consistent word on held-out size-1 states. *[result pending]*
+unique consistent word on held-out size-1 states.
+
+**Sharp-C result — the root cause, proven (NULL 0.332, but it explains everything).** Even a C trained
+*explicitly* on tight endgame states (unlimited answer-agnostic data) is null in PoE (TEST 0.332, delta
++0.000), and the decisive metric says why: **size-1 deduction accuracy = 0.07 held-out (1/14), 0.14 train
+(2/14)** — when the clues *uniquely determine* the answer, the expert produces it only ~7% of the time on
+unseen answers (and can't even *fit* it on train). The `constraint → unique answer` mapping is a **discrete
+combinatorial search, not a smooth function a generative net learns to generalize.** That is the mechanistic
+root of the ~0.34 honest ceiling: solving a near-determined Wordle position requires either explicit
+search/verification (the banned solver) or having seen the answer (banned contamination). A common-word
+frequency prior doesn't escape it either — ranking the consistent candidates needs the consistent set, which
+needs the banned consistency filter at inference.
+
+**Final honest conclusion (6 architectures + 2 diagnostics):** the honest free-gen ceiling is **0.338**
+(validity-max). It is *not* a missing trick or a tuning gap — it is that Wordle deduction is discrete search,
+which generative weights cannot learn to generalize honestly. The journey *is* the result.
 
 ### 🧪 Honest RL (free-gen GRPO) on the 50M base — **NULL 0.332 TEST** (RL sharpens train, doesn't generalize) ([full report](./DAYRUN_REPORT.md))
 

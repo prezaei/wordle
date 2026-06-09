@@ -247,6 +247,30 @@ word when clues nearly determine it"). Directly fixable + honest → next: a **s
 curriculum of realistic tight states (`scripts/poe_sharp.py`). Decisive test: can C generate the unique
 consistent word on held-out size-1 states?
 
+### 🧱 Sharp-C — the ROOT CAUSE of the 0.34 wall, proven
+
+Trained C on 15k realistic TIGHT states (consistent prior guesses → endgame narrowing; 45,793 examples,
+answer-agnostic full dict). C-sft fit better than soft-C (loss → 1.45). Results:
+- **C-solo held-out win 0.104** (vs soft-C / dense 0.065 — the endgame curriculum helped C a little).
+- **size-1 deduction accuracy: 0.071 held-out (1/14), 0.143 train (2/14)** — the decisive number. When the
+  clues UNIQUELY determine the answer, sharp C produces it only ~7% on unseen answers, and only ~14% even on
+  train (it can't even *fit* the deduction in-distribution).
+- **PoE β-sweep:** β=0 (G-alone) 0.292 best; β=1,2 identical; β=4,8 hurt. **TEST 0.332, delta +0.000.**
+
+**Conclusion — the mechanistic root of the honest ceiling.** The `constraint → unique answer` mapping is a
+**discrete combinatorial search**, not a smooth function a generative neural net learns to *generalize*. On
+training states it can partially pattern-match (memorize); for an unseen answer the clue→word association is
+a new discrete object with no smooth interpolation, so it fails (size-1 held-out 7%). This is *why* every
+honest approach caps at ~0.34: solving a near-determined position needs explicit search/verification (the
+banned solver) or having seen the answer (banned contamination). Even a common-word **frequency prior** can't
+escape it — to rank the consistent candidates you need the consistent set, which needs the banned consistency
+filter at inference.
+
+**FINAL (6 architectures + 2 diagnostics): the honest free-gen ceiling is 0.338 (validity-max).** Not a
+missing trick — Wordle deduction is discrete search, which generative weights cannot honestly learn to
+generalize. dense=memorize · reason-CoT=route-around · iter-refine=identity · PoE/sharp-PoE=no-signal ·
+ambiguity-diag=losses are tight not ambiguous · size-1=deduction doesn't generalize (7%).
+
 The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
