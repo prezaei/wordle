@@ -129,20 +129,21 @@ def game_examples(game, rng):
     return exs
 
 
-def cot_valid_mask(seqs):
-    L = max(len(s) for s in seqs)
-    vmask = torch.zeros((len(seqs), L, 26))
-    for i, seq in enumerate(seqs):
-        for t, tokid in enumerate(seq):
-            if tokid not in WORD_STARTS or t + 5 >= len(seq):
-                continue
-            node = TRIE
-            for j in range(5):
-                for child in node:
-                    vmask[i, t + j, child] = 1.0
-                nxt = seq[t + 1 + j] - LETTER_LO
-                node = node.get(nxt, {}) if 0 <= nxt < 26 else {}
-    return vmask
+def cot_valid_rows(seq):
+    """Per-example [len,26] trie-valid mask. Deterministic per example -> precompute ONCE (not per batch
+    per epoch), so the GPU never stalls on this single-threaded Python trie-walk during training."""
+    L = len(seq)
+    v = torch.zeros((L, 26))
+    for t, tokid in enumerate(seq):
+        if tokid not in WORD_STARTS or t + 5 >= L:
+            continue
+        node = TRIE
+        for j in range(5):
+            for child in node:
+                v[t + j, child] = 1.0
+            nxt = seq[t + 1 + j] - LETTER_LO
+            node = node.get(nxt, {}) if 0 <= nxt < 26 else {}
+    return v
 
 
 @torch.no_grad()
@@ -285,7 +286,8 @@ def main():
         games += [tr.game for tr in generate_transcripts(secrets, weak_frac=0.5, openers=safe, seed=300 + s, valid_pool=VALID, answer_pool=secrets)]
     exs = [e for g in games for e in game_examples(g, rng)]
     rng.shuffle(exs)
-    print(f"[fmt={FMT}] games={len(games)} examples={len(exs)}", flush=True)
+    aux_rows = [cot_valid_rows(s) for s, _ in exs]  # precompute ONCE (was: every batch every epoch)
+    print(f"[fmt={FMT}] games={len(games)} examples={len(exs)} (aux masks precomputed)", flush=True)
 
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS, eta_min=LR * 0.1)
@@ -302,7 +304,11 @@ def main():
             for i, (s, m) in enumerate(bs):
                 ids[i, : len(s)] = torch.tensor(s)
                 tmask[i, : len(m)] = torch.tensor([float(x) for x in m])
-            vmask = cot_valid_mask([s for s, _ in bs]).to(DEV)
+            vmask = torch.zeros((len(bs), L, 26))  # assemble from precomputed rows (cheap copy, no trie-walk)
+            for a, i in enumerate(idx):
+                r = aux_rows[i]
+                vmask[a, : r.shape[0]] = r
+            vmask = vmask.to(DEV)
             ids, tmask = ids.to(DEV), tmask.to(DEV)
             logits = model.forward(ids)
             logp = torch.log_softmax(logits[:, :-1], dim=-1)
