@@ -98,6 +98,7 @@ N = {
   "grpo_honest": ("scale", "honest free-gen GRPO on 50M base", "≈50M", "FIRST clean-lineage RL: correct free-gen GRPO (CoT-bearing rollout, win-dominance+non-word reward, group-rel adv no/std, clipped surrogate, k3 KL to frozen ref) on validity_max_v4; fixed the dropout-in-ratio bug so RL works mechanically; train-only secrets, eval clean", "NULL 0.332 TEST — train win 0.41->0.60 (+19pt) but held-out FLAT; RL sharpens/memorizes train, zero transfer (the generalization wall, now via correct RL)", "clean"),
   "reason_cot": ("scale", "reasoning-CoT (derive constraints)", "≈50M", "condition on RAW history, DERIVE + write out the constraint state (greens/yellows/grays) as CoT, then guess; teacher supervises the derivation (train-only); free ephemeral decode", "NULL (stopped ep20, win ~0.04) — reasoning COLLAPSED (derive-acc pinned 0.679 = all-BLANK); model routes around it. Restating a deterministic fn of the input adds NO info", "clean"),
   "iter_refine": ("scale", "iterative refine (draft->edit)", "≈50M", "learned edit operator: condition on history + a DRAFT word, output a better word; at play feed each guess back K passes (full-word lookahead); lean 36-vocab; near-miss/identity/random draft training", "NULL 0.098 TEST — refinement = IDENTITY (passes 0=1=3 byte-identical); model ignores the draft. Same route-around as reason-CoT", "clean"),
+  "poe": ("scale", "product-of-experts (G x C)", "2x≈50M", "fuse FROZEN generator G (validity_max_v4, common words) x a NEW consistency expert C (trained answer-agnostic on full-dict clue->consistent-word, 50k states) at the decode logits; beta sweep incl beta=0=G-alone; honest (both nets forward-pass, no dict/engine)", "NULL 0.332 (delta +0.000 vs G) — C adds nothing at low beta, HURTS at high; learns 'a consistent word' but can't pin THE answer on held-out (the wall, relocated to fusion)", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -149,6 +150,7 @@ EDGES = [
   ("validity_max_v4","grpo_honest","honest free-gen GRPO (CoT-bearing, RL question)"),
   ("validity_max_v4","reason_cot","execute deduction via reasoning (not amortize)"),
   ("reason_cot","iter_refine","cross-pass computation instead of restating"),
+  ("iter_refine","poe","multiplicative fusion (can't be routed around)"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 

@@ -203,6 +203,27 @@ generalizes best. *That tension is why ~0.34 resists a single forward pass.* The
 escapes route-around: a **separate** consistency network fused **multiplicatively at the logits**
 (product-of-experts) — both experts must agree, so it can't be ignored. That's the next candidate if pursued.
 
+### Product-of-Experts (`scripts/poe.py`) — the escape mechanism, tested: NULL 0.332 (delta +0.000)
+
+Built the PoE that escapes route-around: frozen **G** = validity_max_v4 (common-word generation, its
+load-bearing CoT) × a **new consistency expert C** trained answer-AGNOSTICALLY on **50k** full-dict
+(clue-state → consistent valid word) examples. Fuse at the 5 letter-decode positions:
+`letter = argmax_26[logP_G + β·logP_C]`. Honest: both nets forward-pass, C trained only on the public
+valid-guess list (never the answer set), eval clean held-out, β=0 == G-alone (built-in ablation).
+
+- **β sweep (VAL):** β=0 → 0.292 · β=0.5 → 0.292 · β=1 → 0.292 · β=2 → 0.250 · β=3 → 0.229. Best = β=0.
+- **TEST:** β=0 → **0.332** = G-alone exactly, **delta +0.000**.
+- **Mechanism worked** (C *did* change the output at high β — not a route-around collapse), but **C adds no
+  useful signal**: identical to G at low β, worse at high β (C drags G off the common-word manifold toward
+  *some* consistent — often rare/wrong — word).
+- **Why:** C learned "what is *a* consistent word," but on held-out it **can't disambiguate THE answer**
+  among many consistent candidates — that needs either knowing the answer (memorization, banned) or
+  late-game tight constraints. The deduction-generalization wall, relocated into a second network.
+
+**Four honest architectures now converge on 0.33–0.34** (dense=memorize, reason-CoT=route-around,
+iter-refine=identity, PoE=no-signal). The wall is robust to representation, computation, and fusion. The
+honest free-gen ceiling stands at **validity-max 0.338**.
+
 The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill

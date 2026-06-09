@@ -122,8 +122,17 @@ the guess attends to the raw history directly and the channel carries no informa
 compute. The *opposite* fix — **bottlenecking** the guess through an explicit constraint state (dense-encode)
 — **memorizes** instead (train 0.32 / held 0.07). Route-around → no-op; bottleneck → memorize; **raw history
 only → best generalization (0.338)**. That tension is *why* 0.34 is hard to beat honestly with a single
-forward pass. The one mechanism not yet tried that escapes it: a **separate** consistency network fused
-multiplicatively at the logits (product-of-experts), which can't be routed around.
+forward pass.
+
+**Product-of-Experts — the escape that confirmed the wall (NULL 0.332, delta +0.000).** The one mechanism
+that can't be routed around: fuse the frozen generator G (validity_max_v4, common words) with a *separate*
+consistency expert C (trained answer-**agnostically** on 50k full-dict clue→consistent-word states) by
+**multiplying** their letter-logits. Fusion worked mechanically (C *did* change the output at high β), so
+this wasn't a route-around collapse — yet **C added nothing** (β=0/0.5/1 identical to G; β=2/3 *hurt*; TEST
+0.332 = G-alone, +0.000). *Why:* C learned "what is *a* consistent word" but **can't pin THE answer among
+many consistent candidates on held-out** — that requires either knowing the answer (memorization, banned) or
+constraints tight enough to be unambiguous. The deduction-generalization wall, relocated into a second
+network. **Four honest architectures (dense, reason-CoT, iter-refine, PoE) now converge on the same wall.**
 
 ### 🧪 Honest RL (free-gen GRPO) on the 50M base — **NULL 0.332 TEST** (RL sharpens train, doesn't generalize) ([full report](./DAYRUN_REPORT.md))
 
