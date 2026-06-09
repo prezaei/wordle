@@ -339,10 +339,10 @@ def main():
         if epoch % 4 == 0 or epoch == EPOCHS - 1:
             m = evaluate(model, VAL)
             flag = ""
-            if m["win"] > best:
-                best, saved = m["win"], True
+            if m["respect"] > best:  # select by clue-RESPECT (win stays 0 from-scratch -> would save epoch-0 garbage)
+                best, saved = m["respect"], True
                 save_checkpoint(OUT, model, opt, epoch, SFTConfig())
-                flag = "  <- best, saved"
+                flag = "  <- best-respect, saved"
             print(f"  epoch {epoch:>2}  win {m['win']:.3f} / valid {m['valid']:.3f} / respect {m['respect']:.3f}{flag}", flush=True)
             model.train()
 
