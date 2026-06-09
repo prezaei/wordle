@@ -171,9 +171,60 @@ def play(model, secret):
     return g
 
 
-def evaluate(model, secrets):
+@torch.no_grad()
+def batched_play(model, secrets, chunk=384):
+    """GPU-saturating eval: play ALL games in lockstep, one padded forward per token-step (right-pad +
+    gather at each game's real last position -> causal mask never attends to pad, so identical to single
+    play). ~10-50x faster than batch-1. Greedy + deterministic, so it must match play() exactly."""
     model.eval()
-    games = [play(model, s) for s in secrets]
+    games = [Game(s) for s in secrets]
+    visible: list[list] = [[] for _ in secrets]
+    alive = [True] * len(secrets)
+    for _turn in range(6):
+        idx = [i for i in range(len(games)) if alive[i] and games[i].status is Status.ONGOING]
+        if not idx:
+            break
+        for cs in range(0, len(idx), chunk):
+            sub = idx[cs : cs + chunk]
+            seqs = [board(visible[i]) for i in sub]
+            committed = [False] * len(sub)
+            guess: list[list[int]] = [[] for _ in sub]
+            tdone = [False] * len(sub)
+            for _step in range(60):
+                act = [j for j in range(len(sub)) if not tdone[j]]
+                if not act:
+                    break
+                L = max(len(seqs[j]) for j in act)
+                ids = torch.full((len(act), L), tok.pad_id, dtype=torch.long, device=DEV)
+                last = torch.empty(len(act), dtype=torch.long, device=DEV)
+                for a, j in enumerate(act):
+                    ids[a, : len(seqs[j])] = torch.tensor(seqs[j], device=DEV)
+                    last[a] = len(seqs[j]) - 1
+                logits = model.forward(ids)[torch.arange(len(act), device=DEV), last]
+                pick = ALLOWED_GEN[torch.argmax(logits[:, ALLOWED_GEN], dim=-1)].tolist()
+                for a, j in enumerate(act):
+                    t = int(pick[a])
+                    seqs[j].append(t)
+                    if committed[j]:
+                        if t in LETTER_SET:
+                            guess[j].append(t)
+                        if len(guess[j]) >= 5:
+                            tdone[j] = True
+                    elif t == tok.guess_id:
+                        committed[j] = True
+            for a, i in enumerate(sub):
+                gl = guess[a]
+                word = "".join(tok.id_to_token(t) for t in gl[:5]) if len(gl) >= 5 else "zzzzz"
+                turn = games[i].guess(word if len(word) == 5 else "zzzzz")
+                if turn.valid:
+                    visible[i].append(turn)
+                else:
+                    alive[i] = False
+    return games
+
+
+def evaluate(model, secrets):
+    games = batched_play(model, list(secrets))
     wins = [g for g in games if g.won]
     n = sum(len(g.turns) for g in games)
     return {"win": len(wins) / len(games), "valid": sum(is_valid(t.guess) for g in games for t in g.turns) / n if n else 0.0,
@@ -219,8 +270,14 @@ def main():
     print(f"[fmt={FMT}] VOCAB={VOCAB} aux={AUX_LAMBDA} epochs={EPOCHS} pre={PRE} |secrets|={len(secrets)}", flush=True)
 
     model = WordleGenerator(CFG, VOCAB).to(DEV)
-    print(f"[fmt={FMT}] spell warm-up ({PRE} ep)", flush=True)
-    warmup(model, PRE)
+    BASE = os.environ.get("VM_BASE", "")
+    if BASE:  # warm-start from a strong model (e.g. validity_max_v4) -> reaches the 0.34 regime; adapt to FMT
+        load_checkpoint(BASE, model)
+        b0 = evaluate(model, VAL)
+        print(f"[fmt={FMT}] warm-start from {BASE}: VAL win {b0['win']:.3f} valid {b0['valid']:.3f} (pre-adapt)", flush=True)
+    else:
+        print(f"[fmt={FMT}] spell warm-up ({PRE} ep)", flush=True)
+        warmup(model, PRE)
 
     rng = Random(0)
     games = []
@@ -237,7 +294,7 @@ def main():
     model.train()
     print(f"[fmt={FMT}] epoch  clean-VAL win / valid", flush=True)
     for epoch in range(EPOCHS):
-        for idx in _batches(len(exs), 128, rng2):
+        for idx in _batches(len(exs), int(os.environ.get("VM_BATCH", "512")), rng2):  # 128GB -> big batches saturate the GPU
             bs = [exs[i] for i in idx]
             L = max(len(s) for s, _ in bs)
             ids = torch.full((len(bs), L), tok.pad_id, dtype=torch.long)
