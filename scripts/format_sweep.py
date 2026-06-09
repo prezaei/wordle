@@ -286,8 +286,20 @@ def main():
         games += [tr.game for tr in generate_transcripts(secrets, weak_frac=0.5, openers=safe, seed=300 + s, valid_pool=VALID, answer_pool=secrets)]
     exs = [e for g in games for e in game_examples(g, rng)]
     rng.shuffle(exs)
-    aux_rows = [cot_valid_rows(s) for s, _ in exs]  # precompute ONCE (was: every batch every epoch)
-    print(f"[fmt={FMT}] games={len(games)} examples={len(exs)} (aux masks precomputed)", flush=True)
+    # PRE-TENSORIZE everything ONCE into big GPU tensors (pad to global Lmax). Per-batch is then a pure
+    # vectorized GPU gather — NO per-batch Python loop (that single-threaded loop was starving the GPU).
+    N = len(exs)
+    Lmax = max(len(s) for s, _ in exs)
+    ids_all = torch.full((N, Lmax), tok.pad_id, dtype=torch.long)
+    tmask_all = torch.zeros((N, Lmax))
+    vmask_all = torch.zeros((N, Lmax, 26))
+    for i, (s, m) in enumerate(exs):
+        ids_all[i, : len(s)] = torch.tensor(s)
+        tmask_all[i, : len(m)] = torch.tensor([float(x) for x in m])
+        r = cot_valid_rows(s)
+        vmask_all[i, : r.shape[0]] = r
+    ids_all, tmask_all, vmask_all = ids_all.to(DEV), tmask_all.to(DEV), vmask_all.to(DEV)
+    print(f"[fmt={FMT}] games={len(games)} examples={N} pre-tensorized (Lmax={Lmax}) on {DEV}", flush=True)
 
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS, eta_min=LR * 0.1)
@@ -296,20 +308,9 @@ def main():
     model.train()
     print(f"[fmt={FMT}] epoch  clean-VAL win / valid", flush=True)
     for epoch in range(EPOCHS):
-        for idx in _batches(len(exs), int(os.environ.get("VM_BATCH", "512")), rng2):  # 128GB -> big batches saturate the GPU
-            bs = [exs[i] for i in idx]
-            L = max(len(s) for s, _ in bs)
-            ids = torch.full((len(bs), L), tok.pad_id, dtype=torch.long)
-            tmask = torch.zeros((len(bs), L))
-            for i, (s, m) in enumerate(bs):
-                ids[i, : len(s)] = torch.tensor(s)
-                tmask[i, : len(m)] = torch.tensor([float(x) for x in m])
-            vmask = torch.zeros((len(bs), L, 26))  # assemble from precomputed rows (cheap copy, no trie-walk)
-            for a, i in enumerate(idx):
-                r = aux_rows[i]
-                vmask[a, : r.shape[0]] = r
-            vmask = vmask.to(DEV)
-            ids, tmask = ids.to(DEV), tmask.to(DEV)
+        for idx in _batches(N, int(os.environ.get("VM_BATCH", "512")), rng2):  # 128GB -> big batches saturate the GPU
+            bidx = torch.tensor(idx, device=DEV)
+            ids, tmask, vmask = ids_all[bidx], tmask_all[bidx], vmask_all[bidx]  # vectorized GPU gather
             logits = model.forward(ids)
             logp = torch.log_softmax(logits[:, :-1], dim=-1)
             nll = -logp.gather(-1, ids[:, 1:].unsqueeze(-1)).squeeze(-1)
