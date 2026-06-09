@@ -100,6 +100,31 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 🏗️ Different encodings & architectures to beat 0.34 — all NULL, but a unifying principle emerged ([full report](./DAYRUN_REPORT.md))
+
+"Can a different encoding or model arch push past 0.34?" Tried two new architectures (after the dense-encode
+port). Both null on honest TEST — but together with dense-encode they reveal **why** the wall holds:
+
+- **Reasoning-CoT** (≈50M): condition on raw history, then *derive and write out* the constraint state as
+  CoT, then guess (teacher supervises the derivation at train time; free ephemeral decode at inference).
+  **NULL** — the reasoning **collapsed to a constant** (derive-acc pinned at exactly 0.679 = all-BLANK) and
+  the model routed around it, guessing straight from history. Win plateaued ~0.04. *Why:* the constraint
+  state is a **deterministic function of the board** — restating it adds no information, so CoT can't help
+  (CoT only helps when it does search/computation hard to do in one pass).
+- **Iterative Refine** (≈50M, lean 36-vocab): a learned *edit* operator — condition on history + a DRAFT
+  word, output a better one; at play, feed each guess back K passes (full-word lookahead). **NULL, TEST
+  0.098** — and the pass-ablation is the tell: **passes 0/1/3 are byte-identical (0.104 VAL)**. The
+  refinement is **identity** — the model ignores the draft and commits the same word regardless of passes.
+
+**The unifying principle (3 architectures, 1 failure mode):** any auxiliary channel the model can *route
+around* — a reasoning prefix (reason-CoT), a draft to edit (iter-refine) — collapses to a no-op, because
+the guess attends to the raw history directly and the channel carries no information the model can't already
+compute. The *opposite* fix — **bottlenecking** the guess through an explicit constraint state (dense-encode)
+— **memorizes** instead (train 0.32 / held 0.07). Route-around → no-op; bottleneck → memorize; **raw history
+only → best generalization (0.338)**. That tension is *why* 0.34 is hard to beat honestly with a single
+forward pass. The one mechanism not yet tried that escapes it: a **separate** consistency network fused
+multiplicatively at the logits (product-of-experts), which can't be routed around.
+
 ### 🧪 Honest RL (free-gen GRPO) on the 50M base — **NULL 0.332 TEST** (RL sharpens train, doesn't generalize) ([full report](./DAYRUN_REPORT.md))
 
 "Are there RL techniques to push the win rate higher?" Answered with the first **clean-lineage** RL run: a

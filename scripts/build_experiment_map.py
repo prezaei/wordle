@@ -96,6 +96,8 @@ N = {
   "infill": ("scale", "green-conditioned infill (user idea)", "≈50M", "green+yellow template as INPUT; clue-aware aux training-only. Valid opener (slate) but template-with-content breaks constrained turns", "FAILED 0.05 (λ6/λ1 both) — explicit template net-negative, hurts like structured-context", "cont"),
   "dense_encode": ("scale", "dense constraint-state (mm V2 port)", "≈50M", "honest port of colleague's '90%' V2: replace raw history w/ clean digest (greens-by-pos, yellows-w-excluded-pos, grays-w-exact-count) as the ONLY input; dense-format warm-up, free char-gen, train-only secrets, disjoint TEST", "REJECTED 0.065 TEST — MEMORIZES (train 0.317 vs held 0.075); their 90% was contamination, not the encoding", "clean"),
   "grpo_honest": ("scale", "honest free-gen GRPO on 50M base", "≈50M", "FIRST clean-lineage RL: correct free-gen GRPO (CoT-bearing rollout, win-dominance+non-word reward, group-rel adv no/std, clipped surrogate, k3 KL to frozen ref) on validity_max_v4; fixed the dropout-in-ratio bug so RL works mechanically; train-only secrets, eval clean", "NULL 0.332 TEST — train win 0.41->0.60 (+19pt) but held-out FLAT; RL sharpens/memorizes train, zero transfer (the generalization wall, now via correct RL)", "clean"),
+  "reason_cot": ("scale", "reasoning-CoT (derive constraints)", "≈50M", "condition on RAW history, DERIVE + write out the constraint state (greens/yellows/grays) as CoT, then guess; teacher supervises the derivation (train-only); free ephemeral decode", "NULL (stopped ep20, win ~0.04) — reasoning COLLAPSED (derive-acc pinned 0.679 = all-BLANK); model routes around it. Restating a deterministic fn of the input adds NO info", "clean"),
+  "iter_refine": ("scale", "iterative refine (draft->edit)", "≈50M", "learned edit operator: condition on history + a DRAFT word, output a better word; at play feed each guess back K passes (full-word lookahead); lean 36-vocab; near-miss/identity/random draft training", "NULL 0.098 TEST — refinement = IDENTITY (passes 0=1=3 byte-identical); model ignores the draft. Same route-around as reason-CoT", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -145,6 +147,8 @@ EDGES = [
   ("validity_max_v4","ensemble","commit-by-committee vote"),
   ("validity_max_v4","dense_encode","honest port of mm V2 dense encoding"),
   ("validity_max_v4","grpo_honest","honest free-gen GRPO (CoT-bearing, RL question)"),
+  ("validity_max_v4","reason_cot","execute deduction via reasoning (not amortize)"),
+  ("reason_cot","iter_refine","cross-pass computation instead of restating"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 

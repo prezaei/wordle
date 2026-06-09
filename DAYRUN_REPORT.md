@@ -165,6 +165,44 @@ only (no solver/dict), train-only secrets, eval = greedy CoT free-gen (zero rule
   deduction-**generalization** (data-bound), not RL mechanics. No RL knob (temp, KL, reward shaping, lr)
   fixes a generalization wall. **RL closed (honestly), at 0.33.**
 
+### Different encodings/architectures (the "go bigger on arch" push) — all NULL, but they explain the wall
+
+After RL, tried two new architectures to attack 0.34 from the representation/computation side (not data/RL):
+
+- **Reasoning-CoT** (`scripts/reason_cot.py`, ≈50M, vocab 270): condition on RAW history (the grounded
+  input that generalizes), then DERIVE + write out the constraint state (greens-by-pos / yellows-excluded /
+  grays-with-counts) as the CoT, then guess. Teacher supervises the derivation at TRAIN time (allowed); at
+  inference the model emits its own reasoning + guess (structured decode, ephemeral, no engine/dict). Bet:
+  externalizing the deduction is a scaffold the guess respects, and deriving constraints is answer-agnostic
+  so it generalizes. **Result: NULL** (stopped ep20, win plateau ~0.04 ≪ 0.338). The derivation **collapsed
+  to a constant** — `derive-acc` pinned at exactly 0.679 (all-BLANK green rows, over-baked by the
+  empty-constraint warmup), while win still crept up from the model guessing straight from history. *Lesson:*
+  the constraint state is a **deterministic function of the board**, so writing it out adds NO information —
+  the model correctly ignores it. CoT only helps when it does search/computation hard in one pass; restating
+  givens is not that.
+
+- **Iterative Refine** (`scripts/iter_refine.py`, ≈50M, lean **36-vocab** to keep spelling strong): a learned
+  EDIT operator — condition on history + a DRAFT word, output a better word; at play, draft starts BLANK →
+  g0, then feed each guess back K passes (full-word lookahead), commit g_K. Trained on near-miss / random /
+  identity drafts. Bet: verify-and-fix a concrete candidate is easier than generate-from-scratch, and it does
+  genuine cross-pass computation. **Result: NULL, TEST 0.098** — and the pass-ablation is decisive:
+  **passes 0 / 1 / 3 are byte-identical (VAL 0.104)**. The refinement is **identity** — the model hits a
+  fixed point on pass 0 and ignores the draft. (Also spelled weaker, 0.73, from the draft-conditioning mix.)
+
+**The unifying principle (now 3 architectures, 1 failure mode):**
+| approach | mechanism | result |
+| --- | --- | --- |
+| dense-encode | **bottleneck** guess through explicit constraint state | MEMORIZES (train 0.32 / held 0.07) |
+| reasoning-CoT | auxiliary **reasoning** channel | ROUTED AROUND → no-op (~0.04) |
+| iter-refine | auxiliary **draft** channel | ROUTED AROUND → identity (0.098) |
+| validity-max | **raw history only** | best generalization (**0.338**) |
+
+Any auxiliary channel the model can route around collapses to a no-op (the guess attends to raw history and
+the channel carries no info it can't compute). Bottlenecking instead memorizes. Raw history alone
+generalizes best. *That tension is why ~0.34 resists a single forward pass.* The one untried mechanism that
+escapes route-around: a **separate** consistency network fused **multiplicatively at the logits**
+(product-of-experts) — both experts must agree, so it can't be ignored. That's the next candidate if pursued.
+
 The
 honest free-gen ceiling is **data-bound at ~0.33** (the ~1,852-secret answer set): more secrets helped
 (0.30→0.33, maxed), but every other lever is null/negative — aux plateau (v3), dropout (v5), infill
