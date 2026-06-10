@@ -104,7 +104,21 @@ def connect(db_path: Path) -> sqlite3.Connection:
 # Faithful capture-play (mirrors validity_max.play byte-for-byte; only ADDS recording)
 # --------------------------------------------------------------------------------------------------
 @torch.no_grad()
-def play_capture(model: Any, secret: str) -> dict[str, Any]:
+def play_capture(
+    model: Any,
+    secret: str,
+    temperature: float = 0.0,
+    gen: torch.Generator | None = None,
+) -> dict[str, Any]:
+    """Honest free-gen play with capture.
+
+    temperature == 0  -> greedy argmax, and a non-word ENDS the game (break): identical to
+                         validity_max.play (deterministic context would just repeat the non-word).
+    temperature  > 0  -> sample each token from the model's own distribution over the action space
+                         (CPU multinomial — the MPS-sampling lesson). A non-word is COUNTED as a turn
+                         but NOT fed back (visible context unchanged) and play CONTINUES until won or
+                         6 turns. No dictionary / trie / consistency filter ever touches decoding.
+    """
     g = Game(secret)
     visible: list[Any] = []
     records: list[dict[str, Any]] = []
@@ -114,15 +128,13 @@ def play_capture(model: Any, secret: str) -> dict[str, Any]:
         cot_tokens: list[int] = []
         committed = False
         for _ in range(60):
-            nxt = int(
-                vm.ALLOWED_GEN[
-                    int(
-                        torch.argmax(
-                            model.forward(torch.tensor([seq], device=vm.DEV))[0, -1][vm.ALLOWED_GEN]
-                        )
-                    )
-                ]
-            )
+            logits = model.forward(torch.tensor([seq], device=vm.DEV))[0, -1][vm.ALLOWED_GEN]
+            if temperature == 0.0:
+                idx = int(torch.argmax(logits))
+            else:
+                probs = torch.softmax(logits / temperature, dim=0).cpu()
+                idx = int(torch.multinomial(probs, 1, generator=gen).item())
+            nxt = int(vm.ALLOWED_GEN[idx])
             seq.append(nxt)
             if committed:
                 if nxt in vm.LETTER_SET:
@@ -148,8 +160,9 @@ def play_capture(model: Any, secret: str) -> dict[str, Any]:
         )
         if turn.valid:
             visible.append(turn)
-        else:
-            break  # non-word: identical to validity_max.play (lost)
+        elif temperature == 0.0:
+            break  # greedy: unchanged context repeats the non-word forever -> lost (== validity_max.play)
+        # sampling: non-word counted as a turn (Game capped it), NOT fed back, keep playing
     return {"game": g, "records": records}
 
 
@@ -229,6 +242,8 @@ def main() -> None:
     ap.add_argument("--limit", default=None, type=int, help="cap #targets (default: full TEST)")
     ap.add_argument("--db", default=DB_PATH, type=Path)
     ap.add_argument("--notes", default="")
+    ap.add_argument("--temp", default=0.0, type=float, help="0=greedy(default); >0=sample at this temperature")
+    ap.add_argument("--seed", default=0, type=int, help="CPU sampling seed (sampling mode only)")
     args = ap.parse_args()
 
     train, held = vm.split(seed=0)
@@ -243,14 +258,17 @@ def main() -> None:
     vm.load_checkpoint(str(args.checkpoint), model)
     model.eval()
 
+    sampling = args.temp > 0.0
+    gen = torch.Generator().manual_seed(args.seed) if sampling else None
+    mode = f"sample T={args.temp} seed={args.seed}" if sampling else "greedy"
     print(
-        f"[eval_db] checkpoint={args.checkpoint} targets={len(targets)} (held-out TEST) dev={vm.DEV}",
+        f"[eval_db] checkpoint={args.checkpoint} targets={len(targets)} (held-out TEST) dev={vm.DEV} mode={mode}",
         flush=True,
     )
     t0 = time.time()
     games_data: list[dict[str, Any]] = []
     for i, secret in enumerate(targets, 1):
-        cap = play_capture(model, secret)
+        cap = play_capture(model, secret, temperature=args.temp, gen=gen)
         cap["target"] = secret
         cap["traj"] = consistent_trajectory(cap["records"], answers)
         games_data.append(cap)
@@ -271,22 +289,24 @@ def main() -> None:
     respect_turns = [r for d in games_data for r in d["records"] if r["valid"]]
     clue_respect = sum(r["consistent_w_prior"] for r in respect_turns) / max(len(respect_turns), 1)
 
-    ref = vm.evaluate(model, targets)
-    assert abs(ref["win"] - win_rate) < 1e-9, (
-        f"FIDELITY FAIL: capture win {win_rate} != evaluate {ref['win']}"
-    )
-    print(
-        f"[eval_db] FIDELITY OK: capture win {win_rate:.4f} == evaluate {ref['win']:.4f}",
-        flush=True,
-    )
+    if not sampling:  # fidelity only meaningful for the greedy-faithful protocol
+        ref = vm.evaluate(model, targets)
+        assert abs(ref["win"] - win_rate) < 1e-9, (
+            f"FIDELITY FAIL: capture win {win_rate} != evaluate {ref['win']}"
+        )
+        print(f"[eval_db] FIDELITY OK: capture win {win_rate:.4f} == evaluate {ref['win']:.4f}", flush=True)
 
     # ---- persist a new immutable version ----
     conn = connect(args.db)
     protocol = {
-        "decode": "greedy free-gen over {26 letters, THINK, commit}",
+        "decode": (f"sample T={args.temp} (seed {args.seed})" if sampling else "greedy")
+        + " free-gen over {26 letters, THINK, commit}",
         "dictionary_at_inference": False,
         "trie_or_consistency_filter_at_inference": False,
-        "nonword": "counted as a turn, NOT fed back (break)",
+        "nonword": (
+            "counted as a turn, NOT fed back, play continues" if sampling
+            else "counted as a turn, NOT fed back (break)"
+        ),
         "max_guesses": 6,
         "cot": "ephemeral, model-generated",
     }
