@@ -100,6 +100,21 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 📦 Data expansion + honest beam decode — both NULL ([scripts/gen_games.py](./scripts/gen_games.py), [scripts/beam_decode.py](./scripts/beam_decode.py))
+
+Two final honest levers, both null:
+- **#1 Data lever, extended:** add **3,692 common 5-letter words** (from `wordfreq`, **held-out 463 rigorously excluded, 0 leak**) to the 1,852 train answers → 5,520 secrets, warm-started from the 0.338 model.
+  **TEST 0.272 vs the 1,852 fine-tune control 0.267 = +0.005 (noise).** The historical data win (0.30→0.33)
+  came from more *answer-distribution* words; these non-answer commons (plurals, less game-y words) are a
+  slightly different distribution that **doesn't transfer**. The data lever is **maxed at the answer set**.
+- **#2 Honest beam decode:** commit the highest-joint-probability 5-letter word under the model's *own*
+  distribution (no dict). **B=1/4/8 byte-identical (win 0.332)** — the model's greedy argmax already *is*
+  its highest-joint word, so wider beams change nothing. Better decoding recovers nothing.
+- **Operational win (GPU):** the teacher-game generation was single-threaded (GPU idle for ~25 min on 5,520
+  secrets). Parallelized it across cores via a torch-free pre-step (`gen_games.py` → pickle): **11,040 games
+  in 76 s (~20×)**, then batched GPU training. (Combined with earlier: batched eval, pre-tensorize, kill the
+  `live_viz` zombie — training is now genuinely GPU-bound.)
+
 ### 🔤 Context-format bake-off (interleaved / keyboard layouts) — NULL; layout changes learning *speed*, not converged ability ([scripts/format_sweep.py](./scripts/format_sweep.py))
 
 "Does a different board layout help?" Tested rigorously after a chain of methodology fixes. **Diagnostic

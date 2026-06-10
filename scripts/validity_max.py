@@ -194,6 +194,14 @@ def main():
     safe_openers = tuple(o for o in OPENERS if o not in set(held))
     VAL, TEST = tuple(held[:96]), tuple(held[96:])
     secrets = tuple(train[:CAP])
+    if os.environ.get("VM_EXPAND") == "1":  # DATA LEVER: more answer-LIKE (common) secrets, held-out EXCLUDED
+        import wordfreq
+        common = [w for w in wordfreq.top_n_list("en", 100000) if len(w) == 5 and w.isalpha() and w.isascii()]
+        valid_set, held_set = set(VALID), set(held)
+        secrets = tuple(w for w in common if w in valid_set and w not in held_set)[:CAP]
+        assert not (set(secrets) & held_set), "HELD-OUT LEAKED INTO SECRETS"  # honesty guard
+        print(f"[vm] EXPAND: {len(secrets)} common+valid secrets (held-out {len(held)} excluded); "
+              f"train-answers in set: {len(set(secrets) & set(train))}", flush=True)
     PROG = "runs/validity_max_progress.jsonl"
     if os.path.exists(PROG):
         os.remove(PROG)

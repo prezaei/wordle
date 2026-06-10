@@ -273,6 +273,14 @@ def main():
     safe = tuple(o for o in ("salet", "crane", "slate", "trace", "stare", "raise", "crate") if o not in set(held))
     cap = int(os.environ.get("VM_SECRETS", str(len(train))))
     secrets = tuple(train[:cap])
+    if os.environ.get("VM_EXPAND") == "1":  # DATA LEVER: more answer-LIKE (common) secrets, held-out EXCLUDED
+        import wordfreq
+        common = [w for w in wordfreq.top_n_list("en", 100000) if len(w) == 5 and w.isalpha() and w.isascii()]
+        valid_set, held_set = set(VALID), set(held)
+        secrets = tuple(w for w in common if w in valid_set and w not in held_set)[:cap]
+        assert not (set(secrets) & held_set), "HELD-OUT LEAKED INTO SECRETS"  # honesty guard
+        print(f"[fmt={FMT}] EXPAND: {len(secrets)} common+valid secrets (held-out {len(held)} excluded); "
+              f"train-answers in set: {len(set(secrets) & set(train))}", flush=True)
     OUT = os.environ.get("VM_OUT", f"runs/fmt_{FMT}.pt")
     EPOCHS = int(os.environ.get("VM_EPOCHS", "16"))
     LR = float(os.environ.get("VM_LR", "3e-4"))
@@ -291,9 +299,16 @@ def main():
         warmup(model, PRE)
 
     rng = Random(0)
-    games = []
-    for s in range(TEACHER):
-        games += [tr.game for tr in generate_transcripts(secrets, weak_frac=0.5, openers=safe, seed=300 + s, valid_pool=VALID, answer_pool=secrets)]
+    import pickle as _pkl
+    games_pkl = os.environ.get("VM_GAMES_PKL", "")
+    if games_pkl and os.path.exists(games_pkl):  # load pre-generated games (parallel CPU pre-step keeps GPU fed)
+        with open(games_pkl, "rb") as f:
+            games = _pkl.load(f)
+        print(f"[fmt={FMT}] loaded {len(games)} teacher games from {games_pkl}", flush=True)
+    else:
+        games = []
+        for s in range(TEACHER):
+            games += [tr.game for tr in generate_transcripts(secrets, weak_frac=0.5, openers=safe, seed=300 + s, valid_pool=VALID, answer_pool=secrets)]
     exs = [e for g in games for e in game_examples(g, rng)]
     rng.shuffle(exs)
     # PRE-TENSORIZE everything ONCE into big GPU tensors (pad to global Lmax). Per-batch is then a pure
