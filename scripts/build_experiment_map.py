@@ -102,6 +102,7 @@ N = {
   "ambiguity_diag": ("scale", "ambiguity diagnostic", "—", "measure WHY G loses: |consistent set| at each losing guess (exact full-dict scan)", "KEY: wall is NOT ambiguity — 61% of losses have <=3 consistent words, 20% UNIQUELY determined yet missed; ceiling +0.41 if tight cases solved", "audit"),
   "poe_sharp": ("scale", "sharp consistency expert (endgame)", "2x≈50M", "PoE with C retrained on TIGHT realistic states (the endgame curriculum); decisive test = can C produce the UNIQUE consistent word on held-out unique-answer states?", "NULL 0.332 (delta +0.000); size-1 deduction acc 0.07 held / 0.14 train — constraint->unique-answer is a discrete SEARCH, not a learnable-generalizable fn. THE root cause of the 0.34 wall", "clean"),
   "format_bakeoff": ("scale", "context-format bake-off (interleaved/keyboard)", "≈50M", "fair from-scratch test of board LAYOUTS (letters-then-colors vs each letter beside its clue vs alphabet-state suffix); metric=clue-RESPECT (0.338 model violates clues 14%); full-367-TEST", "NULL — interleaved respect 0.402 vs baseline 0.368 (+0.03, offset by worse spelling); early leads were learning-SPEED artifacts that converge to equal. Layout doesn't change converged tracking; deduction wall unmoved", "clean"),
+  "cot_width": ("scale", "more/less CoT (candidate-search width)", "≈50M", "drift-free: force the real 0.338 model to emit N candidate-blocks before commit (N=1 less, N=10 more); also retrained K=6 A/B", "NULL/NEG — more CoT MONOTONICALLY hurts (win N1 0.332 -> N3 0.264 -> N6 0.054 -> N10 0.000); less (N=1) ≈ native; retrained K=6 +0.014 sub-σ. CoT value = SINGLE draft-then-commit, not multi-candidate search. Formatting thread closed", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -157,6 +158,7 @@ EDGES = [
   ("poe","ambiguity_diag","why does G lose? measure the consistent set"),
   ("ambiguity_diag","poe_sharp","losses are tight -> sharpen C on the endgame"),
   ("ambiguity_diag","format_bakeoff","14% clue-violations -> does layout reduce them?"),
+  ("format_bakeoff","cot_width","layout null -> does MORE CoT (search) help?"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 

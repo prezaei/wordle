@@ -123,6 +123,15 @@ green square, reuses a gray) — a real "tracking" target formatting could attac
   re-playing games on MPS every checkpoint change — killed it; GPU then ran ~3–4× faster. (Also: concurrent
   training on one MPS GPU backfires — contention makes it ~6× slower; sequential is optimal.)
 
+**Follow-up — "more/less CoT" ([scripts/cot_width.py](./scripts/cot_width.py)):** drift-free test forcing the
+real 0.338 model to emit N candidate-blocks before committing. **More CoT monotonically destroys it**
+(win N=1 **0.332** → N=3 0.264 → N=6 0.054 → N=10 0.000; valid collapses 0.86→0.63 as forced candidates go
+off-distribution). **Less CoT (N=1) ≈ native** — so the ephemeral CoT's value is the **single
+draft-then-commit step, not multi-candidate search**; the model already uses ~1 candidate, which is optimal.
+A retrained K=6 was only +0.014 (sub-1σ). **Verdict for the whole formatting list (history / CoT / tokenizer):
+none is a lever** — they're representation (disproven) or, for CoT, already at its optimum. The wall is
+deduction, every time. **Formatting thread closed.**
+
 ### 🏗️ Different encodings & architectures to beat 0.34 — all NULL, but a unifying principle emerged ([full report](./DAYRUN_REPORT.md))
 
 "Can a different encoding or model arch push past 0.34?" Tried two new architectures (after the dense-encode

@@ -45,7 +45,7 @@ ALLOWED_GEN = torch.tensor(LETTER_IDS + [THINK, tok.guess_id], device=DEV)
 WORD_STARTS = {THINK, tok.guess_id}
 VALID = load_valid_guesses()
 TRIE = _valid_trie()
-K_CANDS = 3
+K_CANDS = int(os.environ.get("VM_KCANDS", "3"))  # CoT candidate-search width (more CoT = wider search)
 FMT = os.environ.get("FMT", "baseline")
 AUX_LAMBDA = float(os.environ.get("VM_AUX", "3.0"))
 
