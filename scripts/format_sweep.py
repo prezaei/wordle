@@ -146,6 +146,45 @@ def cot_valid_rows(seq):
     return v
 
 
+def build_freq_trie():
+    """Trie over VALID words; each node stores '_f' = total English frequency of words under it (wordfreq).
+    The aux can then push generation toward COMMON valid words, not just any valid word — general English
+    knowledge baked in-weights (training-only; no inference lookup), the 'which common word' prior."""
+    import wordfreq
+    root = {}
+    for w in VALID:
+        f = wordfreq.word_frequency(w, "en") + 1e-9  # smooth so rare valid words still register
+        node = root
+        for ch in w:
+            i = ord(ch) - 97
+            child = node.get(i)
+            if child is None:
+                child = {}
+                node[i] = child
+            child["_f"] = child.get("_f", 0.0) + f
+            node = child
+    return root
+
+
+def cot_freq_rows(seq, ftrie):
+    """[len,26] per-position target = normalized subtree-FREQUENCY over valid next letters (vs uniform 0/1)."""
+    L = len(seq)
+    v = torch.zeros((L, 26))
+    for t, tokid in enumerate(seq):
+        if tokid not in WORD_STARTS or t + 5 >= L:
+            continue
+        node = ftrie
+        for j in range(5):
+            kids = {c: node[c]["_f"] for c in node if isinstance(c, int)}
+            tot = sum(kids.values())
+            if tot > 0:
+                for c, f in kids.items():
+                    v[t + j, c] = f / tot
+            nxt = seq[t + 1 + j] - LETTER_LO
+            node = node.get(nxt, {}) if 0 <= nxt < 26 else {}
+    return v
+
+
 @torch.no_grad()
 def play(model, secret):
     g = Game(secret)
@@ -315,16 +354,18 @@ def main():
     # vectorized GPU gather — NO per-batch Python loop (that single-threaded loop was starving the GPU).
     N = len(exs)
     Lmax = max(len(s) for s, _ in exs)
+    FREQAUX = os.environ.get("VM_FREQAUX") == "1"  # aux pushes toward COMMON valid words (vs any valid word)
+    ftrie = build_freq_trie() if FREQAUX else None
     ids_all = torch.full((N, Lmax), tok.pad_id, dtype=torch.long)
     tmask_all = torch.zeros((N, Lmax))
     vmask_all = torch.zeros((N, Lmax, 26))
     for i, (s, m) in enumerate(exs):
         ids_all[i, : len(s)] = torch.tensor(s)
         tmask_all[i, : len(m)] = torch.tensor([float(x) for x in m])
-        r = cot_valid_rows(s)
+        r = cot_freq_rows(s, ftrie) if FREQAUX else cot_valid_rows(s)
         vmask_all[i, : r.shape[0]] = r
     ids_all, tmask_all, vmask_all = ids_all.to(DEV), tmask_all.to(DEV), vmask_all.to(DEV)
-    print(f"[fmt={FMT}] games={len(games)} examples={N} pre-tensorized (Lmax={Lmax}) on {DEV}", flush=True)
+    print(f"[fmt={FMT}] games={len(games)} examples={N} pre-tensorized (Lmax={Lmax}) freqaux={FREQAUX} on {DEV}", flush=True)
 
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS, eta_min=LR * 0.1)
@@ -343,8 +384,11 @@ def main():
             logp_let = torch.log_softmax(logits[:, :-1][:, :, LIDS], dim=-1)
             vm = vmask[:, :-1]
             aux_pos = (vm.sum(-1) > 0).float() * tmask[:, 1:]
-            valid_mass = (logp_let.exp() * vm).sum(-1).clamp_min(1e-9)
-            aux = (-valid_mass.log() * aux_pos).sum() / aux_pos.sum().clamp_min(1.0)
+            if FREQAUX:  # CE toward the freq-weighted-valid distribution -> bias generation to COMMON words
+                aux = (-(vm * logp_let).sum(-1) * aux_pos).sum() / aux_pos.sum().clamp_min(1.0)
+            else:  # maximize probability mass on ANY valid next-letter (uniform)
+                valid_mass = (logp_let.exp() * vm).sum(-1).clamp_min(1e-9)
+                aux = (-valid_mass.log() * aux_pos).sum() / aux_pos.sum().clamp_min(1.0)
             loss = imit + AUX_LAMBDA * aux
             opt.zero_grad()
             loss.backward()

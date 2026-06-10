@@ -105,6 +105,7 @@ N = {
   "cot_width": ("scale", "more/less CoT (candidate-search width)", "≈50M", "drift-free: force the real 0.338 model to emit N candidate-blocks before commit (N=1 less, N=10 more); also retrained K=6 A/B", "NULL/NEG — more CoT MONOTONICALLY hurts (win N1 0.332 -> N3 0.264 -> N6 0.054 -> N10 0.000); less (N=1) ≈ native; retrained K=6 +0.014 sub-σ. CoT value = SINGLE draft-then-commit, not multi-candidate search. Formatting thread closed", "clean"),
   "data_expand": ("scale", "data lever: +common words (held excl)", "≈50M", "add 3692 common 5-letter words (wordfreq, held-out EXCLUDED 0-leak) -> 5520 secrets, warm-start v4; parallel teacher-gen (76s vs 25min)", "NULL — TEST 0.272 vs 1852 control 0.267 (+0.005 noise); non-answer commons are a diff distribution, don't transfer. Data lever MAXED at the answer set", "clean"),
   "beam_decode": ("inf2", "honest beam (model's own dist)", "≈50M", "commit highest-joint-prob 5-letter word under the model's OWN logits (no dict), B=1/4/8/16", "NULL — B=1/4/8 byte-IDENTICAL (0.332); greedy argmax already = the highest-joint word; better decoding recovers nothing", "aided"),
+  "freq_aux": ("scale", "common-word prior (freq-weighted aux)", "≈50M", "reweight the validity-aux toward COMMON valid words (wordfreq) — give the model English-frequency knowledge in-weights; warm-start v4, A/B vs uniform-aux", "NULL/NEG — uniform 0.338 vs freq λ0.3 0.283 / λ0.7 0.221 / λ3 collapse; freq HURTS clue-respect (0.89->0.55). Knowledge is NOT the bottleneck; context-free commonness conflicts with clue-consistency", "clean"),
   "control_teacher": ("scale", "teacher-only control (noise-buster)", "≈50M", "plain gentle re-train, no special ingredients — same VAL-selection procedure", "VAL 0.365 by chance → TEST 0.259 — proves the win gains are noise", "audit"),
   # ---- inference on the clean fair weights ----
   "constrained_decode": ("inf2", "constrained-decode diagnostic", "≈50M", "greedy masked to real-word spellings; model still deduces", "0.281 → 0.436 · valid 1.0 — KNOWS the words", "aided"),
@@ -163,6 +164,7 @@ EDGES = [
   ("format_bakeoff","cot_width","layout null -> does MORE CoT (search) help?"),
   ("validity_max_v4","data_expand","more answer-LIKE data (common words)?"),
   ("validity_max_v4","beam_decode","better decoding of the same weights?"),
+  ("validity_max_v4","freq_aux","give it English word-frequency knowledge?"),
   ("cot_eph_aux","deployed","deployed framing"),("dpo_commit","deployed","best deployed"),
 ]
 
