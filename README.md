@@ -100,6 +100,29 @@ are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked 
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
 
+### 🔤 Context-format bake-off (interleaved / keyboard layouts) — NULL; layout changes learning *speed*, not converged ability ([scripts/format_sweep.py](./scripts/format_sweep.py))
+
+"Does a different board layout help?" Tested rigorously after a chain of methodology fixes. **Diagnostic
+that motivated it:** the 0.338 model *violates its own clues 14% of the time* (places a wrong letter on a
+green square, reuses a gray) — a real "tracking" target formatting could attack. Metric used: **clue-respect**
+(of valid guesses, fraction consistent with the clues) — measurable even when win≈0 from-scratch.
+
+- **Layouts:** baseline (`s t a r e 🟩⬜⬜⬜🟨`, letters then colors) · **interleaved** (`s🟩 t⬜ a⬜ r⬜ e🟨`,
+  each letter beside its clue) · **keyboard** (baseline + an alphabet-state suffix).
+- **Methodology (the hard part):** warm-start confounds (a format change needs from-scratch training, as the
+  user noted — interleaved warm-started from baseline started at VAL 0.000); from-scratch under-trains
+  deduction (win≈0), so compare on clue-respect; per-epoch VAL respect is *noisy* (±0.2) and the best-by-win /
+  best-by-respect selections both have degenerate failures. Final read = **respect on the full 367-game TEST**.
+- **Result (clean, full-TEST):** baseline **0.368** · interleaved **0.402** (+0.034 respect, but −0.033 valid →
+  ≈ wash) · keyboard ~0.37. **win ≈ 0 for all.** Early-epoch "leads" (interleaved hit 0.61 mid-run) were
+  **learning-speed artifacts** that converged back to baseline.
+- **Verdict: formatting is not a lever.** The model can *read* the clues in any layout; it just can't *deduce*
+  from them — the discrete-search wall, unchanged by representation. A real interleaved inference confirms it:
+  valid CoT opener (`stare`), then non-words that ignore the clues on turn 2.
+- **Operational find:** the real cause of GPU slowness all session was a **3-day `live_viz.py` dashboard**
+  re-playing games on MPS every checkpoint change — killed it; GPU then ran ~3–4× faster. (Also: concurrent
+  training on one MPS GPU backfires — contention makes it ~6× slower; sequential is optimal.)
+
 ### 🏗️ Different encodings & architectures to beat 0.34 — all NULL, but a unifying principle emerged ([full report](./DAYRUN_REPORT.md))
 
 "Can a different encoding or model arch push past 0.34?" Tried two new architectures (after the dense-encode
