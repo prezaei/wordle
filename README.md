@@ -31,6 +31,14 @@ bounded by the ~1,852-word answer set — confirmed by an exhaustive set of null
 on-policy RFT/STaR, scale-turns-over-past-50M, the green/yellow infill, ensembles). The full lineage is
 the [Experiment Log](#experiment-log) and the visual map (`EXPERIMENTS.svg`, 75+ experiments).
 
+**Latest (2026-06-10): a decode-only change lifts the win rate with zero retraining.** Switching greedy →
+temperature sampling (T=0.6) and treating a non-word as a recoverable wasted turn (counted, not fed back)
+takes the *same* `validity_max_v4` checkpoint from **0.332 → 0.358 ± 0.018** (5 seeds). Driven by the
+failure analysis (`scripts/eval_db.py` → versioned `evals/evals.db`): **93% of greedy's losses are
+non-word emissions**, not deduction. A cross-impl audit of a colleague's repo (`wordley`) found its higher
+held-out numbers come from a training-time leak (held-out words trained as spelling targets); ours stay
+clean. See the [Experiment Log](#experiment-log).
+
 *(Aside: with the public dictionary allowed as an inference-time spell-checker — a different, clearly-
 labeled tier — the same weights reach ~0.55 (beam-over-trie) to ~0.72 (best-of-N). We keep that separate
 from "the model," which is dictionary-free.)*
@@ -99,6 +107,42 @@ The honest headline metric is the **held-out win rate** on the immutable 463-wor
 are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked CoT) are labeled as
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
+
+### 🔬 Eval DB + failure-pattern reframe, honest sampling decode (+0.026), cross-impl leak audit (2026-06-10) ([scripts/eval_db.py](./scripts/eval_db.py), [scripts/eval_analyze.py](./scripts/eval_analyze.py))
+
+**Versioned eval store.** `scripts/eval_db.py` runs the honest free-gen eval (reuses `validity_max.play`
+verbatim; asserts captured win == `validity_max.evaluate`, so the decode is faithful) and records
+per-game / per-turn / CoT detail + an offline consistent-set trajectory into a **versioned in-repo
+SQLite DB** (`evals/evals.db`). `scripts/eval_analyze.py` breaks any stored run down by failure mode.
+
+**The wall is constrained SPELLING, not deduction (reframe).** Deep analysis of the best model
+(`validity_max_v4`, greedy **0.332** on full 367-word TEST): **93% of losses are emitting a non-word**
+(instant loss under greedy), only **7%** are running out of valid turns (deduction). Non-word rate scales
+with constraint tightness — **0% when 51+ answers remain → 40% when the answer is uniquely determined** —
+and when the answer is determined the model's own CoT contains it only **18%** of the time. The model
+*narrows* fine; it can't *spell* the surviving real word. (Clue-respect also craters mid-game: turn 2/3 ≈
+67–73%.) So the famous "deduction wall" is only ~7% of losses; the dominant wall is lexical retrieval
+under tight letter constraints.
+
+**Honest sampling decode — verified +0.026, the first clean beat of the greedy wall.** Same checkpoint,
+**zero model/training changes** (sha identical across runs) — only the decode: greedy argmax →
+**temperature sampling (T=0.6)** over the model's own distribution, and a non-word becomes a *recoverable
+wasted turn* (counted, not fed back, play continues) instead of greedy's fatal break. Verified across 5
+seeds: **win 0.358 ± 0.018** (greedy 0.332; range 0.332–0.387). Modest but real — it converts "instant
+non-word death with turns to spare" into extra spelling attempts, exactly the failure the analysis found.
+(A RoPE positional-encoding A/B was NULL/abandoned — positional encoding isn't the bottleneck.)
+
+**Cross-impl audit — Cameron's `wordley`: honest inference, but a training-pipeline held-out LEAK.** His
+free-gen *inference* is clean (beam over 26 letters, non-word wastes a turn, no dict/consistency filter at
+decode; train/test split disjoint). But his consistency-set spelling objective draws candidates from the
+**full dictionary including all 2,000 held-out test words** — so (replicated count) **100% of held-out
+answers are trained as spelling targets**, 72% in tight (≤10) contexts, 26% in near-determined (≤3)
+answer-contexts. His headline **46.65% → 61.7%** is driven by the config (`f02`: all train targets, K=6)
+that *maximizes* this exposure. It's **disclosed** (he frames it as "generalization"), so not fraud — but
+by the honest-held-out standard the number is contaminated; **our 0.332/0.358 (held-out receives zero
+training signal) is the clean comparison.** This also **retracts** a same-day suggestion to adopt his
+consistency-set objective for us: the gain is leak-driven; the honest version (train-answers-only sets)
+would lose it.
 
 ### 📦 Data expansion + honest beam decode — both NULL ([scripts/gen_games.py](./scripts/gen_games.py), [scripts/beam_decode.py](./scripts/beam_decode.py))
 
