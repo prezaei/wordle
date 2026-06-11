@@ -20,6 +20,8 @@ import statistics
 from random import Random
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as Fnn
 
 from wordle_slm.config import ModelConfig, SFTConfig
 from wordle_slm.data import is_valid, load_valid_guesses, split
@@ -28,6 +30,66 @@ from wordle_slm.engine.constraints import is_consistent
 from wordle_slm.model import Tokenizer, WordleGenerator
 from wordle_slm.sft.train import _batches, _valid_trie, load_checkpoint, save_checkpoint
 from wordle_slm.teacher import generate_transcripts
+
+
+# ---- RoPE variant (Ryan's mm uses RoPE; ours uses learned pos-emb). The one untried arch tweak. ----
+def _rope_tables(L, hd, device):
+    inv = 1.0 / (10000 ** (torch.arange(0, hd, 2, device=device).float() / hd))  # [hd/2]
+    f = torch.outer(torch.arange(L, device=device).float(), inv)  # [L, hd/2]
+    emb = torch.cat([f, f], dim=-1)  # [L, hd]
+    return emb.cos(), emb.sin()
+
+
+def _apply_rope(x, cos, sin):  # x: [B,H,L,hd]; cos/sin: [L,hd]
+    hd = x.shape[-1]
+    rot = torch.cat([-x[..., hd // 2:], x[..., : hd // 2]], dim=-1)
+    return x * cos + rot * sin
+
+
+class _RoPEBlock(nn.Module):
+    def __init__(self, d, H, ff, dropout):
+        super().__init__()
+        self.H, self.hd, self.dp = H, d // H, dropout
+        self.n1 = nn.LayerNorm(d)
+        self.qkv = nn.Linear(d, 3 * d)
+        self.proj = nn.Linear(d, d)
+        self.n2 = nn.LayerNorm(d)
+        self.ff = nn.Sequential(nn.Linear(d, ff), nn.GELU(), nn.Linear(ff, d))
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x, cos, sin):
+        B, L, D = x.shape
+        h = self.n1(x)
+        qkv = self.qkv(h).view(B, L, 3, self.H, self.hd).permute(2, 0, 3, 1, 4)  # [3,B,H,L,hd]
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        q, k = _apply_rope(q, cos, sin), _apply_rope(k, cos, sin)
+        o = Fnn.scaled_dot_product_attention(q, k, v, is_causal=True, dropout_p=self.dp if self.training else 0.0)
+        o = o.transpose(1, 2).reshape(B, L, D)
+        x = x + self.drop(self.proj(o))
+        return x + self.drop(self.ff(self.n2(x)))
+
+
+class RoPEGPT(nn.Module):
+    """Same dims as WordleGenerator but rotary positional embedding (no learned pos_embed); weight-tied head."""
+    def __init__(self, config: ModelConfig, vocab_size: int) -> None:
+        super().__init__()
+        d, H = config.d_model, config.n_heads
+        self.hd = d // H
+        self.token_embed = nn.Embedding(vocab_size, d)
+        self.drop = nn.Dropout(config.dropout)
+        self.blocks = nn.ModuleList([_RoPEBlock(d, H, config.d_ff, config.dropout) for _ in range(config.n_layers)])
+        self.final_norm = nn.LayerNorm(d)
+
+    def forward(self, ids):
+        x = self.drop(self.token_embed(ids))
+        cos, sin = _rope_tables(ids.shape[1], self.hd, ids.device)
+        for b in self.blocks:
+            x = b(x, cos, sin)
+        return self.final_norm(x) @ self.token_embed.weight.t()
+
+
+def build_net(cfg, vocab):
+    return RoPEGPT(cfg, vocab) if os.environ.get("VM_ROPE") == "1" else WordleGenerator(cfg, vocab)
 
 DEV = "mps"
 torch.manual_seed(int(os.environ.get("VM_SEED", "0")))
@@ -327,8 +389,10 @@ def main():
     TEACHER = int(os.environ.get("VM_TEACHER", "2"))
     print(f"[fmt={FMT}] VOCAB={VOCAB} aux={AUX_LAMBDA} epochs={EPOCHS} pre={PRE} |secrets|={len(secrets)}", flush=True)
 
-    model = WordleGenerator(CFG, VOCAB).to(DEV)
+    model = build_net(CFG, VOCAB).to(DEV)
     BASE = os.environ.get("VM_BASE", "")
+    if BASE and os.environ.get("VM_ROPE") == "1":
+        raise SystemExit("VM_ROPE can't warm-start from a learned-pos checkpoint; run from scratch (unset VM_BASE).")
     if BASE:  # warm-start from a strong model (e.g. validity_max_v4) -> reaches the 0.34 regime; adapt to FMT
         load_checkpoint(BASE, model)
         b0 = evaluate(model, VAL)
@@ -406,7 +470,7 @@ def main():
             model.train()
 
     print(f"\n=== fmt={FMT}: honest clean TEST ===", flush=True)
-    b = WordleGenerator(CFG, VOCAB).to(DEV)
+    b = build_net(CFG, VOCAB).to(DEV)
     load_checkpoint(OUT, b)
     mt = evaluate(b, TEST)
     print(f"  TEST win {mt['win']:.3f} ({int(round(mt['win'] * len(TEST)))}/{len(TEST)}) valid {mt['valid']:.3f} respect {mt['respect']:.3f} avg {mt['avg']:.2f}", flush=True)
