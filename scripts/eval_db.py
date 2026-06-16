@@ -103,49 +103,69 @@ def connect(db_path: Path) -> sqlite3.Connection:
 # --------------------------------------------------------------------------------------------------
 # Faithful capture-play (mirrors validity_max.play byte-for-byte; only ADDS recording)
 # --------------------------------------------------------------------------------------------------
+ANTIREPEAT_TRIES = 8  # max resamples to find a not-yet-emitted word (honest: uses own history only)
+
+
+@torch.no_grad()
+def _emit_word(model: Any, seq_base: list[int], temperature: float, gen) -> tuple[str, list[str]]:
+    """Generate ONE word (ephemeral CoT then a 5-letter commit) over the 26-letter+THINK+commit space."""
+    seq = list(seq_base)
+    guess: list[int] = []
+    cot_tokens: list[int] = []
+    committed = False
+    for _ in range(60):
+        logits = model.forward(torch.tensor([seq], device=vm.DEV))[0, -1][vm.ALLOWED_GEN]
+        if temperature == 0.0:
+            idx = int(torch.argmax(logits))
+        else:
+            probs = torch.softmax(logits / temperature, dim=0).cpu()
+            idx = int(torch.multinomial(probs, 1, generator=gen).item())
+        nxt = int(vm.ALLOWED_GEN[idx])
+        seq.append(nxt)
+        if committed:
+            if nxt in vm.LETTER_SET:
+                guess.append(nxt)
+            if len(guess) >= 5:
+                break
+        elif nxt == vm.tok.guess_id:
+            committed = True
+        else:
+            cot_tokens.append(nxt)
+    return "".join(vm.tok.id_to_token(t) for t in guess[:5]), _parse_cot(cot_tokens)
+
+
 @torch.no_grad()
 def play_capture(
     model: Any,
     secret: str,
     temperature: float = 0.0,
     gen: torch.Generator | None = None,
+    antirepeat: bool = False,
 ) -> dict[str, Any]:
     """Honest free-gen play with capture.
 
     temperature == 0  -> greedy argmax, and a non-word ENDS the game (break): identical to
                          validity_max.play (deterministic context would just repeat the non-word).
-    temperature  > 0  -> sample each token from the model's own distribution over the action space
-                         (CPU multinomial — the MPS-sampling lesson). A non-word is COUNTED as a turn
-                         but NOT fed back (visible context unchanged) and play CONTINUES until won or
-                         6 turns. No dictionary / trie / consistency filter ever touches decoding.
+    temperature  > 0  -> sample each token from the model's own distribution (CPU multinomial). A
+                         non-word is COUNTED as a turn but NOT fed back; play CONTINUES until won or 6
+                         turns. No dictionary / trie / consistency filter ever touches decoding.
+    antirepeat        -> (sampling only) resample (<=ANTIREPEAT_TRIES) for a word not already EMITTED
+                         this game, so retries explore new spellings instead of re-fumbling the same
+                         string. Honest: uses only the game's own emission history, never a dict/clue.
     """
     g = Game(secret)
     visible: list[Any] = []
     records: list[dict[str, Any]] = []
+    emitted_before: set[str] = set()
     while g.status is Status.ONGOING:
-        seq = vm.board_only(visible)
-        guess: list[int] = []
-        cot_tokens: list[int] = []
-        committed = False
-        for _ in range(60):
-            logits = model.forward(torch.tensor([seq], device=vm.DEV))[0, -1][vm.ALLOWED_GEN]
-            if temperature == 0.0:
-                idx = int(torch.argmax(logits))
-            else:
-                probs = torch.softmax(logits / temperature, dim=0).cpu()
-                idx = int(torch.multinomial(probs, 1, generator=gen).item())
-            nxt = int(vm.ALLOWED_GEN[idx])
-            seq.append(nxt)
-            if committed:
-                if nxt in vm.LETTER_SET:
-                    guess.append(nxt)
-                if len(guess) >= 5:
-                    break
-            elif nxt == vm.tok.guess_id:
-                committed = True
-            else:
-                cot_tokens.append(nxt)  # THINK markers + the CoT candidate letters
-        word = "".join(vm.tok.id_to_token(t) for t in guess[:5])
+        seq_base = vm.board_only(visible)
+        word, cot = _emit_word(model, seq_base, temperature, gen)
+        if antirepeat and temperature > 0.0:
+            tries = 0
+            while word in emitted_before and tries < ANTIREPEAT_TRIES:
+                word, cot = _emit_word(model, seq_base, temperature, gen)
+                tries += 1
+        emitted_before.add(word)
         played = word if len(word) == 5 else "zzzzz"
         turn = g.guess(played)
         records.append(
@@ -155,7 +175,7 @@ def play_capture(
                 "valid": turn.valid,
                 "feedback": turn.feedback,
                 "consistent_w_prior": vm.is_consistent(played, visible) if turn.valid else False,
-                "cot_candidates": _parse_cot(cot_tokens),
+                "cot_candidates": cot,
             }
         )
         if turn.valid:
@@ -244,6 +264,7 @@ def main() -> None:
     ap.add_argument("--notes", default="")
     ap.add_argument("--temp", default=0.0, type=float, help="0=greedy(default); >0=sample at this temperature")
     ap.add_argument("--seed", default=0, type=int, help="CPU sampling seed (sampling mode only)")
+    ap.add_argument("--antirepeat", action="store_true", help="resample for a not-yet-emitted word (sampling only)")
     args = ap.parse_args()
 
     train, held = vm.split(seed=0)
@@ -260,7 +281,8 @@ def main() -> None:
 
     sampling = args.temp > 0.0
     gen = torch.Generator().manual_seed(args.seed) if sampling else None
-    mode = f"sample T={args.temp} seed={args.seed}" if sampling else "greedy"
+    ar = args.antirepeat and sampling
+    mode = (f"sample T={args.temp} seed={args.seed}" + (" +antirepeat" if ar else "")) if sampling else "greedy"
     print(
         f"[eval_db] checkpoint={args.checkpoint} targets={len(targets)} (held-out TEST) dev={vm.DEV} mode={mode}",
         flush=True,
@@ -268,7 +290,7 @@ def main() -> None:
     t0 = time.time()
     games_data: list[dict[str, Any]] = []
     for i, secret in enumerate(targets, 1):
-        cap = play_capture(model, secret, temperature=args.temp, gen=gen)
+        cap = play_capture(model, secret, temperature=args.temp, gen=gen, antirepeat=ar)
         cap["target"] = secret
         cap["traj"] = consistent_trajectory(cap["records"], answers)
         games_data.append(cap)
@@ -299,8 +321,8 @@ def main() -> None:
     # ---- persist a new immutable version ----
     conn = connect(args.db)
     protocol = {
-        "decode": (f"sample T={args.temp} (seed {args.seed})" if sampling else "greedy")
-        + " free-gen over {26 letters, THINK, commit}",
+        "decode": (mode if sampling else "greedy") + " free-gen over {26 letters, THINK, commit}",
+        "antirepeat": ar,
         "dictionary_at_inference": False,
         "trie_or_consistency_filter_at_inference": False,
         "nonword": (

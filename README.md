@@ -31,13 +31,15 @@ bounded by the ~1,852-word answer set — confirmed by an exhaustive set of null
 on-policy RFT/STaR, scale-turns-over-past-50M, the green/yellow infill, ensembles). The full lineage is
 the [Experiment Log](#experiment-log) and the visual map (`EXPERIMENTS.svg`, 75+ experiments).
 
-**Latest (2026-06-10): a decode-only change lifts the win rate with zero retraining.** Switching greedy →
-temperature sampling (T=0.6) and treating a non-word as a recoverable wasted turn (counted, not fed back)
-takes the *same* `validity_max_v4` checkpoint from **0.332 → 0.358 ± 0.018** (5 seeds). Driven by the
-failure analysis (`scripts/eval_db.py` → versioned `evals/evals.db`): **93% of greedy's losses are
-non-word emissions**, not deduction. A cross-impl audit of a colleague's repo (`wordley`) found its higher
-held-out numbers come from a training-time leak (held-out words trained as spelling targets); ours stay
-clean. See the [Experiment Log](#experiment-log).
+**Latest (2026-06-10): decode-only changes lift the win rate with zero retraining — best honest now 0.385.**
+On the *same* `validity_max_v4` checkpoint: greedy **0.332** → temperature sampling (T=0.6, non-word = a
+recoverable wasted turn) **0.358 ± 0.018** → **+ anti-repeat** (resample for a not-yet-tried word, honest —
+own guess history only) **0.385 ± 0.022** (5 seeds; worst seed 0.357 still beats plain sampling's mean).
+Driven by the failure analysis (`scripts/eval_db.py` → versioned `evals/evals.db`): **93% of greedy's
+losses are non-word emissions** and 226/228 are one letter from a real word, so giving the model fresh
+spelling attempts (instead of re-fumbling the same string) directly converts losses. A cross-impl audit of
+a colleague's repo (`wordley`) found its higher held-out numbers come from a training-time leak (held-out
+words trained as spelling targets); ours stay clean. See the [Experiment Log](#experiment-log).
 
 *(Aside: with the public dictionary allowed as an inference-time spell-checker — a different, clearly-
 labeled tier — the same weights reach ~0.55 (beam-over-trie) to ~0.72 (best-of-N). We keep that separate
@@ -124,12 +126,16 @@ and when the answer is determined the model's own CoT contains it only **18%** o
 67–73%.) So the famous "deduction wall" is only ~7% of losses; the dominant wall is lexical retrieval
 under tight letter constraints.
 
-**Honest sampling decode — verified +0.026, the first clean beat of the greedy wall.** Same checkpoint,
-**zero model/training changes** (sha identical across runs) — only the decode: greedy argmax →
-**temperature sampling (T=0.6)** over the model's own distribution, and a non-word becomes a *recoverable
-wasted turn* (counted, not fed back, play continues) instead of greedy's fatal break. Verified across 5
-seeds: **win 0.358 ± 0.018** (greedy 0.332; range 0.332–0.387). Modest but real — it converts "instant
-non-word death with turns to spare" into extra spelling attempts, exactly the failure the analysis found.
+**Honest decode wins — verified, the clean beat of the greedy wall (best honest 0.385).** Same checkpoint,
+**zero model/training changes** (sha identical across runs) — only the decode. (1) **Temperature sampling
+(T=0.6)** over the model's own distribution, with a non-word a *recoverable wasted turn* (counted, not fed
+back, play continues) instead of greedy's fatal break: **0.358 ± 0.018** (5 seeds) vs greedy 0.332. (2) **+
+anti-repeat** (resample for a word not yet emitted this game — honest, uses only the game's own guess
+history, no dict/clue-filter; the lever Cameron's `wordley` also uses): **0.385 ± 0.022** (5 seeds; worst
+seed 0.357 > plain-sampling mean) — **+0.052 over greedy**. Both exploit the failure the analysis found
+(93% of losses are non-word emissions, 226/228 one letter from a real word): give the model fresh spelling
+attempts instead of re-fumbling the same string. "Selector" variants don't survive honesty — mode-vote
+collapses to greedy (beam=greedy here), and a learned validity-ranker is a soft dictionary at inference.
 (A RoPE positional-encoding A/B was NULL/abandoned — positional encoding isn't the bottleneck.)
 
 **Cross-impl audit — Cameron's `wordley`: honest inference, but a training-pipeline held-out LEAK.** His
