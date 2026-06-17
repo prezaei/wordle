@@ -150,6 +150,34 @@ training signal) is the clean comparison.** This also **retracts** a same-day su
 consistency-set objective for us: the gain is leak-driven; the honest version (train-answers-only sets)
 would lose it.
 
+### 🧬 Deeper failure mining + spelling-training is tapped (2026-06-11) ([scripts/eval_analyze2.py](./scripts/eval_analyze2.py), [scripts/denoise_spell.py](./scripts/denoise_spell.py))
+
+**Losses partition cleanly (367 TEST): greedy-won 33% | recoverable-by-sampling 45% | hard-core 21.5%.**
+Letter-level mining (`eval_analyze2.py`): **226/228 greedy non-words are Hamming-1 from a real word** (78%
+respect the clues, zero chimeras); clue violations are dominated by **dropping a required letter** (51% >
+dropped-green 33% > reused-gray 31%). The 21.5% hard-core is **95% pure vocab gap** (the model never
+produces the word in *any* of 10 runs), skewed toward rare letters (0.49 vs 0.38).
+
+**We already pretrain spelling on ALL valid words → the wall is constrained RETRIEVAL, not vocabulary.**
+`format_sweep.warmup()` runs an explicit next-char LM over **every one of the 14,855 valid 5-letter words**
+(incl. all 463 held-out, *unconditional* — the "knows English" standard). The model can spell every word in
+isolation, yet still can't *retrieve* the right one under tight clues on held-out targets. Restated
+precisely: **isolated-word spelling does not transfer to constraint-conditioned retrieval** — the same
+discrete-search-doesn't-generalize wall. (This also downgrades the "warm-start from a pretrained base" idea:
+it mostly duplicates spelling we already train, and can't touch deduction.)
+
+**#2 denoising / contrastive spell-sharpening — NULL/NEG ([scripts/denoise_spell.py](./scripts/denoise_spell.py)).**
+Continue-train v4 with a contrastive margin (real committed word > its Hamming-1 non-word; + full-dict
+unconditional). The margin was **already saturated (~0.10)** → little gradient → it slightly *perturbed*
+spelling: greedy TEST **0.281** (vs 0.332), +AR **0.376** (vs 0.385). Confirms the *relative* spelling lever
+is tapped; the *absolute* prob on held-out words is the (plateaued) gap.
+
+**#2b full-dict deduction data — the one lever left that targets retrieval *generalization*.** Train games
+with secrets drawn from the full dict (8,000; held-out excluded from **both** secrets and the teacher guess
+pool — bulletproof honest), warm-started from v4, to test whether ~8× more constraint→word coverage makes
+the retrieval skill *generalize* rather than memorize. *(Also flagged: the existing teacher pool included
+held-out words as candidate guesses — a soft channel now closed in `gen_games.py` for clean runs.)*
+
 ### 📦 Data expansion + honest beam decode — both NULL ([scripts/gen_games.py](./scripts/gen_games.py), [scripts/beam_decode.py](./scripts/beam_decode.py))
 
 Two final honest levers, both null:

@@ -118,9 +118,11 @@ N = {
   "ensemble": ("inf2", "ensemble committee (no dict)", "5x≈50M", "5 trained models vote per board, majority (no dictionary) — pure multi-model test-time compute", "0.283 — NULL (averages toward weaker members; below v4 0.332)", "aided"),
   "deployed": ("dep", "deployed real-Wordle player", "≈50M", "trained on all 2,315 known answers (fixed set = the real game)", "~0.62 (legit deployed, framing)", "cont"),
   "eval_db": ("inf2", "eval DB + failure reframe", "≈50M", "versioned SQLite eval store (scripts/eval_db.py, faithful to validity_max.play) with per-turn + CoT capture on validity_max_v4, full 367 TEST", "REFRAME — 93% of losses = non-word SPELLING (deduction is only 7%); non-word rate 0%@51+ left -> 40%@determined; CoT holds the answer only 18% when determined. The wall is constrained lexical retrieval", "audit"),
-  "sampling_decode": ("inf2", "honest sampling decode (T=0.6)", "≈50M", "SAME validity_max_v4 weights, ZERO training change; greedy argmax -> temperature sampling, non-word = recoverable wasted turn (counted, not fed back, play continues) vs greedy's fatal break", "0.358 +/-0.018 (5 seeds) vs greedy 0.332 = +0.026 — first clean BEAT of the greedy wall, honest (no dict)", "head"),
+  "sampling_decode": ("inf2", "honest sampling decode (T=0.6)", "≈50M", "SAME validity_max_v4 weights, ZERO training change; greedy argmax -> temperature sampling, non-word = recoverable wasted turn (counted, not fed back, play continues) vs greedy's fatal break", "0.358 +/-0.018 (5 seeds) vs greedy 0.332 = +0.026 — first clean BEAT of the greedy wall, honest (no dict)", "clean"),
+  "antirepeat": ("inf2", "anti-repeat sampling (T=0.6)", "≈50M", "sampling + resample for a not-yet-EMITTED word (honest: uses only the game's own guess history, no dict/clue-filter; the lever wordley also uses) — forces fresh spelling attempts instead of re-fumbling the same Hamming-1 non-word", "0.385 +/-0.022 (5 seeds; worst seed 0.357 > plain-sampling mean) — BEST honest, +0.052 over greedy", "head"),
   "rope_ab": ("scale", "RoPE vs learned pos-emb A/B", "≈50M", "swap learned positional embedding for rotary (RoPE) in a from-scratch A/B; only the positional mechanism differs", "NULL — from-scratch clue-respect ~= control; positional encoding is not the bottleneck", "clean"),
   "wordley_audit": ("audit", "cross-impl audit: colleague's wordley", "0.5B-era", "audit a separate impl (free-gen Plan A): honest? check inference + training pipeline + split", "INFERENCE honest (beam/26-letters, non-word wastes a turn, no dict; split disjoint) BUT training LEAK — consistency set drawn from FULL dict incl held-out -> 100% of held-out trained as spelling targets (72% tight, 26% near-determined); 46.65->61.7% = max-leak config. Ours stays clean", "audit"),
+  "denoise_spell": ("scale", "denoise/contrastive spell-sharpen (#2)", "≈50M", "continue v4 + contrastive margin: real committed word > its Hamming-1 non-word (+ full-dict unconditional); aimed at the 226/228 one-letter-off commit fumble; honest (no held-out answer-mapping)", "NULL/NEG — margin already saturated (~0.10), little gradient; greedy 0.281 (vs 0.332), +AR 0.376 (vs 0.385). The RELATIVE spelling lever is tapped; absolute prob on held-out is the plateaued gap. Wall = constrained RETRIEVAL (we already pretrain all-word spelling), not vocab", "clean"),
 }
 LANES = {
   "found": "FOUNDATIONS — SFT scale ladder (contaminated lineage)",
@@ -134,7 +136,7 @@ LANES = {
   "dep":   "DEPLOYED FRAMING",
 }
 EDGES = [
-  ("validity_max_v4","eval_db","failure analysis"),("eval_db","sampling_decode","93% losses=spelling -> retries"),("validity_max_v4","rope_ab","RoPE A/B"),("eval_db","wordley_audit","cross-impl compare"),
+  ("validity_max_v4","eval_db","failure analysis"),("eval_db","sampling_decode","93% losses=spelling -> retries"),("sampling_decode","antirepeat","resample novel word"),("validity_max_v4","rope_ab","RoPE A/B"),("eval_db","wordley_audit","cross-impl compare"),("eval_db","denoise_spell","#2 sharpen commit spelling"),
   ("sft_3m","sft_5m","scale+depth"),("sft_5m","sft_25m","5x params"),("sft_25m","sft_25m_div","diverse secrets"),
   ("sft_25m","scale_99m","pure scale"),("scale_99m","codesign_50m","redesign+curriculum"),("codesign_50m","sft_deep","isolate redesign, converge"),
   ("sft_deep","sft_aux","add spelling loss"),("sft_aux","sft_aux_xl","scale aux"),

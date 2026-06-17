@@ -21,18 +21,29 @@ def main():
     VALID = load_valid_guesses()
     cap = int(os.environ.get("VM_SECRETS", str(len(train))))
     secrets = tuple(train[:cap])
+    held_set = set(held)
+    guess_pool = list(VALID)  # words the teacher may guess
     if os.environ.get("VM_EXPAND") == "1":
         import wordfreq
         common = [w for w in wordfreq.top_n_list("en", 100000) if len(w) == 5 and w.isalpha() and w.isascii()]
-        secrets = tuple(w for w in common if w in set(VALID) and w not in set(held))[:cap]
-        assert not (set(secrets) & set(held)), "HELD-OUT LEAKED"
+        secrets = tuple(w for w in common if w in set(VALID) and w not in held_set)[:cap]
+        assert not (set(secrets) & held_set), "HELD-OUT LEAKED"
         print(f"EXPAND: {len(secrets)} common+valid secrets (held-out excluded); "
-              f"train-answers={len(set(secrets) & set(train))}, new={len(set(secrets) - set(train) - set(held))}", flush=True)
-    safe = tuple(o for o in ("salet", "crane", "slate", "trace", "stare", "raise", "crate") if o not in set(held))
+              f"train-answers={len(set(secrets) & set(train))}, new={len(set(secrets) - set(train) - held_set)}", flush=True)
+    if os.environ.get("VM_FULLDICT") == "1":  # DATA LEVER #2: deduction over the FULL dict (not just answers)
+        import random as _r
+        pool = [w for w in VALID if w not in held_set]  # held-out (VAL+TEST) excluded from secrets AND guesses
+        secrets = tuple(_r.Random(0).sample(pool, min(cap, len(pool))))
+        guess_pool = pool  # the teacher can NEVER guess a held-out word -> held-out is never a training target
+        assert not (set(secrets) & held_set), "HELD-OUT LEAKED INTO SECRETS"
+        assert not (set(guess_pool) & held_set), "HELD-OUT LEAKED INTO GUESS POOL"
+        print(f"FULLDICT: {len(secrets)} secrets from the full dict; held-out {len(held)} excluded from BOTH "
+              f"secrets and the teacher guess pool; answers-in-set={len(set(secrets) & set(train))}", flush=True)
+    safe = tuple(o for o in ("salet", "crane", "slate", "trace", "stare", "raise", "crate") if o not in held_set)
     TEACHER = int(os.environ.get("VM_TEACHER", "2"))
     nproc = min(int(os.environ.get("VM_NPROC", "12")), os.cpu_count() or 4)
     chunks = [secrets[i::nproc] for i in range(nproc)]
-    tasks = [(c, 300 + s * 1000 + ci, safe, list(VALID), secrets, 0.5)
+    tasks = [(c, 300 + s * 1000 + ci, safe, guess_pool, secrets, 0.5)
              for s in range(TEACHER) for ci, c in enumerate(chunks) if c]
     print(f"gen {len(secrets)} secrets x{TEACHER} passes across {nproc} procs ({len(tasks)} tasks) …", flush=True)
     import time

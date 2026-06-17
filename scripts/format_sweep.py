@@ -434,9 +434,10 @@ def main():
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS, eta_min=LR * 0.1)
     rng2 = Random(0)
+    SEL = os.environ.get("VM_SELECT", "respect")  # "win" for warm-started runs (win is nonzero)
     best, saved = -1.0, False
     model.train()
-    print(f"[fmt={FMT}] epoch  clean-VAL win / valid / clue-RESPECT (the format metric)", flush=True)
+    print(f"[fmt={FMT}] epoch  clean-VAL win / valid / clue-RESPECT (select by {SEL})", flush=True)
     for epoch in range(EPOCHS):
         for idx in _batches(N, int(os.environ.get("VM_BATCH", "512")), rng2):  # 128GB -> big batches saturate the GPU
             bidx = torch.tensor(idx, device=DEV)
@@ -462,10 +463,11 @@ def main():
         if epoch % 4 == 0 or epoch == EPOCHS - 1:
             m = evaluate(model, VAL)
             flag = ""
-            if m["respect"] > best:  # select by clue-RESPECT (win stays 0 from-scratch -> would save epoch-0 garbage)
-                best, saved = m["respect"], True
+            sel = m["win"] if SEL == "win" else m["respect"]
+            if sel > best:  # respect for from-scratch (win=0); win for warm-started runs
+                best, saved = sel, True
                 save_checkpoint(OUT, model, opt, epoch, SFTConfig())
-                flag = "  <- best-respect, saved"
+                flag = f"  <- best-{SEL}, saved"
             print(f"  epoch {epoch:>2}  win {m['win']:.3f} / valid {m['valid']:.3f} / respect {m['respect']:.3f}{flag}", flush=True)
             model.train()
 
