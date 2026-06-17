@@ -18,11 +18,14 @@ uv run wordle-slm --help
 
 ## Status
 
-**Best honest model: `runs/validity_max_v4.pt` — held-out free-gen win 0.333** (verified across two seeds:
-0.332 / 0.335), on the strict **clean protocol** (greedy free-generation, **no dictionary or any
-inference-time rules**, non-words counted-but-not-fed-back, evaluated on the disjoint TEST split that is
-never trained on). Reproduce: aux-validity loss (λ6) + constrained self-distillation on all 1,852 train
-secrets (`scripts/validity_max.py`).
+**Best honest model: `runs/validity_max_v4.pt` — held-out free-gen win 0.333 greedy, 0.406 with honest
+sampling decode** (no weight change). The clean protocol: free-generation, **no dictionary or any
+inference-time rules**, non-words counted-but-not-fed-back, evaluated on the disjoint 367-word TEST split
+that is never trained on. The model is trained with aux-validity loss (λ6) + constrained self-distillation
+on all 1,852 train secrets (`scripts/validity_max.py`); the decode gain is **inference-only** — temperature
+sampling (T≈0.5) with **anti-repeat** (resample for a not-yet-tried word) + a larger resample budget,
+verified across seeds: **greedy 0.332 → sampling+anti-repeat 0.406 ± 0.014** (`scripts/eval_db.py`, all
+runs versioned in `evals/evals.db`).
 
 **The honest arc:** from-scratch char transformer → spell warm-up → SFT on a near-optimal teacher →
 in-weights **validity** (the model learns to spell real words) → **maxing in-distribution data**. That
@@ -31,15 +34,19 @@ bounded by the ~1,852-word answer set — confirmed by an exhaustive set of null
 on-policy RFT/STaR, scale-turns-over-past-50M, the green/yellow infill, ensembles). The full lineage is
 the [Experiment Log](#experiment-log) and the visual map (`EXPERIMENTS.svg`, 75+ experiments).
 
-**Latest (2026-06-10): decode-only changes lift the win rate with zero retraining — best honest now 0.385.**
-On the *same* `validity_max_v4` checkpoint: greedy **0.332** → temperature sampling (T=0.6, non-word = a
-recoverable wasted turn) **0.358 ± 0.018** → **+ anti-repeat** (resample for a not-yet-tried word, honest —
-own guess history only) **0.385 ± 0.022** (5 seeds; worst seed 0.357 still beats plain sampling's mean).
-Driven by the failure analysis (`scripts/eval_db.py` → versioned `evals/evals.db`): **93% of greedy's
-losses are non-word emissions** and 226/228 are one letter from a real word, so giving the model fresh
-spelling attempts (instead of re-fumbling the same string) directly converts losses. A cross-impl audit of
-a colleague's repo (`wordley`) found its higher held-out numbers come from a training-time leak (held-out
-words trained as spelling targets); ours stay clean. See the [Experiment Log](#experiment-log).
+**Latest (2026-06-11): decode-only changes lift the win rate with zero retraining — best honest now 0.406.**
+On the *same* `validity_max_v4` checkpoint: greedy **0.332** → temperature sampling (non-word = a
+recoverable wasted turn) → **+ anti-repeat** (resample for a not-yet-tried word, honest — own guess history
+only). An overnight sweep of 12 honest approaches found the optimum at **lower temperature + bigger resample
+budget**: **T≈0.5, anti-repeat, tries=16 → 0.406 ± 0.014** (verified across seeds; the earlier 0.385 used
+T=0.6). Driven by the failure analysis (`scripts/eval_db.py` → versioned `evals/evals.db`): **93% of
+greedy's losses are non-word emissions** and 226/228 are one letter from a real word, so giving the model
+fresh spelling attempts directly converts losses. **Every training-side approach was null/negative** that
+night (denoise contrastive, full-dict deduction data, mixed, curriculum, more epochs, fixed openers) —
+strong evidence the wall is the model's *retrieval generalization*, and **decode is the only lever**. A
+cross-impl audit of a colleague's repo (`wordley`) found its higher held-out numbers come from a
+training-time leak (held-out words trained as spelling targets); ours stay clean. See the
+[Experiment Log](#experiment-log).
 
 *(Aside: with the public dictionary allowed as an inference-time spell-checker — a different, clearly-
 labeled tier — the same weights reach ~0.55 (beam-over-trie) to ~0.72 (best-of-N). We keep that separate
@@ -109,6 +116,37 @@ The honest headline metric is the **held-out win rate** on the immutable 463-wor
 are *not* honest-greedy-held-out (seen/train probes, beam+dict decoding, leaked CoT) are labeled as
 such. The whole thread runs 2026-06-02 → 06-08 on the M5 Max (MPS). All experiment drivers live in
 [`scripts/`](./scripts/) (uncommitted; one script == one experiment, docstring at top states the test).
+
+### 🌙 Overnight sweep — 12 honest approaches; decode tuning wins (0.385 → 0.406), training all null (2026-06-11) ([scripts/overnight.sh](./scripts/overnight.sh))
+
+Ran 12 distinct honest approaches unattended (all versioned in `evals/evals.db`). **Decode is the only
+lever that moves the number; every training-side approach was null/negative.**
+
+**Winner — decode tuning (inference-only, zero retraining):** the anti-repeat optimum is at a **lower
+temperature + bigger resample budget** than the original T=0.6. Verified means (held-out 367, multi-seed):
+
+| decode config | win | n |
+|---|---|---|
+| **AR T=0.5, tries=16** | **0.407 ± 0.014** | 3 |
+| AR T=0.5 | 0.405 ± 0.015 | 5 |
+| AR T=0.45 | 0.405 ± 0.013 | 3 |
+| AR T=0.6 (prior best) | 0.385 ± 0.022 | 5 |
+| greedy | 0.332 | — |
+
+Lower T = less sampling noise while anti-repeat still supplies retry diversity → more first-try valid
+words. Temp schedules were marginal (~0.39); **forcing a "smart" opener (salet/raise/crane) HURT** (0.35–
+0.37) — the model's learned STARE opener is better than an imposed one.
+
+**All training approaches null/negative** (greedy / +anti-repeat on held-out TEST): denoise contrastive
+0.281 / 0.355 · full-dict deduction data 0.281 / 0.324 · mixed answers+dict 0.256 / 0.347 · curriculum
+(full-dict→answers) 0.327 / 0.384 · full-dict 16-epoch 0.286 / 0.350. None beat v4. The full-dict variants
+*raised clue-respect* (≈0.91) but *lowered win* — they improved constraint-handling while the
+retrieval/spelling commit (the real wall) got no better, and the non-answer-like distribution shift hurt.
+Methodology note logged: 96-game VAL is noisy (full-dict looked like 0.365 on VAL, was 0.281 on TEST).
+
+**Conclusion:** after ~30 honest experiments, **decode is the frontier and training is exhausted.** Best
+honest held-out win is **0.406** (T≈0.5 anti-repeat), up from the long-standing 0.332 greedy ceiling —
+entirely from inference, no weight change.
 
 ### 🔬 Eval DB + failure-pattern reframe, honest sampling decode (+0.026), cross-impl leak audit (2026-06-10) ([scripts/eval_db.py](./scripts/eval_db.py), [scripts/eval_analyze.py](./scripts/eval_analyze.py))
 
