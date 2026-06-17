@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -103,7 +104,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
 # --------------------------------------------------------------------------------------------------
 # Faithful capture-play (mirrors validity_max.play byte-for-byte; only ADDS recording)
 # --------------------------------------------------------------------------------------------------
-ANTIREPEAT_TRIES = 8  # max resamples to find a not-yet-emitted word (honest: uses own history only)
+ANTIREPEAT_TRIES = int(os.environ.get("AR_TRIES", "8"))  # resample budget (honest: own history only)
 
 
 @torch.no_grad()
@@ -141,6 +142,8 @@ def play_capture(
     temperature: float = 0.0,
     gen: torch.Generator | None = None,
     antirepeat: bool = False,
+    opener: str | None = None,
+    tsched: tuple[float, float] | None = None,
 ) -> dict[str, Any]:
     """Honest free-gen play with capture.
 
@@ -149,22 +152,28 @@ def play_capture(
     temperature  > 0  -> sample each token from the model's own distribution (CPU multinomial). A
                          non-word is COUNTED as a turn but NOT fed back; play CONTINUES until won or 6
                          turns. No dictionary / trie / consistency filter ever touches decoding.
-    antirepeat        -> (sampling only) resample (<=ANTIREPEAT_TRIES) for a word not already EMITTED
-                         this game, so retries explore new spellings instead of re-fumbling the same
-                         string. Honest: uses only the game's own emission history, never a dict/clue.
+    antirepeat        -> (sampling only) resample (<=ANTIREPEAT_TRIES) for a word not already EMITTED.
+    opener            -> force turn-0 guess to this fixed word (honest: a fixed strategy, no dict/clue).
+    tsched (lo, hi)   -> per-turn temperature: lo on turns 0-1, hi on turns 2+ (early narrowing vs late
+                         spelling retries). Overrides `temperature` when set.
     """
     g = Game(secret)
     visible: list[Any] = []
     records: list[dict[str, Any]] = []
     emitted_before: set[str] = set()
     while g.status is Status.ONGOING:
+        turn_idx = len(records)
+        temp = (tsched[0] if turn_idx < 2 else tsched[1]) if tsched else temperature
         seq_base = vm.board_only(visible)
-        word, cot = _emit_word(model, seq_base, temperature, gen)
-        if antirepeat and temperature > 0.0:
-            tries = 0
-            while word in emitted_before and tries < ANTIREPEAT_TRIES:
-                word, cot = _emit_word(model, seq_base, temperature, gen)
-                tries += 1
+        if opener is not None and turn_idx == 0:
+            word, cot = opener, []  # fixed opener (no generation) -- honest fixed strategy
+        else:
+            word, cot = _emit_word(model, seq_base, temp, gen)
+            if antirepeat and temp > 0.0:
+                tries = 0
+                while word in emitted_before and tries < ANTIREPEAT_TRIES:
+                    word, cot = _emit_word(model, seq_base, temp, gen)
+                    tries += 1
         emitted_before.add(word)
         played = word if len(word) == 5 else "zzzzz"
         turn = g.guess(played)
@@ -180,9 +189,9 @@ def play_capture(
         )
         if turn.valid:
             visible.append(turn)
-        elif temperature == 0.0:
-            break  # greedy: unchanged context repeats the non-word forever -> lost (== validity_max.play)
-        # sampling: non-word counted as a turn (Game capped it), NOT fed back, keep playing
+        elif temperature == 0.0 and tsched is None:
+            break  # pure greedy: unchanged context repeats the non-word forever -> lost (== validity_max.play)
+        # sampling/tsched: non-word counted as a turn (Game capped it), NOT fed back, keep playing
     return {"game": g, "records": records}
 
 
@@ -265,6 +274,8 @@ def main() -> None:
     ap.add_argument("--temp", default=0.0, type=float, help="0=greedy(default); >0=sample at this temperature")
     ap.add_argument("--seed", default=0, type=int, help="CPU sampling seed (sampling mode only)")
     ap.add_argument("--antirepeat", action="store_true", help="resample for a not-yet-emitted word (sampling only)")
+    ap.add_argument("--opener", default=None, help="force turn-0 guess to this fixed word")
+    ap.add_argument("--tsched", default=None, help="per-turn temp schedule 'lo:hi' (lo turns 0-1, hi turns 2+)")
     args = ap.parse_args()
 
     train, held = vm.split(seed=0)
@@ -279,10 +290,15 @@ def main() -> None:
     vm.load_checkpoint(str(args.checkpoint), model)
     model.eval()
 
-    sampling = args.temp > 0.0
+    tsched = tuple(float(x) for x in args.tsched.split(":")) if args.tsched else None
+    sampling = args.temp > 0.0 or tsched is not None
     gen = torch.Generator().manual_seed(args.seed) if sampling else None
     ar = args.antirepeat and sampling
-    mode = (f"sample T={args.temp} seed={args.seed}" + (" +antirepeat" if ar else "")) if sampling else "greedy"
+    mode = (
+        (f"sample T={args.temp}" + (f" tsched={args.tsched}" if tsched else "") + f" seed={args.seed}"
+         + (" +antirepeat" if ar else "") + (f" opener={args.opener}" if args.opener else ""))
+        if sampling else "greedy"
+    )
     print(
         f"[eval_db] checkpoint={args.checkpoint} targets={len(targets)} (held-out TEST) dev={vm.DEV} mode={mode}",
         flush=True,
@@ -290,7 +306,8 @@ def main() -> None:
     t0 = time.time()
     games_data: list[dict[str, Any]] = []
     for i, secret in enumerate(targets, 1):
-        cap = play_capture(model, secret, temperature=args.temp, gen=gen, antirepeat=ar)
+        cap = play_capture(model, secret, temperature=args.temp, gen=gen, antirepeat=ar,
+                           opener=args.opener, tsched=tsched)
         cap["target"] = secret
         cap["traj"] = consistent_trajectory(cap["records"], answers)
         games_data.append(cap)
