@@ -5,7 +5,7 @@ description = "Train a small language model from scratch with RL (GRPO) to play 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "torch>=2.2",
+    "torch>=2.13.0",
     "numpy>=1.26",
     "tensorboard>=2.16",
 ]
